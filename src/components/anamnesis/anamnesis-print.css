@@ -1,0 +1,301 @@
+/* Visualização na tela */
+.anamnesis-print-view {
+  min-height: 100vh;
+  background: #e2e8f0;
+}
+
+.print-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1.5rem;
+  background: white;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.06);
+}
+
+.print-page-wrap {
+  max-width: 210mm;
+  margin: 1rem auto 2rem;
+  padding: 0 0.5rem;
+}
+
+/* Documento */
+.anamnesis-print-doc {
+  background: white;
+  color: #1e293b;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 8.5pt;
+  line-height: 1.35;
+  padding: 10mm 12mm;
+  box-shadow: 0 4px 24px rgb(0 0 0 / 0.08);
+}
+
+.print-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+  border-bottom: 2px solid #334155;
+}
+
+.print-clinic {
+  font-size: 7.5pt;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+  margin: 0 0 2px;
+}
+
+.print-title {
+  font-size: 13pt;
+  font-weight: 700;
+  margin: 0;
+  color: #0f172a;
+}
+
+.print-meta {
+  text-align: right;
+  font-size: 7.5pt;
+  color: #64748b;
+}
+
+.print-meta p {
+  margin: 0;
+}
+
+.print-patient-bar {
+  display: grid;
+  grid-template-columns: 2fr 1fr 0.6fr 1fr;
+  gap: 4px 10px;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+}
+
+.print-section {
+  margin-bottom: 7px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.print-section-title {
+  font-size: 9pt;
+  font-weight: 700;
+  color: #1e40af;
+  margin: 0 0 4px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid #cbd5e1;
+}
+
+.print-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 12px;
+}
+
+.print-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 2px 10px;
+}
+
+.print-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px 8px;
+}
+
+.print-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+}
+
+.print-label {
+  font-size: 6.5pt;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.print-value {
+  font-size: 8pt;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+.print-block {
+  margin-top: 3px;
+}
+
+.print-text {
+  margin: 1px 0 0;
+  font-size: 8pt;
+  white-space: pre-wrap;
+}
+
+.print-tristate-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 7.5pt;
+  margin-bottom: 4px;
+}
+
+.print-tristate-table th,
+.print-tristate-table td {
+  border: 1px solid #cbd5e1;
+  padding: 2px 4px;
+  text-align: left;
+}
+
+.print-tristate-table th:not(:first-child),
+.print-tristate-table td.print-check {
+  width: 36px;
+  text-align: center;
+  font-size: 9pt;
+}
+
+.print-tristate-table th {
+  background: #f1f5f9;
+  font-weight: 700;
+  font-size: 7pt;
+  text-align: center;
+}
+
+.print-tristate-table th:first-child {
+  text-align: left;
+}
+
+.print-questions {
+  columns: 2;
+  column-gap: 16px;
+  font-size: 7.5pt;
+}
+
+.print-q-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 1px 0;
+  break-inside: avoid;
+}
+
+.print-q-row strong {
+  flex-shrink: 0;
+  font-weight: 600;
+  color: #334155;
+}
+
+.print-table {
+  width: 100%;
+  margin-top: 4px;
+  border-collapse: collapse;
+  font-size: 7.5pt;
+}
+
+.print-table th,
+.print-table td {
+  border: 1px solid #cbd5e1;
+  padding: 2px 5px;
+  text-align: left;
+}
+
+.print-table th {
+  background: #f1f5f9;
+  font-weight: 600;
+  font-size: 7pt;
+}
+
+.print-consent {
+  font-size: 7.5pt;
+  color: #475569;
+  margin: 0 0 12px;
+  line-height: 1.4;
+}
+
+.print-signature-block {
+  display: flex;
+  gap: 40px;
+  margin-top: 16px;
+}
+
+.print-signature-line {
+  flex: 1;
+  text-align: center;
+}
+
+.print-signature-line span {
+  display: block;
+  min-height: 14px;
+  font-size: 9pt;
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.print-line {
+  border-bottom: 1px solid #334155;
+  height: 1px;
+}
+
+.print-signature-line p {
+  margin: 4px 0 0;
+  font-size: 7pt;
+  color: #64748b;
+}
+
+.print-signature-date {
+  max-width: 120px;
+  flex: 0 0 120px;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
+  html,
+  body {
+    background: white !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .anamnesis-print-view {
+    background: white;
+  }
+
+  .print-page-wrap {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+
+  .anamnesis-print-doc {
+    box-shadow: none;
+    padding: 0;
+    font-size: 8pt;
+  }
+
+  .print-section {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+}

@@ -1,0 +1,300 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Clinic {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  phone     String?
+  email     String?
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users           User[]
+  patients        Patient[]
+  professionals   Professional[]
+  appointments    Appointment[]
+  treatments      Treatment[]
+  budgets         Budget[]
+  receivables     Receivable[]
+  payables        Payable[]
+  cashMovements   CashMovement[]
+  commissions     Commission[]
+  inventoryItems  InventoryItem[]
+  documents       Document[]
+  prescriptions   Prescription[]
+  settings        ClinicSetting?
+}
+
+model User {
+  id           String   @id @default(cuid())
+  clinicId     String
+  name         String
+  email        String
+  passwordHash String
+  role         String   @default("recepcao")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@unique([clinicId, email])
+}
+
+model Professional {
+  id        String   @id @default(cuid())
+  clinicId  String
+  name      String
+  cro       String?
+  specialty String?
+  phone     String?
+  email     String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  clinic       Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+  treatments   Treatment[]
+  commissions  Commission[]
+  budgets      Budget[]
+}
+
+model Patient {
+  id          String    @id @default(cuid())
+  clinicId    String
+  name        String
+  cpf         String?
+  birthDate   DateTime?
+  phone       String?
+  email       String?
+  address     String?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  clinic        Clinic         @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  anamnesis     Anamnesis?
+  medicalNotes  MedicalNote[]
+  odontogram    OdontogramEntry[]
+  appointments  Appointment[]
+  treatments    Treatment[]
+  budgets       Budget[]
+  receivables   Receivable[]
+  prescriptions Prescription[]
+  documents     Document[]
+}
+
+model Anamnesis {
+  id              String   @id @default(cuid())
+  patientId       String   @unique
+  allergies       String?
+  medications     String?
+  chronicDiseases String?
+  surgeries       String?
+  habits          String?
+  observations    String?
+  updatedAt       DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+}
+
+model MedicalNote {
+  id        String   @id @default(cuid())
+  patientId String
+  title     String
+  content   String
+  createdAt DateTime @default(now())
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+}
+
+model OdontogramEntry {
+  id        String   @id @default(cuid())
+  patientId String
+  tooth     String
+  surface   String?
+  status    String
+  notes     String?
+  createdAt DateTime @default(now())
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+}
+
+model Appointment {
+  id             String   @id @default(cuid())
+  clinicId       String
+  patientId      String
+  professionalId String?
+  startsAt       DateTime
+  endsAt         DateTime
+  status         String   @default("agendado")
+  type           String?
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  clinic       Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patient      Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  professional Professional? @relation(fields: [professionalId], references: [id])
+}
+
+model Treatment {
+  id             String    @id @default(cuid())
+  clinicId       String
+  patientId      String
+  professionalId String?
+  name           String
+  tooth          String?
+  status         String    @default("planejado")
+  price          Float     @default(0)
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  notes          String?
+  createdAt      DateTime  @default(now())
+
+  clinic       Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patient      Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  professional Professional? @relation(fields: [professionalId], references: [id])
+}
+
+model Budget {
+  id             String   @id @default(cuid())
+  clinicId       String
+  patientId      String
+  professionalId String?
+  status         String   @default("rascunho")
+  total          Float    @default(0)
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  clinic       Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patient      Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  professional Professional? @relation(fields: [professionalId], references: [id])
+  items        BudgetItem[]
+}
+
+model BudgetItem {
+  id          String @id @default(cuid())
+  budgetId    String
+  description String
+  quantity    Int    @default(1)
+  unitPrice   Float  @default(0)
+
+  budget Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+}
+
+model Receivable {
+  id          String    @id @default(cuid())
+  clinicId    String
+  patientId   String?
+  description String
+  amount      Float
+  dueDate     DateTime
+  paidAt      DateTime?
+  status      String    @default("aberto")
+  method      String?
+  createdAt   DateTime  @default(now())
+
+  clinic  Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patient Patient? @relation(fields: [patientId], references: [id])
+}
+
+model Payable {
+  id          String    @id @default(cuid())
+  clinicId    String
+  description String
+  supplier    String?
+  amount      Float
+  dueDate     DateTime
+  paidAt      DateTime?
+  status      String    @default("aberto")
+  createdAt   DateTime  @default(now())
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+}
+
+model CashMovement {
+  id          String   @id @default(cuid())
+  clinicId    String
+  type        String
+  description String
+  amount      Float
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+}
+
+model Commission {
+  id             String    @id @default(cuid())
+  clinicId       String
+  professionalId String
+  description    String
+  amount         Float
+  percent        Float     @default(0)
+  status         String    @default("pendente")
+  paidAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  clinic       Clinic       @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+}
+
+model InventoryItem {
+  id        String   @id @default(cuid())
+  clinicId  String
+  name      String
+  sku       String?
+  quantity  Int      @default(0)
+  minStock  Int      @default(0)
+  unit      String   @default("un")
+  cost      Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+}
+
+model Prescription {
+  id        String   @id @default(cuid())
+  clinicId  String
+  patientId String
+  content   String
+  createdAt DateTime @default(now())
+
+  clinic  Clinic  @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+}
+
+model Document {
+  id        String   @id @default(cuid())
+  clinicId  String
+  patientId String?
+  title     String
+  type      String
+  content   String?
+  createdAt DateTime @default(now())
+
+  clinic  Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patient Patient? @relation(fields: [patientId], references: [id])
+}
+
+model ClinicSetting {
+  id              String @id @default(cuid())
+  clinicId        String @unique
+  timezone        String @default("America/Sao_Paulo")
+  currency        String @default("BRL")
+  appointmentMins Int    @default(30)
+  workStart       String @default("08:00")
+  workEnd         String @default("18:00")
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+}
