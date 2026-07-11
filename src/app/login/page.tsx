@@ -37,10 +37,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-900 via-brand-700 to-sky-500 p-4">
+    <div className="relative flex min-h-screen items-center bg-[url('/images/login-bg.png')] bg-cover bg-left bg-no-repeat p-6 md:pl-12 lg:pl-20">
       <form
         onSubmit={onSubmit}
-        className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl"
+        className="relative z-10 w-full max-w-md rounded-2xl bg-white/95 p-8 shadow-2xl backdrop-blur-sm"
       >
         <div className="mb-6 flex flex-col items-center text-center">
           <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-600 text-white">
