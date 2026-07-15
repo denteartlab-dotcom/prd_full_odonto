@@ -17,6 +17,7 @@ import { PatientBudgetsTab } from "./budgets";
 import { PatientFinancialTab } from "./financial";
 import { PatientConsultationsTab } from "./consultations";
 import { PatientDocumentsTab } from "./documents";
+import { PatientPrescriptionsTab } from "./prescriptions";
 import { ProfileCard, ProfileField, ProfileLinkButton } from "./ProfileCard";
 
 function money(value: number) {
@@ -238,6 +239,10 @@ export function PatientTabPanels({
         userName={userName}
       />
     );
+  }
+
+  if (tab === "receitas") {
+    return <PatientPrescriptionsTab patient={patient} />;
   }
 
   if (tab === "historico") {

@@ -13,6 +13,7 @@ export type PatientProfileTab =
   | "financeiro"
   | "consultas"
   | "documentos"
+  | "receitas"
   | "historico"
   | "imagens"
   | "comunicacoes";

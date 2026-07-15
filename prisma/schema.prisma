@@ -34,15 +34,16 @@ model Clinic {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  clinicId     String
-  name         String
-  email        String
-  passwordHash String
-  role         String   @default("recepcao")
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id              String   @id @default(cuid())
+  clinicId        String
+  name            String
+  email           String
+  passwordHash    String
+  role            String   @default("recepcao")
+  active          Boolean  @default(true)
+  memedExternalId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
 
@@ -50,21 +51,24 @@ model User {
 }
 
 model Professional {
-  id        String   @id @default(cuid())
-  clinicId  String
-  name      String
-  cro       String?
-  specialty String?
-  phone     String?
-  email     String?
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
+  id              String   @id @default(cuid())
+  clinicId        String
+  name            String
+  cro             String?
+  cpf             String?
+  specialty       String?
+  phone           String?
+  email           String?
+  active          Boolean  @default(true)
+  memedExternalId String?
+  createdAt       DateTime @default(now())
 
-  clinic       Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
-  appointments Appointment[]
-  treatments   Treatment[]
-  commissions  Commission[]
-  budgets      Budget[]
+  clinic        Clinic         @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  appointments  Appointment[]
+  treatments    Treatment[]
+  commissions   Commission[]
+  budgets       Budget[]
+  prescriptions Prescription[]
 }
 
 model Patient {
@@ -264,14 +268,22 @@ model InventoryItem {
 }
 
 model Prescription {
-  id        String   @id @default(cuid())
-  clinicId  String
-  patientId String
-  content   String
-  createdAt DateTime @default(now())
+  id              String   @id @default(cuid())
+  clinicId        String
+  patientId       String
+  professionalId  String?
+  content         String
+  memedId         String?  @unique
+  status          String   @default("ativa")
+  pdfUrl          String?
+  digitalLink     String?
+  medicationsJson String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  clinic  Clinic  @relation(fields: [clinicId], references: [id], onDelete: Cascade)
-  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  clinic       Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patient      Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  professional Professional? @relation(fields: [professionalId], references: [id])
 }
 
 model Document {

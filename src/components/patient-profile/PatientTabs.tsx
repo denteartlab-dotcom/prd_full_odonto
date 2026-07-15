@@ -12,6 +12,7 @@ const TABS: { id: PatientProfileTab; label: string }[] = [
   { id: "financeiro", label: "Financeiro" },
   { id: "consultas", label: "Consultas" },
   { id: "documentos", label: "Documentos" },
+  { id: "receitas", label: "Receitas" },
   { id: "historico", label: "Histórico" },
   { id: "imagens", label: "Imagens" },
   { id: "comunicacoes", label: "Comunicações" },

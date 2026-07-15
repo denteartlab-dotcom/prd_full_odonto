@@ -19,6 +19,7 @@ const VALID_TABS = new Set<PatientProfileTab>([
   "financeiro",
   "consultas",
   "documentos",
+  "receitas",
   "historico",
   "imagens",
   "comunicacoes",
