@@ -13,10 +13,7 @@ import { AlertsCard } from "./AlertsCard";
 import { BarChart, ChartCard, DonutChart } from "./ChartCard";
 import { CommissionsList } from "./CommissionsList";
 import { DashboardHeader } from "./DashboardHeader";
-import { FinancialCard } from "./FinancialCard";
 import { KPIWidget } from "./KPIWidget";
-import { OdontogramControl } from "./OdontogramControl";
-import { ReceivablesTable } from "./ReceivablesTable";
 import { RecentActivity } from "./RecentActivity";
 import { ScheduleCard } from "./ScheduleCard";
 
@@ -114,21 +111,6 @@ export function DashboardView({
       </div>
 
       <div className="mb-5 grid gap-4 xl:grid-cols-2">
-        <OdontogramControl
-          stats={data.odontoStats}
-          upper={data.odontogramUpper}
-          lower={data.odontogramLower}
-        />
-        <ReceivablesTable items={data.contasReceber} />
-      </div>
-
-      <div className="mb-5 grid gap-4 xl:grid-cols-3">
-        <FinancialCard
-          receitas={data.resumoFinanceiro.receitas}
-          despesas={data.resumoFinanceiro.despesas}
-          lucroLiquido={data.resumoFinanceiro.lucroLiquido}
-          margem={data.resumoFinanceiro.margem}
-        />
         <CommissionsList items={data.comissoes} />
         <AlertsCard items={data.alertas} />
       </div>
