@@ -1,6 +1,5 @@
 import type { Patient } from "@prisma/client";
 import type { PatientFormState } from "@/components/patients/patient-form-types";
-import { formToProfile } from "@/lib/patient-profile-mock";
 import type { PatientProfile } from "@/lib/patient-profile-types";
 import type { ListPatient, PatientStatus } from "@/lib/patients-list-mock";
 
@@ -156,18 +155,66 @@ export function prismaPatientToProfile(row: Patient): PatientProfile {
 }
 
 export function formStateToPrismaCreate(form: PatientFormState) {
-  const tempId = "temp";
-  const profile = formToProfile(form, tempId);
-  // Avoid mock clinical defaults for brand-new patients
-  const clean: PatientProfile = {
-    ...profile,
+  const now = new Date().toISOString().slice(0, 10);
+  const name = form.nomeCompleto.trim();
+  const parts = name.split(" ").filter(Boolean);
+  const initials =
+    parts
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase())
+      .join("") || "PA";
+
+  let birthDate = now;
+  if (form.dataNascimento.includes("/")) {
+    const [d, m, y] = form.dataNascimento.split("/");
+    if (d && m && y && y.length === 4) {
+      birthDate = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+    }
+  } else if (/^\d{4}-\d{2}-\d{2}$/.test(form.dataNascimento.trim())) {
+    birthDate = form.dataNascimento.trim();
+  }
+
+  const profile: PatientProfile = {
+    id: "temp",
+    name,
+    cpf: form.cpf.trim(),
+    phone: form.telefonePrincipal.trim(),
+    email: form.email.trim(),
+    city: form.cidade.trim(),
+    state: form.estado.trim(),
+    lastVisit: null,
+    status: "ativo",
+    insurance: form.convenio || "Particular",
+    financialResponsible: form.responsavelFinanceiro || "Próprio paciente",
+    birthDate,
+    createdAt: now,
+    initials,
+    avatarColor: "from-indigo-500 to-violet-600",
+    profession: form.profissao.trim() || undefined,
+    notes: form.observacoesInternas.trim() || undefined,
+    nomeSocial: form.nomeSocial.trim() || undefined,
+    rg: form.rg.trim() || undefined,
+    orgaoExpedidor: form.orgaoExpedidor.trim() || undefined,
+    sexo: form.sexo || undefined,
+    estadoCivil: form.estadoCivil || undefined,
+    telefoneSecundario: form.telefoneSecundario.trim() || undefined,
+    plano: form.plano.trim() || undefined,
+    carteirinha: form.carteirinha.trim() || undefined,
+    telefoneResponsavel: form.telefoneResponsavel.trim() || undefined,
+    cep: form.cep.trim() || undefined,
+    endereco: form.endereco.trim() || undefined,
+    numero: form.numero.trim() || undefined,
+    complemento: form.complemento.trim() || undefined,
+    bairro: form.bairro.trim() || undefined,
+    comoConheceu: form.comoConheceu.trim() || undefined,
+    observacoesInternas: form.observacoesInternas.trim() || undefined,
     anamnesis: {
       updatedAt: new Date().toISOString(),
       answers: [],
       allergies: "",
       medications: "",
       diseases: "",
-      observations: form.observacoes || "",
+      observations: form.observacoes.trim() || "",
     },
     upcomingAppointments: [],
     appointmentHistory: [],
@@ -175,18 +222,14 @@ export function formStateToPrismaCreate(form: PatientFormState) {
     documents: [],
     budgets: [],
     dentalBudgets: [],
-    financial: {
-      charges: [],
-      payments: [],
-      timeline: [],
-    },
+    financial: { charges: [], payments: [], timeline: [] },
     consultations: [],
     receivables: [],
     payments: [],
     history: [
       {
         id: `h-create-${Date.now()}`,
-        date: new Date().toISOString().slice(0, 10),
+        date: now,
         title: "Paciente cadastrado",
         description: "Cadastro realizado na clínica",
       },
@@ -194,7 +237,8 @@ export function formStateToPrismaCreate(form: PatientFormState) {
     images: [],
     communications: [],
   };
-  return { profile: clean, data: profileToPrismaData(clean) };
+
+  return { profile, data: profileToPrismaData(profile) };
 }
 
 export function mergeProfilePatch(

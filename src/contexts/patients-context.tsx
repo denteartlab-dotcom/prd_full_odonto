@@ -86,11 +86,32 @@ export function PatientsProvider({ children }: { children: ReactNode }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ form }),
     });
-    const data = (await res.json()) as { patient?: PatientProfile; error?: string };
-    if (!res.ok || !data.patient) {
-      throw new Error(data.error || "Não foi possível salvar o paciente.");
+
+    const raw = await res.text();
+    let data: { patient?: PatientProfile; error?: string } = {};
+    if (raw.trim()) {
+      try {
+        data = JSON.parse(raw) as { patient?: PatientProfile; error?: string };
+      } catch {
+        throw new Error(
+          `Resposta inválida do servidor (${res.status}). Tente novamente.`
+        );
+      }
     }
-    setPatients((list) => [data.patient!, ...list.filter((p) => p.id !== data.patient!.id)]);
+
+    if (!res.ok || !data.patient) {
+      throw new Error(
+        data.error ||
+          (res.status === 401
+            ? "Sessão expirada. Faça login novamente."
+            : `Não foi possível salvar o paciente (${res.status}).`)
+      );
+    }
+
+    setPatients((list) => [
+      data.patient!,
+      ...list.filter((p) => p.id !== data.patient!.id),
+    ]);
     return data.patient.id;
   }, []);
 

@@ -5,7 +5,6 @@ import {
   formStateToPrismaCreate,
   prismaPatientToProfile,
   profileToPrismaData,
-  mergeProfilePatch,
 } from "@/lib/patient-persistence";
 import type { PatientFormState } from "@/components/patients/patient-form-types";
 import type { PatientProfile } from "@/lib/patient-profile-types";
@@ -14,59 +13,76 @@ export async function GET() {
   const session = await requireApiSession();
   if (!isSession(session)) return session;
 
-  const rows = await prisma.patient.findMany({
-    where: { clinicId: session.clinicId },
-    orderBy: { name: "asc" },
-  });
+  try {
+    const rows = await prisma.patient.findMany({
+      where: { clinicId: session.clinicId },
+      orderBy: { name: "asc" },
+    });
 
-  return NextResponse.json({
-    patients: rows.map(prismaPatientToProfile),
-  });
+    return NextResponse.json({
+      patients: rows.map(prismaPatientToProfile),
+    });
+  } catch (err) {
+    console.error("[GET /api/pacientes]", err);
+    return jsonError("Falha ao carregar pacientes.", 500);
+  }
 }
 
 export async function POST(req: Request) {
   const session = await requireApiSession();
   if (!isSession(session)) return session;
 
-  const body = (await req.json()) as {
-    form?: PatientFormState;
-    profile?: PatientProfile;
-  };
+  try {
+    let body: { form?: PatientFormState; profile?: PatientProfile };
+    try {
+      body = (await req.json()) as {
+        form?: PatientFormState;
+        profile?: PatientProfile;
+      };
+    } catch {
+      return jsonError("JSON inválido no corpo da requisição.");
+    }
 
-  let data;
-  let profile: PatientProfile;
+    let data;
+    let profile: PatientProfile;
 
-  if (body.form) {
-    const created = formStateToPrismaCreate(body.form);
-    data = created.data;
-    profile = created.profile;
-  } else if (body.profile?.name?.trim()) {
-    profile = body.profile;
-    data = profileToPrismaData(profile);
-  } else {
-    return jsonError("Dados do paciente inválidos.");
+    if (body.form) {
+      if (!body.form.nomeCompleto?.trim()) {
+        return jsonError("Nome completo é obrigatório.");
+      }
+      const created = formStateToPrismaCreate(body.form);
+      data = created.data;
+      profile = created.profile;
+    } else if (body.profile?.name?.trim()) {
+      profile = body.profile;
+      data = profileToPrismaData(profile);
+    } else {
+      return jsonError("Dados do paciente inválidos.");
+    }
+
+    const row = await prisma.patient.create({
+      data: {
+        clinicId: session.clinicId,
+        ...data,
+      },
+    });
+
+    const finalProfile: PatientProfile = { ...profile, id: row.id };
+    const updated = await prisma.patient.update({
+      where: { id: row.id },
+      data: profileToPrismaData(finalProfile),
+    });
+
+    return NextResponse.json(
+      { patient: prismaPatientToProfile(updated) },
+      { status: 201 }
+    );
+  } catch (err) {
+    console.error("[POST /api/pacientes]", err);
+    const message =
+      err instanceof Error && err.message
+        ? err.message
+        : "Não foi possível salvar o paciente.";
+    return jsonError(message, 500);
   }
-
-  const row = await prisma.patient.create({
-    data: {
-      clinicId: session.clinicId,
-      ...data,
-    },
-  });
-
-  const saved = prismaPatientToProfile({
-    ...row,
-    notes: JSON.stringify({
-      v: 1,
-      profile: { ...profile, id: row.id },
-    }),
-  });
-
-  // Re-save with correct id inside notes
-  await prisma.patient.update({
-    where: { id: row.id },
-    data: profileToPrismaData({ ...profile, id: row.id }),
-  });
-
-  return NextResponse.json({ patient: { ...saved, id: row.id } }, { status: 201 });
 }
