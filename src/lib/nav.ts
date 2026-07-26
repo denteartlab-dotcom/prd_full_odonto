@@ -17,6 +17,7 @@ import {
   Shield,
   MessageCircle,
   Mail,
+  Wallet,
 } from "lucide-react";
 
 export type NavItem = {
@@ -47,6 +48,7 @@ export const NAV_GROUPS: NavGroup[] = [
     id: "financeiro",
     label: "Financeiro",
     items: [
+      { href: "/app/financeiro", label: "Financeiro Geral", icon: Wallet, module: "finance-general" },
       { href: "/app/orcamentos", label: "Orçamentos", icon: Receipt, module: "budgets" },
       { href: "/app/receitas", label: "Contas a receber", icon: ArrowDownCircle, module: "accounts-receivable" },
       { href: "/app/despesas", label: "Contas a pagar", icon: ArrowUpCircle, module: "accounts-payable" },
