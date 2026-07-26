@@ -16,6 +16,7 @@ export type Professional = {
 export type ScheduleAppointment = {
   id: string;
   professionalId: string;
+  patientId?: string;
   patient: string;
   initials: string;
   procedure: string;

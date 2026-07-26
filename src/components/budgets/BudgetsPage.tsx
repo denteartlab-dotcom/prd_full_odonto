@@ -101,6 +101,44 @@ export function BudgetsPage({
         dentalBudgets: next,
         budgets: dentalBudgetsToSimple(next),
       });
+
+      // Espelha no Prisma Budget (lista global /app/orcamentos)
+      void (async () => {
+        try {
+          const res = await fetch(`/api/budgets?patientId=${patient.id}`, {
+            cache: "no-store",
+          });
+          const data = (await res.json()) as {
+            budgets?: { id: string; dental?: DentalBudget | null }[];
+          };
+          const existing = data.budgets || [];
+          for (const budget of next) {
+            const match = existing.find(
+              (b) => b.id === budget.id || b.dental?.id === budget.id
+            );
+            if (match) {
+              await fetch(`/api/budgets/${match.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ dental: budget, status: budget.status }),
+              });
+            } else {
+              await fetch("/api/budgets", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  patientId: patient.id,
+                  dental: budget,
+                  status: budget.status,
+                }),
+              });
+            }
+          }
+        } catch {
+          /* patient notes already saved */
+        }
+      })();
+
       setSaveState("saved");
     },
     [patient, updatePatient]

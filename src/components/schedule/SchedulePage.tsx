@@ -9,12 +9,11 @@ import {
   getWorkWeekDates,
   CONTROLE_END_HOUR,
   CONTROLE_START_HOUR,
-  isActiveConsultation,
-  professionalsMock,
   timeToMinutes,
   type ScheduleAppointment,
 } from "@/lib/schedule-mock";
 import { useSchedule } from "@/contexts/schedule-context";
+import { usePatients } from "@/contexts/patients-context";
 import { NewAppointmentModal } from "./NewAppointmentModal";
 import { AgendaFilterDrawer } from "./controle/AgendaFilterDrawer";
 import { AgendaTabs, type AgendaTab } from "./controle/AgendaTabs";
@@ -51,13 +50,18 @@ export function SchedulePage({
 }) {
   const {
     appointments,
-    setAppointments,
+    professionals,
+    activeConsultations,
     showToast,
     cancelAppointment,
     completeAppointment,
     startConsultation: startConsultationGlobal,
     finishConsultation,
+    createAppointment,
+    updateAppointment,
+    refreshSchedule,
   } = useSchedule();
+  const { listPatients } = usePatients();
 
   const [selectedDate, setSelectedDate] = useState(initialDate);
   const [stripStart, setStripStart] = useState(() => addDays(initialDate, -3));
@@ -79,8 +83,8 @@ export function SchedulePage({
   const workWeek = useMemo(() => getWorkWeekDates(selectedDate), [selectedDate]);
 
   const selectedProfessional = useMemo(
-    () => professionalsMock.find((p) => p.id === selectedProfessionalId) || null,
-    [selectedProfessionalId]
+    () => professionals.find((p) => p.id === selectedProfessionalId) || null,
+    [selectedProfessionalId, professionals]
   );
 
   const scheduleLabel = useMemo(() => {
@@ -100,11 +104,6 @@ export function SchedulePage({
       .filter((a) => !q || a.patient.toLowerCase().includes(q));
   }, [appointments, selectedDate, workWeek, viewMode, selectedProfessionalId, statusFilter, search]);
 
-  const activeConsultations = useMemo(
-    () => appointments.filter(isActiveConsultation),
-    [appointments]
-  );
-
   const activeProfessionalIds = useMemo(
     () => [...new Set(activeConsultations.map((a) => a.professionalId))],
     [activeConsultations]
@@ -122,7 +121,7 @@ export function SchedulePage({
   const consultationNotifications = useMemo(
     () =>
       activeConsultations.map((a) => {
-        const pro = professionalsMock.find((p) => p.id === a.professionalId);
+        const pro = professionals.find((p) => p.id === a.professionalId);
         return {
           id: a.id,
           professionalId: a.professionalId,
@@ -132,7 +131,7 @@ export function SchedulePage({
           startedAt: a.consultationStartedAt!,
         };
       }),
-    [activeConsultations]
+    [activeConsultations, professionals]
   );
 
   function handleStartConsultation(id: string) {
@@ -144,7 +143,7 @@ export function SchedulePage({
 
   function openNew(slot?: { date: string; start: string; end: string }) {
     if (slot) {
-      const proId = selectedProfessionalId || professionalsMock[0]?.id || "";
+      const proId = selectedProfessionalId || professionals[0]?.id || "";
       const conflicts = findScheduleConflicts(appointments, {
         professionalId: proId,
         date: slot.date,
@@ -175,8 +174,9 @@ export function SchedulePage({
     setActiveTab(tab);
   }
 
-  function saveAppointment(data: {
+  async function saveAppointment(data: {
     id?: string;
+    patientId?: string;
     patient: string;
     professionalId: string;
     procedure: string;
@@ -205,31 +205,26 @@ export function SchedulePage({
       return;
     }
 
-    if (data.id) {
-      setAppointments((list) =>
-        list.map((a) =>
-          a.id === data.id ? { ...a, ...data, initials: initials || a.initials } : a
-        )
-      );
-      showToast("Agendamento atualizado (mock).");
-    } else {
-      setAppointments((list) => [
-        ...list,
-        {
-          id: `a-${Date.now()}`,
-          professionalId: data.professionalId,
-          patient: data.patient,
-          initials: initials || "PA",
-          procedure: data.procedure,
-          date: data.date,
-          start: data.start,
-          end: data.end,
-          status: data.status,
-          notes: data.notes,
-        },
-      ]);
-      showToast("Agendamento criado (mock).");
+    const saved = await createAppointment({
+      id: data.id,
+      patientId: data.patientId,
+      professionalId: data.professionalId,
+      patient: data.patient,
+      initials: initials || "PA",
+      procedure: data.procedure,
+      date: data.date,
+      start: data.start,
+      end: data.end,
+      status: data.status,
+      notes: data.notes,
+    });
+
+    if (!saved) {
+      showToast("Não foi possível salvar o agendamento.");
+      return;
     }
+
+    showToast(data.id ? "Agendamento atualizado." : "Agendamento criado.");
     setModalOpen(false);
     setEditing(null);
     setSlotDraft(null);
@@ -240,13 +235,11 @@ export function SchedulePage({
     id: string,
     payload: { date: string; start: string; end: string }
   ) {
-    setAppointments((list) =>
-      list.map((a) =>
-        a.id === id
-          ? { ...a, date: payload.date, start: payload.start, end: payload.end }
-          : a
-      )
-    );
+    updateAppointment(id, {
+      date: payload.date,
+      start: payload.start,
+      end: payload.end,
+    });
     setSelectedDate(payload.date);
     showToast(`Reagendado para ${payload.start}–${payload.end}`);
   }
@@ -358,7 +351,7 @@ export function SchedulePage({
         {activeTab === "profissional" || activeTab === "filtrar" ? (
           <>
             <ProfessionalSidebar
-              professionals={professionalsMock}
+              professionals={professionals}
               selectedId={selectedProfessionalId}
               activeProfessionalIds={activeProfessionalIds}
               onSelect={setSelectedProfessionalId}
@@ -371,7 +364,9 @@ export function SchedulePage({
                 activeConsultation={headerActiveConsultation}
                 onViewModeChange={setViewMode}
                 onFilter={() => setFilterOpen(true)}
-                onRefresh={() => showToast("Agenda atualizada (mock).")}
+                onRefresh={() => {
+                  void refreshSchedule().then(() => showToast("Agenda atualizada."));
+                }}
                 onFinishConsultation={finishConsultation}
               />
               {viewMode === "semana" ? (
@@ -454,10 +449,13 @@ export function SchedulePage({
       <NewAppointmentModal
         open={modalOpen}
         appointments={appointments}
+        patients={listPatients.map((p) => ({ id: p.id, name: p.name }))}
+        professionals={professionals}
         initial={
           editing
             ? {
                 id: editing.id,
+                patientId: editing.patientId,
                 patient: editing.patient,
                 professionalId: editing.professionalId,
                 procedure: editing.procedure,
@@ -471,7 +469,7 @@ export function SchedulePage({
                 date: slotDraft?.date || selectedDate,
                 start: slotDraft?.start,
                 end: slotDraft?.end,
-                professionalId: selectedProfessionalId || professionalsMock[0]?.id,
+                professionalId: selectedProfessionalId || professionals[0]?.id,
               }
         }
         onClose={() => {

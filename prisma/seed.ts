@@ -62,6 +62,32 @@ async function main() {
     },
   });
 
+  await prisma.professional.createMany({
+    data: [
+      {
+        clinicId: clinic.id,
+        name: "Dra. Ana Silva",
+        cro: "CRO-SP 23456",
+        specialty: "Clínico geral",
+        phone: "(11) 99999-2222",
+      },
+      {
+        clinicId: clinic.id,
+        name: "Dra. Juliana Costa",
+        cro: "CRO-SP 34567",
+        specialty: "Endodontista",
+        phone: "(11) 99999-3333",
+      },
+      {
+        clinicId: clinic.id,
+        name: "Dr. Rafael Lima",
+        cro: "CRO-SP 45678",
+        specialty: "Implantodontista",
+        phone: "(11) 99999-4444",
+      },
+    ],
+  });
+
   const paciente = await prisma.patient.create({
     data: {
       clinicId: clinic.id,

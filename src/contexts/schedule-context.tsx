@@ -11,25 +11,30 @@ import {
 } from "react";
 import {
   canStartConsultation,
-  createAppointmentsMock,
   formatConsultationDuration,
   getConsultationElapsedSeconds,
   isActiveConsultation,
   professionalsMock,
   toIsoDate,
+  type Professional,
   type ScheduleAppointment,
 } from "@/lib/schedule-mock";
 
-const STORAGE_KEY = "odonto-schedule-v1";
 const MINIMIZED_STORAGE_KEY = "odonto-consultation-widget-minimized";
 
 type ScheduleContextValue = {
   appointments: ScheduleAppointment[];
+  professionals: Professional[];
   activeConsultations: ScheduleAppointment[];
   consultationMinimized: boolean;
+  hydrated: boolean;
   toast: string;
   showToast: (message: string) => void;
   setAppointments: React.Dispatch<React.SetStateAction<ScheduleAppointment[]>>;
+  refreshSchedule: () => Promise<void>;
+  createAppointment: (
+    data: Omit<ScheduleAppointment, "id"> & { id?: string; patientId?: string }
+  ) => Promise<ScheduleAppointment | null>;
   updateAppointment: (id: string, patch: Partial<ScheduleAppointment>) => void;
   cancelAppointment: (id: string) => void;
   completeAppointment: (id: string) => void;
@@ -41,44 +46,51 @@ type ScheduleContextValue = {
 
 const ScheduleContext = createContext<ScheduleContextValue | null>(null);
 
-function loadStoredAppointments(): ScheduleAppointment[] | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as { appointments?: ScheduleAppointment[] };
-    return Array.isArray(parsed.appointments) ? parsed.appointments : null;
-  } catch {
-    return null;
-  }
-}
-
-function persistAppointments(appointments: ScheduleAppointment[]) {
-  if (typeof window === "undefined") return;
-  try {
-    sessionStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ appointments, updatedAt: Date.now() })
-    );
-  } catch {
-    /* ignore quota errors in mock */
-  }
+async function patchAppointmentApi(id: string, patch: Partial<ScheduleAppointment>) {
+  const res = await fetch(`/api/appointments/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) return null;
+  const data = (await res.json()) as { appointment: ScheduleAppointment };
+  return data.appointment;
 }
 
 export function ScheduleProvider({ children }: { children: ReactNode }) {
-  const [appointments, setAppointments] = useState<ScheduleAppointment[]>(() =>
-    createAppointmentsMock(toIsoDate(new Date()))
-  );
+  const [appointments, setAppointments] = useState<ScheduleAppointment[]>([]);
+  const [professionals, setProfessionals] = useState<Professional[]>(professionalsMock);
   const [toast, setToast] = useState("");
   const [consultationMinimized, setConsultationMinimizedState] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [uiReady, setUiReady] = useState(false);
 
-  useEffect(() => {
-    const stored = loadStoredAppointments();
-    if (stored) setAppointments(stored);
-    setHydrated(true);
+  const refreshSchedule = useCallback(async () => {
+    try {
+      const from = toIsoDate(new Date(Date.now() - 1000 * 60 * 60 * 24 * 30));
+      const to = toIsoDate(new Date(Date.now() + 1000 * 60 * 60 * 24 * 60));
+      const res = await fetch(`/api/appointments?from=${from}&to=${to}`, {
+        cache: "no-store",
+      });
+      if (!res.ok) throw new Error("Falha ao carregar agenda");
+      const data = (await res.json()) as {
+        appointments: ScheduleAppointment[];
+        professionals: Professional[];
+      };
+      setAppointments(Array.isArray(data.appointments) ? data.appointments : []);
+      if (Array.isArray(data.professionals) && data.professionals.length) {
+        setProfessionals(data.professionals);
+      }
+    } catch {
+      /* keep current state */
+    } finally {
+      setHydrated(true);
+    }
   }, []);
+
+  useEffect(() => {
+    void refreshSchedule();
+  }, [refreshSchedule]);
 
   useEffect(() => {
     try {
@@ -106,24 +118,49 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     setConsultationMinimizedState((v) => !v);
   }, []);
 
-  useEffect(() => {
-    if (!hydrated) return;
-    persistAppointments(appointments);
-  }, [appointments, hydrated]);
-
   const showToast = useCallback((message: string) => {
     setToast(message);
     window.setTimeout(() => setToast(""), 2500);
   }, []);
 
+  const createAppointment = useCallback(
+    async (
+      data: Omit<ScheduleAppointment, "id"> & { id?: string; patientId?: string }
+    ) => {
+      if (data.id) {
+        const updated = await patchAppointmentApi(data.id, data);
+        if (updated) {
+          setAppointments((list) => list.map((a) => (a.id === data.id ? updated : a)));
+          return updated;
+        }
+        return null;
+      }
+
+      const res = await fetch("/api/appointments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) return null;
+      const json = (await res.json()) as { appointment: ScheduleAppointment };
+      setAppointments((list) => [...list, json.appointment]);
+      return json.appointment;
+    },
+    []
+  );
+
   const updateAppointment = useCallback((id: string, patch: Partial<ScheduleAppointment>) => {
     setAppointments((list) => list.map((a) => (a.id === id ? { ...a, ...patch } : a)));
+    void patchAppointmentApi(id, patch).then((updated) => {
+      if (!updated) return;
+      setAppointments((list) => list.map((a) => (a.id === id ? updated : a)));
+    });
   }, []);
 
   const cancelAppointment = useCallback(
     (id: string) => {
       updateAppointment(id, { status: "cancelado" });
-      showToast("Agendamento cancelado (mock).");
+      showToast("Agendamento cancelado.");
     },
     [updateAppointment, showToast]
   );
@@ -131,7 +168,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
   const completeAppointment = useCallback(
     (id: string) => {
       updateAppointment(id, { status: "finalizado" });
-      showToast("Agendamento concluído (mock).");
+      showToast("Agendamento concluído.");
     },
     [updateAppointment, showToast]
   );
@@ -152,22 +189,19 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
         return false;
       }
 
-      const pro = professionalsMock.find((p) => p.id === current.professionalId);
+      const pro = professionals.find((p) => p.id === current.professionalId);
       const startedAt = new Date().toISOString();
 
-      setAppointments((list) =>
-        list.map((a) =>
-          a.id === id
-            ? { ...a, status: "em_andamento", consultationStartedAt: startedAt }
-            : a
-        )
-      );
+      updateAppointment(id, {
+        status: "em_andamento",
+        consultationStartedAt: startedAt,
+      });
       showToast(
         `Consulta iniciada — ${pro?.name || "Dentista"} foi avisado que ${current.patient} chegou.`
       );
       return true;
     },
-    [appointments, showToast]
+    [appointments, professionals, showToast, updateAppointment]
   );
 
   const finishConsultation = useCallback(
@@ -179,22 +213,14 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
       }
 
       const duration = getConsultationElapsedSeconds(current.consultationStartedAt);
-
-      setAppointments((list) =>
-        list.map((a) =>
-          a.id === id
-            ? {
-                ...a,
-                status: "finalizado",
-                consultationDurationSeconds: duration,
-              }
-            : a
-        )
-      );
+      updateAppointment(id, {
+        status: "finalizado",
+        consultationDurationSeconds: duration,
+      });
       showToast(`Consulta encerrada — duração: ${formatConsultationDuration(duration)}.`);
       return true;
     },
-    [appointments, showToast]
+    [appointments, showToast, updateAppointment]
   );
 
   const activeConsultations = useMemo(
@@ -211,11 +237,15 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       appointments,
+      professionals,
       activeConsultations,
       consultationMinimized,
+      hydrated,
       toast,
       showToast,
       setAppointments,
+      refreshSchedule,
+      createAppointment,
       updateAppointment,
       cancelAppointment,
       completeAppointment,
@@ -226,10 +256,14 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     }),
     [
       appointments,
+      professionals,
       activeConsultations,
       consultationMinimized,
+      hydrated,
       toast,
       showToast,
+      refreshSchedule,
+      createAppointment,
       updateAppointment,
       cancelAppointment,
       completeAppointment,

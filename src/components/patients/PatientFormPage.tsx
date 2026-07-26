@@ -72,20 +72,22 @@ export function PatientFormPage({
     setSaving(true);
     setMessage("");
 
-    // Frontend only — simula persistência local
-    await new Promise((r) => setTimeout(r, 450));
-    const newId = addPatientFromForm(values);
+    try {
+      const newId = await addPatientFromForm(values);
+      setSaving(false);
 
-    setSaving(false);
+      if (mode === "save_new") {
+        setValues(emptyPatientForm());
+        onSelectPhoto(null);
+        setMessage("Paciente salvo. Formulário pronto para um novo cadastro.");
+        return;
+      }
 
-    if (mode === "save_new") {
-      setValues(emptyPatientForm());
-      onSelectPhoto(null);
-      setMessage("Paciente salvo. Formulário pronto para um novo cadastro.");
-      return;
+      router.push(`/app/pacientes/${newId}`);
+    } catch (err) {
+      setSaving(false);
+      setMessage(err instanceof Error ? err.message : "Erro ao salvar paciente.");
     }
-
-    router.push(`/app/pacientes/${newId}`);
   }
 
   return (

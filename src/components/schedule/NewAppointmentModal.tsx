@@ -3,15 +3,14 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import {
-  patientsMock,
   proceduresMock,
-  professionalsMock,
   SCHEDULE_END_HOUR,
   SCHEDULE_START_HOUR,
   statusMeta,
   timeToMinutes,
   toIsoDate,
   type AppointmentStatus,
+  type Professional,
   type ScheduleAppointment,
 } from "@/lib/schedule-mock";
 import {
@@ -20,6 +19,7 @@ import {
 } from "@/lib/schedule-conflicts";
 
 type FormState = {
+  patientId: string;
   patient: string;
   professionalId: string;
   procedure: string;
@@ -57,18 +57,26 @@ export function NewAppointmentModal({
   open,
   initial,
   appointments,
+  patients,
+  professionals,
   onClose,
   onSave,
 }: {
   open: boolean;
   initial?: Partial<FormState> & { id?: string };
   appointments: ScheduleAppointment[];
+  patients: { id: string; name: string }[];
+  professionals: Professional[];
   onClose: () => void;
   onSave: (data: FormState & { id?: string }) => void;
 }) {
+  const defaultPatient = patients[0];
+  const defaultPro = professionals[0];
+
   const [form, setForm] = useState<FormState>({
-    patient: initial?.patient || patientsMock[0],
-    professionalId: initial?.professionalId || professionalsMock[0].id,
+    patientId: initial?.patientId || defaultPatient?.id || "",
+    patient: initial?.patient || defaultPatient?.name || "",
+    professionalId: initial?.professionalId || defaultPro?.id || "",
     procedure: initial?.procedure || proceduresMock[0],
     date: initial?.date || toIsoDate(new Date()),
     start: initial?.start || "09:00",
@@ -80,9 +88,14 @@ export function NewAppointmentModal({
 
   useEffect(() => {
     if (!open) return;
+    const patient =
+      patients.find((p) => p.id === initial?.patientId) ||
+      patients.find((p) => p.name === initial?.patient) ||
+      patients[0];
     setForm({
-      patient: initial?.patient || patientsMock[0],
-      professionalId: initial?.professionalId || professionalsMock[0].id,
+      patientId: patient?.id || "",
+      patient: patient?.name || initial?.patient || "",
+      professionalId: initial?.professionalId || professionals[0]?.id || "",
       procedure: initial?.procedure || proceduresMock[0],
       date: initial?.date || toIsoDate(new Date()),
       start: initial?.start || "09:00",
@@ -91,7 +104,7 @@ export function NewAppointmentModal({
       notes: initial?.notes || "",
     });
     setError("");
-  }, [open, initial]);
+  }, [open, initial, patients, professionals]);
 
   if (!open) return null;
 
@@ -106,6 +119,12 @@ export function NewAppointmentModal({
     const openMin = SCHEDULE_START_HOUR * 60;
     const closeMin = SCHEDULE_END_HOUR * 60;
 
+    if (!form.patientId && !form.patient.trim()) {
+      return "Selecione um paciente.";
+    }
+    if (!form.professionalId) {
+      return "Selecione um profissional.";
+    }
     if (end <= start) {
       return "O horário final deve ser maior que o horário inicial.";
     }
@@ -152,15 +171,25 @@ export function NewAppointmentModal({
           <label className="block text-sm sm:col-span-2">
             <span className="mb-1 block font-medium text-slate-700">Paciente</span>
             <select
-              value={form.patient}
-              onChange={(e) => patch({ patient: e.target.value })}
+              value={form.patientId}
+              onChange={(e) => {
+                const selected = patients.find((p) => p.id === e.target.value);
+                patch({
+                  patientId: e.target.value,
+                  patient: selected?.name || "",
+                });
+              }}
               className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/15"
             >
-              {patientsMock.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
+              {patients.length === 0 ? (
+                <option value="">Nenhum paciente cadastrado</option>
+              ) : (
+                patients.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))
+              )}
             </select>
           </label>
 
@@ -171,7 +200,7 @@ export function NewAppointmentModal({
               onChange={(e) => patch({ professionalId: e.target.value })}
               className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/15"
             >
-              {professionalsMock.map((p) => (
+              {professionals.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name} — {p.specialty}
                 </option>

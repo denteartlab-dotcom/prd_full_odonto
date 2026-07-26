@@ -144,7 +144,7 @@ export function PatientsPage({
   }
 
   function handleDelete(id: string) {
-    deletePatient(id);
+    void deletePatient(id);
     if (selectedPatient?.id === id) setSelectedPatient(null);
     setDeleteTarget(null);
   }
