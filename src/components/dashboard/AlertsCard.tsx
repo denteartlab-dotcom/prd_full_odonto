@@ -19,6 +19,11 @@ export function AlertsCard({
   return (
     <DashboardCard title="Alertas e tarefas">
       <div className="space-y-2.5">
+        {!items.length ? (
+          <p className="rounded-xl border border-dashed border-slate-200 px-3 py-6 text-center text-sm text-slate-400">
+            Nenhum alerta no momento.
+          </p>
+        ) : null}
         {items.map((item, index) => {
           const Icon = icons[index % icons.length];
           return (

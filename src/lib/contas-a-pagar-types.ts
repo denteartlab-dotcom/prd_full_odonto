@@ -124,3 +124,55 @@ export type PaymentForm = {
   bankAccount: string;
   notes: string;
 };
+
+export function emptyContasAPagarData(now = new Date()): ContasAPagarData {
+  const days = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const todayIso = now.toISOString().slice(0, 10);
+  return {
+    kpis: [
+      { id: "aberto", label: "Em aberto", value: "R$ 0,00", tone: "slate" },
+      { id: "pago", label: "Pago no mês", value: "R$ 0,00", tone: "green" },
+      { id: "atraso", label: "Em atraso", value: "R$ 0,00", tone: "red" },
+      { id: "previsao", label: "Previsão", value: "R$ 0,00", tone: "amber" },
+    ],
+    accounts: [],
+    calendar: Array.from({ length: days }, (_, i) => {
+      const day = i + 1;
+      const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      return {
+        date,
+        day,
+        total: 0,
+        tone: date === todayIso ? ("hoje" as const) : ("neutro" as const),
+        count: 0,
+      };
+    }),
+    calendarMonthLabel: now.toLocaleDateString("pt-BR", {
+      month: "long",
+      year: "numeric",
+    }),
+    categoryShare: [],
+    statusShare: [],
+    outflowMonthly: [],
+    upcoming: [],
+    alerts: [],
+    summary: {
+      totalAberto: 0,
+      totalPago: 0,
+      emAtraso: 0,
+      previsao: 0,
+      maiorFornecedor: "—",
+      categoriaTop: "—",
+      ultimosPagamentos: [],
+    },
+    filterOptions: {
+      suppliers: ["Todos"],
+      categories: ["Todas"],
+      costCenters: ["Todos"],
+      bankAccounts: ["Todas"],
+      paymentMethods: ["Todas"],
+      statuses: ["Todos", "Pago", "Em aberto", "Vencido", "Cancelado"],
+      responsibles: ["Todos"],
+    },
+  };
+}

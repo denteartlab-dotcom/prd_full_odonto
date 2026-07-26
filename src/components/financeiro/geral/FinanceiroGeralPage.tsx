@@ -15,13 +15,6 @@ import {
   Filter,
 } from "lucide-react";
 import { Button } from "@/components/ui";
-import { FINANCEIRO_GERAL_MOCK } from "@/lib/financeiro-geral-mock";
-import type {
-  FinancePeriodPreset,
-  FinanceiroGeralData,
-} from "@/lib/financeiro-geral-types";
-import { cn, money } from "@/lib/utils";
-import { MoreActionsFlyout } from "./MoreActionsFlyout";
 import {
   FinanceSkeleton,
   GroupedBarChart,
@@ -31,6 +24,13 @@ import {
   Sparkline,
   StatusPill,
 } from "./financeiro-ui";
+import { MoreActionsFlyout } from "./MoreActionsFlyout";
+import {
+  emptyFinanceiroGeralData,
+  type FinancePeriodPreset,
+  type FinanceiroGeralData,
+} from "@/lib/financeiro-geral-types";
+import { cn, money } from "@/lib/utils";
 
 const PERIODS: { id: FinancePeriodPreset; label: string }[] = [
   { id: "hoje", label: "Hoje" },
@@ -58,7 +58,7 @@ const KPI_TONES = {
 
 export function FinanceiroGeralPage() {
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<FinanceiroGeralData>(FINANCEIRO_GERAL_MOCK);
+  const [data, setData] = useState<FinanceiroGeralData>(emptyFinanceiroGeralData());
   const [period, setPeriod] = useState<FinancePeriodPreset>("mes");
   const [cashMode, setCashMode] = useState<(typeof CASHFLOW_MODES)[number]["id"]>("diario");
   const [barMode, setBarMode] = useState<"semanal" | "mensal">("semanal");
@@ -78,11 +78,24 @@ export function FinanceiroGeralPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   useEffect(() => {
-    const t = window.setTimeout(() => {
-      setData(FINANCEIRO_GERAL_MOCK);
-      setLoading(false);
-    }, 450);
-    return () => window.clearTimeout(t);
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/financeiro/geral", { cache: "no-store" });
+        if (!res.ok) throw new Error("Falha ao carregar financeiro.");
+        const json = (await res.json()) as { data: FinanceiroGeralData };
+        if (!cancelled) setData(json.data);
+      } catch {
+        if (!cancelled) setData(emptyFinanceiroGeralData());
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const cashflowSeries = useMemo(() => {

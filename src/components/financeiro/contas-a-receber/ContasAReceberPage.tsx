@@ -20,14 +20,14 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui";
 import { SoftCard, FinanceSkeleton } from "@/components/financeiro/geral/financeiro-ui";
-import { CONTAS_A_RECEBER_MOCK } from "@/lib/contas-a-receber-mock";
-import type {
-  ContasAReceberData,
-  NewReceiptForm,
-  ReceivableInstallment,
-  ReceivablePeriod,
-  ReceivableStatus,
-  RegisterReceiptForm,
+import {
+  emptyContasAReceberData,
+  type ContasAReceberData,
+  type NewReceiptForm,
+  type ReceivableInstallment,
+  type ReceivablePeriod,
+  type ReceivableStatus,
+  type RegisterReceiptForm,
 } from "@/lib/contas-a-receber-types";
 import { cn, money } from "@/lib/utils";
 import {
@@ -54,44 +54,52 @@ const STATUS_MAP: Record<string, ReceivableStatus | ""> = {
   Negociado: "negociado",
 };
 
-const emptyForm = (): NewReceiptForm => ({
-  patient: "",
-  budgetNumber: "",
-  procedure: "",
-  professional: "Dra. Ana",
-  paymentMethod: "PIX",
-  bankAccount: "Itaú - 1234",
-  amount: "",
-  discount: "0",
-  interest: "0",
-  fine: "0",
-  receiptDate: "2026-07-26",
-  competence: "2026-07",
-  notes: "",
-});
+const emptyForm = (): NewReceiptForm => {
+  const today = new Date().toISOString().slice(0, 10);
+  return {
+    patient: "",
+    budgetNumber: "",
+    procedure: "",
+    professional: "Dra. Ana",
+    paymentMethod: "PIX",
+    bankAccount: "Itaú - 1234",
+    amount: "",
+    discount: "0",
+    interest: "0",
+    fine: "0",
+    receiptDate: today,
+    competence: today.slice(0, 7),
+    notes: "",
+  };
+};
 
 export function ContasAReceberPage() {
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<ContasAReceberData>(CONTAS_A_RECEBER_MOCK);
+  const [data, setData] = useState<ContasAReceberData>(emptyContasAReceberData());
   const [period, setPeriod] = useState<ReceivablePeriod>("mes");
   const [query, setQuery] = useState("");
   const [message, setMessage] = useState("");
   const [moreOpen, setMoreOpen] = useState(false);
-  const [selectedDay, setSelectedDay] = useState("2026-07-26");
+  const [selectedDay, setSelectedDay] = useState(() =>
+    new Date().toISOString().slice(0, 10)
+  );
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [payTarget, setPayTarget] = useState<ReceivableInstallment | null>(null);
   const [form, setForm] = useState<NewReceiptForm>(emptyForm);
-  const [payForm, setPayForm] = useState<RegisterReceiptForm>({
-    receiptDate: "2026-07-26",
-    amount: "",
-    paymentMethod: "PIX",
-    bankAccount: "Itaú - 1234",
-    discount: "0",
-    interest: "0",
-    fine: "0",
-    notes: "",
+  const [payForm, setPayForm] = useState<RegisterReceiptForm>(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return {
+      receiptDate: today,
+      amount: "",
+      paymentMethod: "PIX",
+      bankAccount: "Caixa",
+      discount: "0",
+      interest: "0",
+      fine: "0",
+      notes: "",
+    };
   });
   const [filters, setFilters] = useState({
     status: "Todos",
@@ -106,12 +114,29 @@ export function ContasAReceberPage() {
   const [sortKey, setSortKey] = useState<keyof ReceivableInstallment>("dueDate");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
+  async function refresh() {
+    const res = await fetch("/api/financeiro/receitas", { cache: "no-store" });
+    if (!res.ok) throw new Error("Falha ao carregar contas a receber.");
+    const json = (await res.json()) as { data: ContasAReceberData };
+    setData(json.data);
+  }
+
   useEffect(() => {
-    const t = window.setTimeout(() => {
-      setData(CONTAS_A_RECEBER_MOCK);
-      setLoading(false);
-    }, 400);
-    return () => window.clearTimeout(t);
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      try {
+        await refresh();
+      } catch {
+        if (!cancelled) setData(emptyContasAReceberData());
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const filtered = useMemo(() => {
@@ -201,37 +226,61 @@ export function ContasAReceberPage() {
     setPeriod("mes");
   }
 
-  function saveReceipt() {
+  async function saveReceipt() {
     const amount = Number(form.amount.replace(",", ".")) || 0;
     const discount = Number(form.discount.replace(",", ".")) || 0;
     const interest = Number(form.interest.replace(",", ".")) || 0;
     const fine = Number(form.fine.replace(",", ".")) || 0;
     const finalAmount = Math.max(0, amount - discount + interest + fine);
-    const item: ReceivableInstallment = {
-      id: `new-${Date.now()}`,
-      patient: form.patient || "Paciente",
-      cpf: "—",
-      phone: "—",
-      budgetNumber: form.budgetNumber || `ORC-${Date.now().toString().slice(-4)}`,
-      procedure: form.procedure || "Procedimento",
-      professional: form.professional,
-      convenio: "Particular",
-      installment: 1,
-      totalInstallments: 1,
-      dueDate: form.receiptDate,
-      dueLabel: new Date(form.receiptDate + "T12:00:00").toLocaleDateString("pt-BR"),
-      amount: finalAmount,
-      receivedAmount: finalAmount,
-      balance: 0,
-      paymentMethod: form.paymentMethod,
-      bankAccount: form.bankAccount,
-      status: "pago",
-      notes: form.notes,
-    };
-    setData((d) => ({ ...d, installments: [item, ...d.installments] }));
+    if (!finalAmount) {
+      setMessage("Informe um valor válido.");
+      return;
+    }
+
+    let patientId: string | null = null;
+    if (form.patient.trim()) {
+      const patientsRes = await fetch("/api/pacientes", { cache: "no-store" });
+      if (patientsRes.ok) {
+        const patientsJson = (await patientsRes.json()) as {
+          patients: { id: string; name: string }[];
+        };
+        const found = patientsJson.patients.find(
+          (p) => p.name.toLowerCase() === form.patient.trim().toLowerCase()
+        );
+        patientId = found?.id || null;
+      }
+    }
+
+    const res = await fetch("/api/receivables", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        patientId,
+        description: form.procedure || form.notes || "Recebimento",
+        amount: finalAmount,
+        dueDate: form.receiptDate,
+        method: form.paymentMethod,
+        status: "aberto",
+      }),
+    });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      setMessage(body.error || "Não foi possível lançar o recebimento.");
+      return;
+    }
+
+    // marca como pago para refletir no caixa
+    const created = (await res.json()) as { receivable: { id: string } };
+    await fetch(`/api/receivables/${created.receivable.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ markPaid: true, method: form.paymentMethod }),
+    });
+
+    await refresh();
     setDrawerOpen(false);
     setForm(emptyForm());
-    setMessage("Recebimento lançado. Financeiro Geral e Fluxo de Caixa serão atualizados via API.");
+    setMessage("Recebimento lançado e sincronizado com o financeiro.");
   }
 
   function openPay(item: ReceivableInstallment) {
@@ -245,47 +294,44 @@ export function ContasAReceberPage() {
     setPayOpen(true);
   }
 
-  function confirmPay() {
+  async function confirmPay() {
     if (!payTarget) return;
-    const paid = Number(payForm.amount.replace(",", ".")) || payTarget.balance;
-    setData((d) => ({
-      ...d,
-      installments: d.installments.map((a) => {
-        if (a.id !== payTarget.id) return a;
-        const receivedAmount = Math.min(a.amount, a.receivedAmount + paid);
-        const balance = Math.max(0, a.amount - receivedAmount);
-        return {
-          ...a,
-          receivedAmount,
-          balance,
-          status: balance === 0 ? "pago" : "parcial",
-          paymentMethod: payForm.paymentMethod,
-          bankAccount: payForm.bankAccount,
-        };
+    const res = await fetch(`/api/receivables/${payTarget.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        markPaid: true,
+        method: payForm.paymentMethod,
       }),
-    }));
+    });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      setMessage(body.error || "Não foi possível confirmar o recebimento.");
+      return;
+    }
+    await refresh();
     setPayOpen(false);
     setPayTarget(null);
-    setMessage(
-      "Recebimento confirmado. Atualiza Financeiro Geral, Fluxo de Caixa, Caixa Diário e Dashboard."
-    );
+    setMessage("Recebimento confirmado e sincronizado com o dashboard.");
   }
 
-  function batchReceive() {
+  async function batchReceive() {
     if (!selectedIds.length) {
       setMessage("Selecione ao menos uma parcela para recebimento em lote.");
       return;
     }
-    setData((d) => ({
-      ...d,
-      installments: d.installments.map((a) =>
-        selectedIds.includes(a.id)
-          ? { ...a, receivedAmount: a.amount, balance: 0, status: "pago" as const }
-          : a
-      ),
-    }));
+    await Promise.all(
+      selectedIds.map((id) =>
+        fetch(`/api/receivables/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ markPaid: true }),
+        })
+      )
+    );
+    await refresh();
     setSelectedIds([]);
-    setMessage(`${selectedIds.length} parcelas recebidas em lote (mock).`);
+    setMessage(`${selectedIds.length} parcelas recebidas e sincronizadas.`);
   }
 
   if (loading) return <FinanceSkeleton />;

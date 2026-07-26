@@ -31,6 +31,11 @@ export function ScheduleCard({
       action={<span className="text-xs font-medium text-indigo-600">Ver todas</span>}
     >
       <div className="space-y-3">
+        {!items.length ? (
+          <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-3 py-6 text-center text-sm text-slate-400">
+            Nenhuma consulta agendada para hoje.
+          </p>
+        ) : null}
         {items.map((item) => (
           <div
             key={item.id}

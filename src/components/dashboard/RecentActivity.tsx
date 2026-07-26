@@ -17,6 +17,11 @@ export function RecentActivity({
   return (
     <DashboardCard title="Atividades recentes">
       <div className="space-y-3">
+        {!items.length ? (
+          <p className="rounded-xl border border-dashed border-slate-200 px-3 py-6 text-center text-sm text-slate-400">
+            Sem atividades recentes.
+          </p>
+        ) : null}
         {items.map((item) => {
           const Icon = typeIcon[item.type as keyof typeof typeIcon] || Activity;
           return (

@@ -18,14 +18,14 @@ import {
   CheckSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui";
-import { CONTAS_A_PAGAR_MOCK } from "@/lib/contas-a-pagar-mock";
-import type {
-  ContasAPagarData,
-  NewPayableForm,
-  PayableAccount,
-  PayablePeriod,
-  PayableStatus,
-  PaymentForm,
+import {
+  emptyContasAPagarData,
+  type ContasAPagarData,
+  type NewPayableForm,
+  type PayableAccount,
+  type PayablePeriod,
+  type PayableStatus,
+  type PaymentForm,
 } from "@/lib/contas-a-pagar-types";
 import { cn, money } from "@/lib/utils";
 import {
@@ -56,57 +56,65 @@ const STATUS_MAP: Record<string, PayableStatus | ""> = {
   Agendado: "agendado",
 };
 
-const emptyForm = (): NewPayableForm => ({
-  supplier: "",
-  description: "",
-  category: "Laboratório",
-  costCenter: "Clínica",
-  invoiceNumber: "",
-  document: "",
-  bank: "Itaú",
-  bankAccount: "Itaú - 1234",
-  paymentMethod: "Boleto",
-  amount: "",
-  discount: "0",
-  interest: "0",
-  fine: "0",
-  competence: "2026-07",
-  issueDate: "2026-07-26",
-  dueDate: "2026-07-26",
-  expectedPayDate: "2026-07-26",
-  status: "em_aberto",
-  responsible: "Financeiro",
-  notes: "",
-  installment: false,
-  installmentCount: "3",
-  installmentPeriod: "mensal",
-  recurring: false,
-  recurringPeriod: "mensal",
-  recurringEnd: "",
-});
+const emptyForm = (): NewPayableForm => {
+  const today = new Date().toISOString().slice(0, 10);
+  return {
+    supplier: "",
+    description: "",
+    category: "Laboratório",
+    costCenter: "Clínica",
+    invoiceNumber: "",
+    document: "",
+    bank: "Caixa",
+    bankAccount: "Caixa",
+    paymentMethod: "Boleto",
+    amount: "",
+    discount: "0",
+    interest: "0",
+    fine: "0",
+    competence: today.slice(0, 7),
+    issueDate: today,
+    dueDate: today,
+    expectedPayDate: today,
+    status: "em_aberto",
+    responsible: "Financeiro",
+    notes: "",
+    installment: false,
+    installmentCount: "3",
+    installmentPeriod: "mensal",
+    recurring: false,
+    recurringPeriod: "mensal",
+    recurringEnd: "",
+  };
+};
 
 export function ContasAPagarPage() {
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<ContasAPagarData>(CONTAS_A_PAGAR_MOCK);
+  const [data, setData] = useState<ContasAPagarData>(emptyContasAPagarData());
   const [period, setPeriod] = useState<PayablePeriod>("mes");
   const [query, setQuery] = useState("");
   const [message, setMessage] = useState("");
   const [moreOpen, setMoreOpen] = useState(false);
-  const [selectedDay, setSelectedDay] = useState("2026-07-26");
+  const [selectedDay, setSelectedDay] = useState(() =>
+    new Date().toISOString().slice(0, 10)
+  );
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [payTarget, setPayTarget] = useState<PayableAccount | null>(null);
   const [form, setForm] = useState<NewPayableForm>(emptyForm);
-  const [payForm, setPayForm] = useState<PaymentForm>({
-    payDate: "2026-07-26",
-    amount: "",
-    discount: "0",
-    interest: "0",
-    fine: "0",
-    paymentMethod: "PIX",
-    bankAccount: "Itaú - 1234",
-    notes: "",
+  const [payForm, setPayForm] = useState<PaymentForm>(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return {
+      payDate: today,
+      amount: "",
+      discount: "0",
+      interest: "0",
+      fine: "0",
+      paymentMethod: "PIX",
+      bankAccount: "Caixa",
+      notes: "",
+    };
   });
   const [filters, setFilters] = useState({
     supplier: "Todos",
@@ -121,12 +129,29 @@ export function ContasAPagarPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   useEffect(() => {
-    const t = window.setTimeout(() => {
-      setData(CONTAS_A_PAGAR_MOCK);
-      setLoading(false);
-    }, 400);
-    return () => window.clearTimeout(t);
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      try {
+        await refresh();
+      } catch {
+        if (!cancelled) setData(emptyContasAPagarData());
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  async function refresh() {
+    const res = await fetch("/api/financeiro/despesas", { cache: "no-store" });
+    if (!res.ok) throw new Error("Falha ao carregar contas a pagar.");
+    const json = (await res.json()) as { data: ContasAPagarData };
+    setData(json.data);
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -209,78 +234,90 @@ export function ContasAPagarPage() {
     setPeriod("mes");
   }
 
-  function saveAccount() {
+  async function saveAccount() {
     const amount = Number(form.amount.replace(",", ".")) || 0;
     const discount = Number(form.discount.replace(",", ".")) || 0;
     const interest = Number(form.interest.replace(",", ".")) || 0;
     const fine = Number(form.fine.replace(",", ".")) || 0;
     const finalAmount = Math.max(0, amount - discount + interest + fine);
+    if (!finalAmount) {
+      setMessage("Informe um valor válido.");
+      return;
+    }
     const count =
       form.installment && Number(form.installmentCount) > 1
         ? Number(form.installmentCount)
         : 1;
     const parcelValue = finalAmount / count;
-    const created: PayableAccount[] = [];
+
     for (let i = 0; i < count; i++) {
-      const due = new Date(form.dueDate || "2026-07-26");
+      const due = new Date(form.dueDate || new Date().toISOString().slice(0, 10));
       if (form.installmentPeriod === "mensal") due.setMonth(due.getMonth() + i);
       if (form.installmentPeriod === "quinzenal") due.setDate(due.getDate() + i * 15);
       if (form.installmentPeriod === "semanal") due.setDate(due.getDate() + i * 7);
       const iso = due.toISOString().slice(0, 10);
-      created.push({
-        id: `new-${Date.now()}-${i}`,
-        dueDate: iso,
-        dueLabel: due.toLocaleDateString("pt-BR"),
-        supplier: form.supplier || "Novo fornecedor",
-        description:
-          count > 1
-            ? `${form.description || "Nova despesa"} (${i + 1}/${count})`
-            : form.description || "Nova despesa",
-        category: form.category,
-        costCenter: form.costCenter,
-        bankAccount: form.bankAccount,
-        paymentMethod: form.paymentMethod,
-        document: form.document || `DOC-${Date.now()}`,
-        invoiceNumber: form.invoiceNumber || "—",
-        amount: parcelValue,
-        paidAmount: 0,
-        balance: parcelValue,
-        status: form.status,
-        responsible: form.responsible,
-        notes: form.notes,
-        attachments: 0,
+      const description =
+        count > 1
+          ? `${form.description || "Nova despesa"} (${i + 1}/${count})`
+          : form.description || "Nova despesa";
+
+      const res = await fetch("/api/payables", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          supplier: form.supplier || "Novo fornecedor",
+          description,
+          amount: parcelValue,
+          dueDate: iso,
+          status: form.status === "em_aberto" ? "aberto" : form.status,
+          category: form.category,
+          costCenter: form.costCenter,
+          bankAccount: form.bankAccount,
+          paymentMethod: form.paymentMethod,
+          document: form.document,
+          invoiceNumber: form.invoiceNumber,
+          responsible: form.responsible,
+          notes: form.notes,
+        }),
       });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        setMessage(body.error || "Não foi possível cadastrar a conta.");
+        return;
+      }
     }
-    setData((d) => ({ ...d, accounts: [...created, ...d.accounts] }));
+
+    await refresh();
     setDrawerOpen(false);
     setForm(emptyForm());
     setMessage(
       count > 1
-        ? `${count} parcelas geradas e adicionadas à lista.`
-        : "Conta cadastrada com sucesso (mock)."
+        ? `${count} parcelas geradas e sincronizadas.`
+        : "Conta cadastrada e sincronizada."
     );
   }
 
-  function confirmPayment() {
+  async function confirmPayment() {
     if (!payTarget) return;
-    const paid = Number(payForm.amount.replace(",", ".")) || payTarget.balance;
-    setData((d) => ({
-      ...d,
-      accounts: d.accounts.map((a) => {
-        if (a.id !== payTarget.id) return a;
-        const paidAmount = Math.min(a.amount, a.paidAmount + paid);
-        const balance = Math.max(0, a.amount - paidAmount);
-        return {
-          ...a,
-          paidAmount,
-          balance,
-          status: balance === 0 ? "pago" : "parcial",
-        };
+    const res = await fetch(`/api/payables/${payTarget.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        markPaid: true,
+        paymentMethod: payForm.paymentMethod,
+        bankAccount: payForm.bankAccount,
+        notes: payForm.notes,
       }),
-    }));
+    });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      setMessage(body.error || "Não foi possível confirmar o pagamento.");
+      return;
+    }
+    await refresh();
     setPayOpen(false);
     setPayTarget(null);
-    setMessage("Pagamento confirmado. Fluxo de Caixa e Financeiro Geral serão atualizados via API.");
+    setMessage("Pagamento confirmado e sincronizado com o financeiro.");
   }
 
   function openPay(account: PayableAccount) {
@@ -294,21 +331,23 @@ export function ContasAPagarPage() {
     setPayOpen(true);
   }
 
-  function batchPay() {
+  async function batchPay() {
     if (!selectedIds.length) {
       setMessage("Selecione ao menos uma conta para pagamento em lote.");
       return;
     }
-    setData((d) => ({
-      ...d,
-      accounts: d.accounts.map((a) =>
-        selectedIds.includes(a.id)
-          ? { ...a, paidAmount: a.amount, balance: 0, status: "pago" as const }
-          : a
-      ),
-    }));
+    await Promise.all(
+      selectedIds.map((id) =>
+        fetch(`/api/payables/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ markPaid: true }),
+        })
+      )
+    );
+    await refresh();
     setSelectedIds([]);
-    setMessage(`${selectedIds.length} contas pagas em lote (mock).`);
+    setMessage(`${selectedIds.length} contas pagas e sincronizadas.`);
   }
 
   if (loading) return <FinanceSkeleton />;

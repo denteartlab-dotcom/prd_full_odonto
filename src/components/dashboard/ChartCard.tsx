@@ -5,7 +5,16 @@ export function BarChart({
 }: {
   data: { month: string; value: number }[];
 }) {
-  const max = Math.max(...data.map((d) => d.value));
+  const max = Math.max(1, ...data.map((d) => d.value));
+  const hasData = data.some((d) => d.value > 0);
+
+  if (!hasData) {
+    return (
+      <div className="flex h-48 items-center justify-center text-sm text-slate-400">
+        Sem faturamento registrado nos últimos 6 meses.
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-48 items-end justify-between gap-2 px-1 pt-4">
@@ -14,8 +23,12 @@ export function BarChart({
           <div className="flex h-36 w-full items-end justify-center">
             <div
               className="w-full max-w-[36px] rounded-t-lg bg-gradient-to-t from-blue-600 to-indigo-400 shadow-sm"
-              style={{ height: `${(d.value / max) * 100}%` }}
-              title={`${d.month}: ${d.value}k`}
+              style={{ height: `${Math.max(4, (d.value / max) * 100)}%` }}
+              title={`${d.month}: ${d.value.toLocaleString("pt-BR", {
+                style: "currency",
+                currency: "BRL",
+                maximumFractionDigits: 0,
+              })}`}
             />
           </div>
           <span className="text-[11px] font-medium text-slate-500">{d.month}</span>
@@ -35,6 +48,14 @@ export function DonutChart({
   const radius = 54;
   const circumference = 2 * Math.PI * radius;
   let offset = 0;
+
+  if (!items.length || total === 0) {
+    return (
+      <div className="flex h-48 items-center justify-center text-sm text-slate-400">
+        Sem procedimentos registrados ainda.
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center">

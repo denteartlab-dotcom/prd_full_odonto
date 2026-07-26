@@ -29,6 +29,13 @@ export function ReceivablesTable({
             </tr>
           </thead>
           <tbody>
+            {!items.length ? (
+              <tr>
+                <td colSpan={4} className="py-8 text-center text-sm text-slate-400">
+                  Nenhuma conta a receber em aberto.
+                </td>
+              </tr>
+            ) : null}
             {items.map((item) => (
               <tr key={item.id} className="border-t border-slate-50">
                 <td className="py-3">

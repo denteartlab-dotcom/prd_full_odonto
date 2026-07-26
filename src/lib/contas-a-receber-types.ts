@@ -119,3 +119,57 @@ export type RegisterReceiptForm = {
   fine: string;
   notes: string;
 };
+
+export function emptyContasAReceberData(now = new Date()): ContasAReceberData {
+  const days = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const todayIso = now.toISOString().slice(0, 10);
+  return {
+    kpis: [
+      { id: "aberto", label: "Em aberto", value: "R$ 0,00", tone: "slate" },
+      { id: "recebido", label: "Recebido no mês", value: "R$ 0,00", tone: "green" },
+      { id: "previsto", label: "Previsto", value: "R$ 0,00", tone: "blue" },
+      { id: "vencido", label: "Vencido", value: "R$ 0,00", tone: "red" },
+    ],
+    installments: [],
+    calendar: Array.from({ length: days }, (_, i) => {
+      const day = i + 1;
+      const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      return {
+        date,
+        day,
+        total: 0,
+        tone: date === todayIso ? ("hoje" as const) : ("neutro" as const),
+        count: 0,
+      };
+    }),
+    calendarMonthLabel: now.toLocaleDateString("pt-BR", {
+      month: "long",
+      year: "numeric",
+    }),
+    paymentShare: [],
+    convenios: [],
+    upcoming: [],
+    alerts: [],
+    goal: { current: 0, target: 1 },
+    summary: {
+      totalAberto: 0,
+      totalRecebido: 0,
+      previstos: 0,
+      vencidos: 0,
+      maiorPagador: "—",
+      convenioTop: "—",
+      procedimentoTop: "—",
+      receitaMes: 0,
+    },
+    filterOptions: {
+      statuses: ["Todos", "Pago", "Em Aberto", "Vencido", "Cancelado"],
+      paymentMethods: ["Todas"],
+      professionals: ["Todos"],
+      convenios: ["Todos"],
+      procedures: ["Todos"],
+      categories: ["Todas"],
+      responsibles: ["Todos"],
+      bankAccounts: ["Todas"],
+    },
+  };
+}

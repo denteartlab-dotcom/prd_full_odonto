@@ -15,6 +15,11 @@ export function CommissionsList({
   return (
     <DashboardCard title="Comissão dos dentistas (mês)">
       <div className="space-y-4">
+        {!items.length ? (
+          <p className="rounded-xl border border-dashed border-slate-200 px-3 py-6 text-center text-sm text-slate-400">
+            Sem comissões registradas.
+          </p>
+        ) : null}
         {items.map((item) => (
           <div key={item.id}>
             <div className="mb-1.5 flex items-center justify-between gap-2">

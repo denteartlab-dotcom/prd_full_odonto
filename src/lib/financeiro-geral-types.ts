@@ -156,3 +156,54 @@ export type FinanceiroGeralData = {
     statuses: string[];
   };
 };
+
+export function emptyFinanceiroGeralData(): FinanceiroGeralData {
+  return {
+    kpis: [
+      { id: "saldo", label: "Saldo do mês", value: "R$ 0,00", tone: "green", sparkline: [0, 0, 0, 0, 0, 0] },
+      { id: "receitas", label: "Receitas (mês)", value: "R$ 0,00", tone: "green", sparkline: [0, 0, 0, 0, 0, 0] },
+      { id: "despesas", label: "Despesas (mês)", value: "R$ 0,00", tone: "red", sparkline: [0, 0, 0, 0, 0, 0] },
+      { id: "a_receber", label: "A receber", value: "R$ 0,00", tone: "blue" },
+      { id: "a_pagar", label: "A pagar", value: "R$ 0,00", tone: "amber" },
+      { id: "ano", label: "Faturamento anual", value: "R$ 0,00", tone: "violet" },
+    ],
+    cashflowDaily: [],
+    cashflowWeekly: [],
+    cashflowMonthly: [],
+    cashflowYearly: [],
+    incomeExpenseBars: [],
+    bankAccounts: [],
+    paymentMethods: [],
+    recentReceipts: [],
+    receivables: [],
+    payables: [],
+    convenios: [],
+    upcoming: [],
+    alerts: [],
+    goal: { current: 0, target: 1 },
+    movements: [],
+    summary: {
+      saldoTotal: 0,
+      receitas: 0,
+      despesas: 0,
+      lucro: 0,
+      ticketMedio: 0,
+      faturamentoDiario: 0,
+      faturamentoMensal: 0,
+      faturamentoAnual: 0,
+      pacientesPagantes: 0,
+      convenios: 0,
+      receitasPrevistas: 0,
+      despesasPrevistas: 0,
+    },
+    filterOptions: {
+      professionals: ["Todos"],
+      convenios: ["Todos"],
+      paymentMethods: ["Todos"],
+      bankAccounts: ["Todas"],
+      costCenters: ["Todos"],
+      categories: ["Todas"],
+      statuses: ["Todos"],
+    },
+  };
+}
