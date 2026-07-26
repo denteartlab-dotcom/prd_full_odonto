@@ -50,7 +50,11 @@ export function AppShell({
         <div className="flex min-h-screen bg-[#f4f6fb] text-slate-900">
         <aside className="flex w-[260px] shrink-0 flex-col bg-[#0b1b34] text-slate-200">
         <div className="border-b border-white/10 px-5 py-5">
-          <div className="flex items-center gap-3">
+          <Link
+            href="/app/configuracoes"
+            title="Configurar dados do perfil e da clínica"
+            className="flex items-center gap-3 rounded-xl outline-none transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-indigo-400/60"
+          >
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-400 to-blue-600 text-white shadow-lg shadow-blue-900/40">
               <Smile className="h-5 w-5" />
             </div>
@@ -58,7 +62,7 @@ export function AppShell({
               <p className="text-sm font-semibold text-white">Odonto Enterprise</p>
               <p className="truncate text-[11px] text-slate-400">{clinicName}</p>
             </div>
-          </div>
+          </Link>
         </div>
 
         <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
