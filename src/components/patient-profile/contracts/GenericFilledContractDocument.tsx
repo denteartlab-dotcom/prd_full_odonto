@@ -66,7 +66,7 @@ export function GenericFilledContractDocument({
             <p className="text-[11px] font-bold uppercase text-slate-700">
               Contratante (Paciente)
             </p>
-            <div className="mt-10 border-t border-slate-400 pt-2 text-[12px]">
+            <div className="mt-10 border-t border-slate-400 pt-2 text-[12px] text-slate-800">
               <p>
                 Nome: <Filled>{patient.name}</Filled>
               </p>
@@ -77,7 +77,7 @@ export function GenericFilledContractDocument({
           </div>
           <div>
             <p className="text-[11px] font-bold uppercase text-slate-700">Contratada</p>
-            <div className="mt-10 border-t border-slate-400 pt-2 text-[12px]">
+            <div className="mt-10 border-t border-slate-400 pt-2 text-[12px] text-slate-800">
               <p>
                 Cirurgião(ã)-Dentista: <Filled>{clinic.responsibleDentist}</Filled>
               </p>

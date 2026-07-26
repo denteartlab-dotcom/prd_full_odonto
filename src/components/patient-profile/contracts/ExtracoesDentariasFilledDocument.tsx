@@ -213,7 +213,7 @@ export function ExtracoesDentariasFilledDocument({
             <p className="text-[11px] font-bold uppercase text-slate-700">
               Contratante (Paciente)
             </p>
-            <div className="mt-10 border-t border-slate-400 pt-2 text-[12px]">
+            <div className="mt-10 border-t border-slate-400 pt-2 text-[12px] text-slate-800">
               <p>
                 Nome: <Filled>{patient.name}</Filled>
               </p>
@@ -224,7 +224,7 @@ export function ExtracoesDentariasFilledDocument({
           </div>
           <div>
             <p className="text-[11px] font-bold uppercase text-slate-700">Contratada</p>
-            <div className="mt-10 border-t border-slate-400 pt-2 text-[12px]">
+            <div className="mt-10 border-t border-slate-400 pt-2 text-[12px] text-slate-800">
               <p>
                 Cirurgião(ã)-Dentista: <Filled>{clinic.responsibleDentist}</Filled>
               </p>
@@ -249,7 +249,7 @@ export function ExtracoesDentariasFilledDocument({
 
 function Page({ children }: { children: React.ReactNode }) {
   return (
-    <section className="min-h-[1050px] rounded-sm bg-white px-10 py-10 shadow-lg print:min-h-0 print:break-after-page print:rounded-none print:px-8 print:py-8 print:shadow-none">
+    <section className="min-h-[1050px] rounded-sm bg-white px-10 py-10 text-slate-900 shadow-lg print:min-h-0 print:break-after-page print:rounded-none print:px-8 print:py-8 print:shadow-none">
       {children}
     </section>
   );
