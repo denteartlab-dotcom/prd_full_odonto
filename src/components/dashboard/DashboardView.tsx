@@ -1,23 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import {
-  CalendarCheck2,
-  CircleDollarSign,
-  UserPlus,
-  WalletCards,
-} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { CalendarCheck2, UserPlus } from "lucide-react";
 import { emptyDashboard } from "@/lib/dashboard-types";
 import type { DashboardData } from "@/lib/dashboard-types";
 import { AlertsCard } from "./AlertsCard";
-import { BarChart, ChartCard, DonutChart } from "./ChartCard";
-import { CommissionsList } from "./CommissionsList";
+import { ChartCard, DonutChart } from "./ChartCard";
 import { DashboardHeader } from "./DashboardHeader";
 import { KPIWidget } from "./KPIWidget";
 import { RecentActivity } from "./RecentActivity";
 import { ScheduleCard } from "./ScheduleCard";
 
-const kpiIcons = [CircleDollarSign, WalletCards, CalendarCheck2, UserPlus] as const;
+const HOME_KPI_IDS = new Set(["consultas", "pacientes"]);
+const kpiIcons = {
+  consultas: CalendarCheck2,
+  pacientes: UserPlus,
+} as const;
 
 export function DashboardView({
   userName,
@@ -58,6 +56,11 @@ export function DashboardView({
     };
   }, []);
 
+  const kpis = useMemo(
+    () => data.kpis.filter((kpi) => HOME_KPI_IDS.has(kpi.id)),
+    [data.kpis]
+  );
+
   const roleLabel =
     role === "admin" || role === "proprietario" ? "Administradora" : role;
 
@@ -76,8 +79,8 @@ export function DashboardView({
       ) : null}
 
       {loading ? (
-        <div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
+        <div className="mb-5 grid gap-4 sm:grid-cols-2">
+          {Array.from({ length: 2 }).map((_, i) => (
             <div
               key={i}
               className="h-36 animate-pulse rounded-2xl border border-slate-100 bg-slate-50"
@@ -85,8 +88,8 @@ export function DashboardView({
           ))}
         </div>
       ) : (
-        <div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {data.kpis.map((kpi, index) => (
+        <div className="mb-5 grid gap-4 sm:grid-cols-2">
+          {kpis.map((kpi) => (
             <KPIWidget
               key={kpi.id}
               label={kpi.label}
@@ -94,24 +97,20 @@ export function DashboardView({
               growth={kpi.growth}
               tone={kpi.tone}
               sparkline={kpi.sparkline}
-              icon={kpiIcons[index]}
+              icon={kpiIcons[kpi.id as keyof typeof kpiIcons] || CalendarCheck2}
             />
           ))}
         </div>
       )}
 
-      <div className="mb-5 grid gap-4 xl:grid-cols-3">
+      <div className="mb-5 grid gap-4 xl:grid-cols-2">
         <ScheduleCard items={data.agendaHoje} />
-        <ChartCard title="Faturamento dos últimos 6 meses">
-          <BarChart data={data.faturamento6Meses} />
-        </ChartCard>
         <ChartCard title="Procedimentos mais realizados">
           <DonutChart items={data.procedimentos} total={data.procedimentosTotal} />
         </ChartCard>
       </div>
 
-      <div className="mb-5 grid gap-4 xl:grid-cols-2">
-        <CommissionsList items={data.comissoes} />
+      <div className="mb-5">
         <AlertsCard items={data.alertas} />
       </div>
 
