@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Printer, X } from "lucide-react";
 import { usePatients } from "@/contexts/patients-context";
 import { useMounted } from "@/hooks/use-mounted";
-import {
-  buildFilledContractPatient,
-  getContractById,
-} from "@/lib/patient-contracts";
+import { buildExtracaoContractData, type ClinicContractParty } from "@/lib/contract-fill";
+import { getContractById } from "@/lib/patient-contracts";
 import { ContractPrintDocument } from "./ContractPrintDocument";
+import { ExtracoesDentariasFilledDocument } from "./ExtracoesDentariasFilledDocument";
+import { buildFilledContractPatient } from "@/lib/patient-contracts";
 
 export function ContractPrintPage({
   patientId,
@@ -21,6 +21,7 @@ export function ContractPrintPage({
   const mounted = useMounted();
   const { getPatientById, hydrated } = usePatients();
   const contract = getContractById(contractId);
+  const [clinic, setClinic] = useState<ClinicContractParty | null>(null);
 
   const patient = useMemo(
     () => (mounted && hydrated ? getPatientById(patientId) : undefined),
@@ -28,89 +29,106 @@ export function ContractPrintPage({
   );
 
   useEffect(() => {
-    if (!patient || !contract || contract.preferStaticPdf) return;
-    const timer = window.setTimeout(() => window.print(), 400);
-    return () => window.clearTimeout(timer);
-  }, [patient, contract]);
+    void (async () => {
+      try {
+        const res = await fetch("/api/clinic-settings", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          clinic?: {
+            name?: string;
+            cnpj?: string | null;
+            address?: string | null;
+            city?: string | null;
+            state?: string | null;
+            responsibleDentist?: string | null;
+            cro?: string | null;
+          };
+        };
+        if (!data.clinic) return;
+        setClinic({
+          name: data.clinic.name || "",
+          cnpj: data.clinic.cnpj || "",
+          address: data.clinic.address || "",
+          city: data.clinic.city || "",
+          state: data.clinic.state || "",
+          responsibleDentist: data.clinic.responsibleDentist || "",
+          cro: data.clinic.cro || "",
+        });
+      } catch {
+        /* keep empty clinic fallbacks */
+      }
+    })();
+  }, []);
 
   if (!mounted || !hydrated) {
-    return <p className="p-8 text-sm text-slate-500">Carregando contrato...</p>;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#323639] text-sm text-white/70">
+        Carregando contrato...
+      </div>
+    );
   }
 
-  if (!contract) {
+  if (!contract || !patient) {
     return (
-      <div className="p-8">
-        <p className="text-sm text-rose-600">Contrato não encontrado.</p>
-        <Link href={`/app/pacientes/${patientId}`} className="mt-2 inline-block text-sm text-indigo-600">
-          Voltar ao paciente
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-[#323639] text-white">
+        <p className="text-sm text-rose-300">
+          {!contract ? "Contrato não encontrado." : "Paciente não encontrado."}
+        </p>
+        <Link href={`/app/pacientes/${patientId}`} className="text-sm text-indigo-300 underline">
+          Voltar
         </Link>
       </div>
     );
   }
 
-  if (!patient) {
-    return (
-      <div className="p-8">
-        <p className="text-sm text-rose-600">Paciente não encontrado.</p>
-      </div>
-    );
-  }
-
-  const filled = buildFilledContractPatient(patient);
+  const isExtracoes = contract.id === "extracoes-dentarias";
+  const filledData = isExtracoes
+    ? buildExtracaoContractData(patient, clinic)
+    : null;
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      <div className="no-print sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 shadow-sm">
-        <div>
-          <p className="text-sm font-semibold text-slate-900">{contract.shortLabel}</p>
-          <p className="text-xs text-slate-500">{patient.name}</p>
-        </div>
-        <div className="flex gap-2">
-          {contract.preferStaticPdf ? (
-            <a
-              href={`/contratos/${encodeURIComponent(contract.pdfFileName)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700"
-            >
-              Abrir só o PDF
-            </a>
-          ) : null}
+    <div className="min-h-screen bg-[#323639] text-white">
+      <div className="no-print sticky top-0 z-20 flex items-center justify-between border-b border-black/40 bg-[#323639] px-3 py-2">
+        <p className="truncate text-xs text-white/80">
+          {contract.pdfFileName || `${contract.shortLabel}.pdf`}
+        </p>
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => window.print()}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2 text-sm font-semibold text-white"
+            className="inline-flex items-center gap-1.5 rounded-md bg-white/10 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-white/20"
+            title="Imprimir / Salvar PDF"
           >
-            <Printer className="h-4 w-4" />
-            Imprimir / Salvar PDF
+            <Printer className="h-3.5 w-3.5" />
+            Imprimir
           </button>
           <Link
             href={`/app/pacientes/${patientId}`}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700"
+            className="inline-flex items-center gap-1 rounded-md bg-white/10 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-white/20"
+            title="Fechar"
           >
-            <X className="h-4 w-4" />
-            Fechar
+            <X className="h-3.5 w-3.5" />
           </Link>
         </div>
       </div>
 
-      <div className="py-6">
-        <ContractPrintDocument
-          contract={contract}
-          patient={filled}
-          clinicName="Clínica Sorriso Premium"
-        />
+      <div className="py-4 print:py-0">
+        {isExtracoes && filledData ? (
+          <ExtracoesDentariasFilledDocument data={filledData} />
+        ) : (
+          <ContractPrintDocument
+            contract={contract}
+            patient={buildFilledContractPatient(patient)}
+            clinicName={clinic?.name || "Clínica"}
+          />
+        )}
       </div>
 
       <style>{`
         @media print {
           .no-print { display: none !important; }
-          body { background: white !important; }
-          .contract-sheet {
-            box-shadow: none !important;
-            padding: 0 !important;
-            max-width: none !important;
-          }
+          body, html { background: white !important; }
+          .contract-pdf-pages { background: white !important; padding: 0 !important; }
         }
       `}</style>
     </div>

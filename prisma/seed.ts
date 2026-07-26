@@ -30,7 +30,12 @@ async function main() {
       slug: "sorriso-premium",
       phone: "(11) 3333-4444",
       email: "contato@sorriso.local",
-      address: "Av. Paulista, 1000 — São Paulo/SP",
+      address: "Av. Paulista, 1000",
+      city: "São Paulo",
+      state: "SP",
+      cnpj: "12.345.678/0001-90",
+      responsibleDentist: "Dr. Carlos Mendes",
+      cro: "CRO-SP 12345",
       settings: {
         create: {
           appointmentMins: 30,

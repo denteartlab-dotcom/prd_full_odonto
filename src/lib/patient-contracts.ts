@@ -18,8 +18,6 @@ export type PatientContractDefinition = {
   description: string;
   /** Nome do arquivo PDF estático opcional em /public/contratos/ */
   pdfFileName: string;
-  /** Se true, a página de impressão embute o PDF de /public/contratos */
-  preferStaticPdf?: boolean;
 };
 
 /** Catálogo do submenu Ações → Contratos */
@@ -30,7 +28,6 @@ export const PATIENT_CONTRACTS: PatientContractDefinition[] = [
     shortLabel: "Extrações dentárias",
     description: "Consentimento e orientações para extração dentária.",
     pdfFileName: "extracoes-dentarias.pdf",
-    preferStaticPdf: true,
   },
   {
     id: "prestacao-servicos",

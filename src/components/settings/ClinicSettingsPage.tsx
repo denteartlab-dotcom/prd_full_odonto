@@ -8,6 +8,11 @@ type ClinicData = {
   phone: string;
   email: string;
   address: string;
+  city: string;
+  state: string;
+  cnpj: string;
+  responsibleDentist: string;
+  cro: string;
   slug?: string;
 };
 
@@ -25,6 +30,11 @@ export function ClinicSettingsPage() {
     phone: "",
     email: "",
     address: "",
+    city: "",
+    state: "",
+    cnpj: "",
+    responsibleDentist: "",
+    cro: "",
   });
   const [settings, setSettings] = useState<SettingsData>({
     timezone: "America/Sao_Paulo",
@@ -54,6 +64,11 @@ export function ClinicSettingsPage() {
             phone: data.clinic.phone || "",
             email: data.clinic.email || "",
             address: data.clinic.address || "",
+            city: data.clinic.city || "",
+            state: data.clinic.state || "",
+            cnpj: data.clinic.cnpj || "",
+            responsibleDentist: data.clinic.responsibleDentist || "",
+            cro: data.clinic.cro || "",
             slug: data.clinic.slug,
           });
         }
@@ -88,6 +103,11 @@ export function ClinicSettingsPage() {
             phone: clinic.phone || null,
             email: clinic.email || null,
             address: clinic.address || null,
+            city: clinic.city || null,
+            state: clinic.state || null,
+            cnpj: clinic.cnpj || null,
+            responsibleDentist: clinic.responsibleDentist || null,
+            cro: clinic.cro || null,
           },
           settings: {
             timezone: settings.timezone,
@@ -121,17 +141,53 @@ export function ClinicSettingsPage() {
     <div className="space-y-4">
       <PageHeader
         title="Configurações"
-        description="Dados da clínica e parâmetros da agenda"
+        description="Dados da clínica usados nos contratos e na agenda"
       />
 
       <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSave}>
-        <Card title="Clínica">
+        <Card title="Clínica (CONTRATADA)">
           <div className="space-y-3">
             <Input
-              label="Nome"
+              label="Nome / Razão social"
               value={clinic.name}
               onChange={(e) => setClinic((c) => ({ ...c, name: e.target.value }))}
               required
+            />
+            <Input
+              label="CNPJ"
+              value={clinic.cnpj}
+              onChange={(e) => setClinic((c) => ({ ...c, cnpj: e.target.value }))}
+              placeholder="00.000.000/0000-00"
+            />
+            <Input
+              label="Endereço"
+              value={clinic.address}
+              onChange={(e) => setClinic((c) => ({ ...c, address: e.target.value }))}
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Cidade"
+                value={clinic.city}
+                onChange={(e) => setClinic((c) => ({ ...c, city: e.target.value }))}
+              />
+              <Input
+                label="UF"
+                value={clinic.state}
+                onChange={(e) => setClinic((c) => ({ ...c, state: e.target.value }))}
+              />
+            </div>
+            <Input
+              label="Cirurgião-dentista responsável"
+              value={clinic.responsibleDentist}
+              onChange={(e) =>
+                setClinic((c) => ({ ...c, responsibleDentist: e.target.value }))
+              }
+            />
+            <Input
+              label="CRO"
+              value={clinic.cro}
+              onChange={(e) => setClinic((c) => ({ ...c, cro: e.target.value }))}
+              placeholder="CRO-SP 00000"
             />
             <Input
               label="Telefone"
@@ -144,14 +200,6 @@ export function ClinicSettingsPage() {
               value={clinic.email}
               onChange={(e) => setClinic((c) => ({ ...c, email: e.target.value }))}
             />
-            <Input
-              label="Endereço"
-              value={clinic.address}
-              onChange={(e) => setClinic((c) => ({ ...c, address: e.target.value }))}
-            />
-            {clinic.slug ? (
-              <p className="text-xs text-slate-500">Slug: {clinic.slug}</p>
-            ) : null}
           </div>
         </Card>
 

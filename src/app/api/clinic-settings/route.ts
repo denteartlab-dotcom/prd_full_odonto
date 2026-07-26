@@ -2,6 +2,34 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { isSession, jsonError, requireApiSession } from "@/lib/api-helpers";
 
+function serializeClinic(clinic: {
+  id: string;
+  name: string;
+  slug: string;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  cnpj: string | null;
+  responsibleDentist: string | null;
+  cro: string | null;
+}) {
+  return {
+    id: clinic.id,
+    name: clinic.name,
+    slug: clinic.slug,
+    phone: clinic.phone,
+    email: clinic.email,
+    address: clinic.address,
+    city: clinic.city,
+    state: clinic.state,
+    cnpj: clinic.cnpj,
+    responsibleDentist: clinic.responsibleDentist,
+    cro: clinic.cro,
+  };
+}
+
 export async function GET() {
   const session = await requireApiSession();
   if (!isSession(session)) return session;
@@ -12,14 +40,17 @@ export async function GET() {
   });
   if (!clinic) return jsonError("Clínica não encontrada.", 404);
 
+  const fallbackPro = await prisma.professional.findFirst({
+    where: { clinicId: session.clinicId, active: true },
+    orderBy: { name: "asc" },
+  });
+
   return NextResponse.json({
     clinic: {
-      id: clinic.id,
-      name: clinic.name,
-      slug: clinic.slug,
-      phone: clinic.phone,
-      email: clinic.email,
-      address: clinic.address,
+      ...serializeClinic(clinic),
+      responsibleDentist:
+        clinic.responsibleDentist || fallbackPro?.name || null,
+      cro: clinic.cro || fallbackPro?.cro || null,
     },
     settings: clinic.settings || {
       timezone: "America/Sao_Paulo",
@@ -41,6 +72,11 @@ export async function PATCH(req: Request) {
       phone?: string | null;
       email?: string | null;
       address?: string | null;
+      city?: string | null;
+      state?: string | null;
+      cnpj?: string | null;
+      responsibleDentist?: string | null;
+      cro?: string | null;
     };
     settings?: {
       timezone?: string;
@@ -58,14 +94,17 @@ export async function PATCH(req: Request) {
     await prisma.clinic.update({
       where: { id: session.clinicId },
       data: {
-        ...(body.clinic.name !== undefined
-          ? { name: body.clinic.name.trim() }
-          : {}),
+        ...(body.clinic.name !== undefined ? { name: body.clinic.name.trim() } : {}),
         ...(body.clinic.phone !== undefined ? { phone: body.clinic.phone } : {}),
         ...(body.clinic.email !== undefined ? { email: body.clinic.email } : {}),
-        ...(body.clinic.address !== undefined
-          ? { address: body.clinic.address }
+        ...(body.clinic.address !== undefined ? { address: body.clinic.address } : {}),
+        ...(body.clinic.city !== undefined ? { city: body.clinic.city } : {}),
+        ...(body.clinic.state !== undefined ? { state: body.clinic.state } : {}),
+        ...(body.clinic.cnpj !== undefined ? { cnpj: body.clinic.cnpj } : {}),
+        ...(body.clinic.responsibleDentist !== undefined
+          ? { responsibleDentist: body.clinic.responsibleDentist }
           : {}),
+        ...(body.clinic.cro !== undefined ? { cro: body.clinic.cro } : {}),
       },
     });
   }
@@ -107,16 +146,7 @@ export async function PATCH(req: Request) {
   });
 
   return NextResponse.json({
-    clinic: clinic
-      ? {
-          id: clinic.id,
-          name: clinic.name,
-          slug: clinic.slug,
-          phone: clinic.phone,
-          email: clinic.email,
-          address: clinic.address,
-        }
-      : null,
+    clinic: clinic ? serializeClinic(clinic) : null,
     settings: clinic?.settings,
   });
 }
