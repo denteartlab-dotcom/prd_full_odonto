@@ -1,6 +1,12 @@
 # Contratos PDF (estáticos)
 
-Coloque aqui os PDFs finais dos contratos, com os nomes:
+Coloque aqui os PDFs finais dos contratos.
+
+## Já cadastrados
+
+- `extracoes-dentarias.pdf` — Extrações dentárias (ativo no menu)
+
+## Nomes sugeridos para os próximos
 
 - `prestacao-servicos.pdf`
 - `consentimento-informado.pdf`
@@ -9,6 +15,4 @@ Coloque aqui os PDFs finais dos contratos, com os nomes:
 - `autorizacao-imagem.pdf`
 - `termo-responsabilidade.pdf`
 
-Enquanto os arquivos não existirem, o sistema abre a versão **HTML preenchida** com os dados do paciente (pronta para Imprimir / Salvar PDF).
-
-Quando os PDFs estiverem prontos, o menu Ações → Contratos continua apontando para a página preenchida; podemos evoluir depois para mesclar o layout do PDF com os dados cadastrais.
+Evite acentos e espaços no nome do arquivo (use `extracoes-dentarias.pdf`).

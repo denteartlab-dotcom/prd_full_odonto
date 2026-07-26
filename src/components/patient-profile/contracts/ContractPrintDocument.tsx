@@ -1,7 +1,7 @@
 "use client";
 
 import type { FilledContractPatient, PatientContractDefinition } from "@/lib/patient-contracts";
-import { todayDisplay } from "@/lib/patient-contracts";
+import { contractStaticPdfUrl, todayDisplay } from "@/lib/patient-contracts";
 
 export function ContractPrintDocument({
   contract,
@@ -16,61 +16,86 @@ export function ContractPrintDocument({
   const fullAddress = [patient.address, patient.cep ? `CEP ${patient.cep}` : null, cityLine]
     .filter(Boolean)
     .join(" — ");
+  const pdfUrl = contractStaticPdfUrl(contract);
 
   return (
-    <article className="contract-sheet mx-auto max-w-[800px] bg-white px-10 py-12 text-slate-900">
-      <header className="mb-8 border-b border-slate-200 pb-6 text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">
-          {clinicName}
-        </p>
-        <h1 className="mt-2 text-xl font-bold leading-snug text-slate-900">
-          {contract.title}
-        </h1>
-        <p className="mt-2 text-sm text-slate-500">{contract.description}</p>
-      </header>
+    <div className="space-y-6">
+      <article className="contract-sheet mx-auto max-w-[900px] bg-white px-10 py-12 text-slate-900 shadow-sm">
+        <header className="mb-8 border-b border-slate-200 pb-6 text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">
+            {clinicName}
+          </p>
+          <h1 className="mt-2 text-xl font-bold leading-snug text-slate-900">
+            {contract.title}
+          </h1>
+          <p className="mt-2 text-sm text-slate-500">{contract.description}</p>
+        </header>
 
-      <section className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <h2 className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-500">
-          Dados do paciente (preenchidos automaticamente)
-        </h2>
-        <dl className="grid gap-2 text-sm sm:grid-cols-2">
-          <Field label="Nome completo" value={patient.name} />
-          {patient.nomeSocial ? <Field label="Nome social" value={patient.nomeSocial} /> : null}
-          <Field label="CPF" value={patient.cpf} />
-          <Field label="RG" value={patient.rg || "—"} />
-          <Field
-            label="Nascimento"
-            value={`${patient.birthDateDisplay} (${patient.age} anos)`}
+        <section className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <h2 className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-500">
+            Dados do paciente (preenchidos automaticamente)
+          </h2>
+          <dl className="grid gap-2 text-sm sm:grid-cols-2">
+            <Field label="Nome completo" value={patient.name} />
+            {patient.nomeSocial ? (
+              <Field label="Nome social" value={patient.nomeSocial} />
+            ) : null}
+            <Field label="CPF" value={patient.cpf} />
+            <Field label="RG" value={patient.rg || "—"} />
+            <Field
+              label="Nascimento"
+              value={`${patient.birthDateDisplay} (${patient.age} anos)`}
+            />
+            <Field label="Sexo" value={patient.sexo || "—"} />
+            <Field label="Estado civil" value={patient.estadoCivil || "—"} />
+            <Field label="Telefone" value={patient.phone} />
+            <Field label="E-mail" value={patient.email} />
+            <Field label="Convênio" value={patient.insurance} />
+            <Field label="Responsável financeiro" value={patient.financialResponsible} />
+            <Field label="Endereço" value={fullAddress} className="sm:col-span-2" />
+          </dl>
+        </section>
+
+        {contract.preferStaticPdf ? (
+          <section className="mb-4 rounded-xl border border-indigo-100 bg-indigo-50/60 px-4 py-3 text-sm text-indigo-900">
+            O PDF do contrato está abaixo, já vinculado a este paciente. Use{" "}
+            <strong>Imprimir / Salvar PDF</strong> para gerar a via assinada.
+          </section>
+        ) : (
+          <ContractBody
+            contractId={contract.id}
+            patientName={patient.name}
+            clinicName={clinicName}
           />
-          <Field label="Sexo" value={patient.sexo || "—"} />
-          <Field label="Estado civil" value={patient.estadoCivil || "—"} />
-          <Field label="Telefone" value={patient.phone} />
-          <Field label="E-mail" value={patient.email} />
-          <Field label="Convênio" value={patient.insurance} />
-          <Field label="Responsável financeiro" value={patient.financialResponsible} />
-          <Field label="Endereço" value={fullAddress} className="sm:col-span-2" />
-        </dl>
-      </section>
+        )}
 
-      <ContractBody contractId={contract.id} patientName={patient.name} clinicName={clinicName} />
+        <footer className="mt-8 space-y-8 text-sm">
+          <p className="text-slate-600">
+            Local e data: {patient.city || "________________"}, {todayDisplay()}.
+          </p>
+          <div className="grid gap-10 sm:grid-cols-2">
+            <SignatureBlock label="Paciente / Responsável legal" name={patient.name} />
+            <SignatureBlock label="Clínica / Responsável técnico" name={clinicName} />
+          </div>
+        </footer>
+      </article>
 
-      <footer className="mt-10 space-y-10 text-sm">
-        <p className="text-slate-600">
-          Local e data: {patient.city || "________________"}, {todayDisplay()}.
-        </p>
-
-        <div className="grid gap-10 sm:grid-cols-2">
-          <SignatureBlock label="Paciente / Responsável legal" name={patient.name} />
-          <SignatureBlock label="Clínica / Responsável técnico" name={clinicName} />
-        </div>
-
-        <p className="text-[11px] text-slate-400">
-          Documento gerado pelo Odonto Enterprise · Modelo editável — substitua o PDF
-          estático em <code>/public/contratos/{contract.pdfFileName}</code> quando
-          disponível.
-        </p>
-      </footer>
-    </article>
+      {contract.preferStaticPdf ? (
+        <section className="contract-sheet mx-auto max-w-[900px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="no-print border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">
+            PDF do contrato — {contract.pdfFileName}
+          </div>
+          <iframe
+            title={contract.title}
+            src={`${pdfUrl}#toolbar=1&navpanes=0`}
+            className="h-[80vh] w-full bg-slate-50"
+          />
+          <div className="print-only hidden p-6 text-center text-sm text-slate-600">
+            Consulte também o arquivo PDF anexado: {contract.pdfFileName}
+          </div>
+        </section>
+      ) : null}
+    </div>
   );
 }
 

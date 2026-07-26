@@ -8,7 +8,8 @@ export type PatientContractId =
   | "tratamento-ortodontico"
   | "plano-pagamento"
   | "autorizacao-imagem"
-  | "termo-responsabilidade";
+  | "termo-responsabilidade"
+  | "extracoes-dentarias";
 
 export type PatientContractDefinition = {
   id: PatientContractId;
@@ -17,10 +18,20 @@ export type PatientContractDefinition = {
   description: string;
   /** Nome do arquivo PDF estático opcional em /public/contratos/ */
   pdfFileName: string;
+  /** Se true, a página de impressão embute o PDF de /public/contratos */
+  preferStaticPdf?: boolean;
 };
 
 /** Catálogo do submenu Ações → Contratos */
 export const PATIENT_CONTRACTS: PatientContractDefinition[] = [
+  {
+    id: "extracoes-dentarias",
+    title: "Termo de Extrações Dentárias",
+    shortLabel: "Extrações dentárias",
+    description: "Consentimento e orientações para extração dentária.",
+    pdfFileName: "extracoes-dentarias.pdf",
+    preferStaticPdf: true,
+  },
   {
     id: "prestacao-servicos",
     title: "Contrato de Prestação de Serviços Odontológicos",
@@ -64,6 +75,10 @@ export const PATIENT_CONTRACTS: PatientContractDefinition[] = [
     pdfFileName: "termo-responsabilidade.pdf",
   },
 ];
+
+export function contractStaticPdfUrl(contract: PatientContractDefinition) {
+  return `/contratos/${encodeURIComponent(contract.pdfFileName)}`;
+}
 
 export type FilledContractPatient = {
   name: string;

@@ -28,7 +28,7 @@ export function ContractPrintPage({
   );
 
   useEffect(() => {
-    if (!patient || !contract) return;
+    if (!patient || !contract || contract.preferStaticPdf) return;
     const timer = window.setTimeout(() => window.print(), 400);
     return () => window.clearTimeout(timer);
   }, [patient, contract]);
@@ -66,6 +66,16 @@ export function ContractPrintPage({
           <p className="text-xs text-slate-500">{patient.name}</p>
         </div>
         <div className="flex gap-2">
+          {contract.preferStaticPdf ? (
+            <a
+              href={`/contratos/${encodeURIComponent(contract.pdfFileName)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700"
+            >
+              Abrir só o PDF
+            </a>
+          ) : null}
           <button
             type="button"
             onClick={() => window.print()}
