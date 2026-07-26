@@ -18,6 +18,7 @@ import { PatientFinancialTab } from "./financial";
 import { PatientConsultationsTab } from "./consultations";
 import { PatientDocumentsTab } from "./documents";
 import { PatientPrescriptionsTab } from "./prescriptions";
+import { PatientHistoryTab } from "./history";
 import { ProfileCard, ProfileField, ProfileLinkButton } from "./ProfileCard";
 
 function money(value: number) {
@@ -246,20 +247,7 @@ export function PatientTabPanels({
   }
 
   if (tab === "historico") {
-    return (
-      <ProfileCard title="Histórico do paciente">
-        <ol className="relative space-y-4 border-l-2 border-indigo-100 pl-6">
-          {patient.history.map((e) => (
-            <li key={e.id} className="relative">
-              <span className="absolute -left-[31px] top-1 h-3 w-3 rounded-full bg-indigo-500 ring-4 ring-white" />
-              <p className="text-xs text-slate-400">{formatDisplayDate(e.date)}</p>
-              <p className="font-semibold text-slate-800">{e.title}</p>
-              {e.description ? <p className="text-sm text-slate-600">{e.description}</p> : null}
-            </li>
-          ))}
-        </ol>
-      </ProfileCard>
-    );
+    return <PatientHistoryTab patient={patient} />;
   }
 
   if (tab === "imagens") {
