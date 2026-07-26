@@ -30,7 +30,6 @@ import type {
 import { cn, money } from "@/lib/utils";
 import {
   SoftCard,
-  PaymentDonut,
   FinanceSkeleton,
 } from "@/components/financeiro/geral/financeiro-ui";
 import {
@@ -315,7 +314,7 @@ export function ContasAPagarPage() {
   if (loading) return <FinanceSkeleton />;
 
   return (
-    <div className="space-y-5 pb-8">
+    <div className="space-y-4 pb-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-lg shadow-brand-900/20">
@@ -461,17 +460,17 @@ export function ContasAPagarPage() {
         </p>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {data.kpis.map((kpi) => (
           <div
             key={kpi.id}
             className={cn(
-              "rounded-2xl border bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)]",
+              "rounded-2xl border bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)]",
               kpi.tone === "red" ? "border-rose-200" : "border-slate-200/80"
             )}
           >
             <div className="flex items-start justify-between gap-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                 {kpi.label}
               </p>
               {kpi.tone === "red" ? (
@@ -480,10 +479,10 @@ export function ContasAPagarPage() {
                 </span>
               ) : null}
             </div>
-            <p className="mt-2 text-xl font-semibold text-slate-900">{kpi.value}</p>
-            {kpi.hint ? <p className="mt-1 text-xs text-slate-500">{kpi.hint}</p> : null}
+            <p className="mt-1.5 text-lg font-semibold text-slate-900">{kpi.value}</p>
+            {kpi.hint ? <p className="mt-0.5 text-[11px] text-slate-500">{kpi.hint}</p> : null}
             {kpi.progress != null ? (
-              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
                 <div
                   className={cn(
                     "h-full rounded-full",
@@ -497,19 +496,24 @@ export function ContasAPagarPage() {
         ))}
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="min-w-0 space-y-5">
-          <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-            <SoftCard title="Calendário Financeiro" description={data.calendarMonthLabel}>
-              <div className="mb-2 grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase text-slate-400">
-                {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
-                  <span key={d}>{d}</span>
+      <div className="space-y-4">
+        {/* Linha 1: calendário + contas do dia + próximos */}
+        <div className="grid gap-4 xl:grid-cols-12">
+          <div className="xl:col-span-5">
+            <SoftCard
+              title="Calendário Financeiro"
+              description={data.calendarMonthLabel}
+              bodyClassName="!p-3"
+            >
+              <div className="mb-1.5 grid grid-cols-7 gap-0.5 text-center text-[10px] font-semibold uppercase text-slate-400">
+                {["D", "S", "T", "Q", "Q", "S", "S"].map((d, i) => (
+                  <span key={`${d}-${i}`}>{d}</span>
                 ))}
               </div>
-              <div className="grid grid-cols-7 gap-1">
+              <div className="grid grid-cols-7 gap-0.5">
                 {data.calendar.map((cell, idx) => {
                   if (cell.tone === "vazio") {
-                    return <div key={`e-${idx}`} className="h-16 rounded-xl bg-transparent" />;
+                    return <div key={`e-${idx}`} className="h-11 rounded-lg bg-transparent" />;
                   }
                   const active = selectedDay === cell.date;
                   return (
@@ -518,7 +522,7 @@ export function ContasAPagarPage() {
                       type="button"
                       onClick={() => setSelectedDay(cell.date)}
                       className={cn(
-                        "flex h-16 flex-col rounded-xl border px-1.5 py-1 text-left transition",
+                        "flex h-11 flex-col rounded-lg border px-1 py-0.5 text-left transition",
                         active && "ring-2 ring-brand-500",
                         cell.tone === "atraso" && "border-rose-200 bg-rose-50",
                         cell.tone === "hoje" && "border-amber-200 bg-amber-50",
@@ -527,9 +531,9 @@ export function ContasAPagarPage() {
                         cell.tone === "neutro" && "border-slate-100 bg-white hover:bg-slate-50"
                       )}
                     >
-                      <span className="text-[11px] font-semibold text-slate-700">{cell.day}</span>
+                      <span className="text-[10px] font-semibold text-slate-700">{cell.day}</span>
                       {cell.total > 0 ? (
-                        <span className="mt-auto truncate text-[10px] font-medium text-slate-600">
+                        <span className="mt-auto truncate text-[9px] font-medium text-slate-600">
                           {money(cell.total)}
                         </span>
                       ) : null}
@@ -537,37 +541,36 @@ export function ContasAPagarPage() {
                   );
                 })}
               </div>
-              <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-slate-500">
+              <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-slate-500">
                 <Legend color="bg-emerald-400" label="Pago" />
-                <Legend color="bg-amber-400" label="Vence hoje" />
+                <Legend color="bg-amber-400" label="Hoje" />
                 <Legend color="bg-orange-400" label="Próximo" />
-                <Legend color="bg-rose-400" label="Em atraso" />
+                <Legend color="bg-rose-400" label="Atraso" />
               </div>
             </SoftCard>
+          </div>
 
+          <div className="xl:col-span-3">
             <SoftCard
               title="Contas do dia"
               description={new Date(selectedDay + "T12:00:00").toLocaleDateString("pt-BR")}
+              bodyClassName="!p-3"
             >
               {dayAccounts.length === 0 ? (
-                <p className="py-8 text-center text-sm text-slate-400">
-                  Nenhuma conta neste dia.
-                </p>
+                <p className="py-6 text-center text-sm text-slate-400">Nenhuma conta neste dia.</p>
               ) : (
-                <ul className="space-y-2">
+                <ul className="max-h-[280px] space-y-2 overflow-y-auto pr-1">
                   {dayAccounts.map((a) => (
                     <li
                       key={a.id}
-                      className="flex items-start justify-between gap-2 rounded-xl border border-slate-100 px-3 py-2.5"
+                      className="flex items-start justify-between gap-2 rounded-xl border border-slate-100 px-2.5 py-2"
                     >
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">{a.supplier}</p>
-                        <p className="text-xs text-slate-500">{a.description}</p>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-slate-900">{a.supplier}</p>
+                        <p className="truncate text-xs text-slate-500">{a.description}</p>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm font-semibold text-slate-900">
-                          {money(a.amount)}
-                        </p>
+                      <div className="shrink-0 text-right">
+                        <p className="text-sm font-semibold text-slate-900">{money(a.amount)}</p>
                         <PayableStatusPill status={a.status} />
                       </div>
                     </li>
@@ -577,238 +580,214 @@ export function ContasAPagarPage() {
             </SoftCard>
           </div>
 
-          <SoftCard
-            title="Contas a Pagar"
-            description="Lista principal de despesas"
-            action={
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="rounded-xl"
-                  onClick={batchPay}
-                >
-                  <CheckSquare className="h-4 w-4" />
-                  Pagamento em lote ({selectedIds.length})
-                </Button>
-              </div>
-            }
-          >
-            <div className="overflow-x-auto">
-              <table className="min-w-[1400px] w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-slate-100 text-[11px] uppercase tracking-wide text-slate-500">
-                    <th className="px-2 py-3">
-                      <input
-                        type="checkbox"
-                        checked={
-                          filtered.length > 0 && selectedIds.length === filtered.length
-                        }
-                        onChange={toggleSelectAll}
-                      />
-                    </th>
-                    {(
-                      [
-                        ["dueDate", "Vencimento"],
-                        ["supplier", "Fornecedor"],
-                        ["description", "Descrição"],
-                        ["category", "Categoria"],
-                        ["costCenter", "Centro de custo"],
-                        ["bankAccount", "Conta bancária"],
-                        ["paymentMethod", "Forma pgto."],
-                        ["document", "Documento"],
-                        ["amount", "Valor"],
-                        ["paidAmount", "Pago"],
-                        ["balance", "Saldo"],
-                        ["status", "Status"],
-                        ["responsible", "Responsável"],
-                      ] as const
-                    ).map(([key, label]) => (
-                      <th key={key} className="px-2 py-3">
-                        <button type="button" onClick={() => toggleSort(key)}>
-                          {label}
-                        </button>
-                      </th>
-                    ))}
-                    <th className="px-2 py-3">Obs.</th>
-                    <th className="px-2 py-3">Anexos</th>
-                    <th className="px-2 py-3">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((a) => (
-                    <tr key={a.id} className="border-b border-slate-50 hover:bg-slate-50/70">
-                      <td className="px-2 py-2.5">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.includes(a.id)}
-                          onChange={() => toggleSelect(a.id)}
-                        />
-                      </td>
-                      <td className="px-2 py-2.5 text-slate-700">{a.dueLabel}</td>
-                      <td className="px-2 py-2.5 font-medium text-slate-900">{a.supplier}</td>
-                      <td className="max-w-[180px] truncate px-2 py-2.5 text-slate-600">
-                        {a.description}
-                      </td>
-                      <td className="px-2 py-2.5">
-                        <CategoryBadge label={a.category} />
-                      </td>
-                      <td className="px-2 py-2.5 text-slate-600">{a.costCenter}</td>
-                      <td className="px-2 py-2.5 text-slate-600">{a.bankAccount}</td>
-                      <td className="px-2 py-2.5 text-slate-600">{a.paymentMethod}</td>
-                      <td className="px-2 py-2.5 text-slate-600">{a.document}</td>
-                      <td className="px-2 py-2.5 font-semibold text-slate-900">
-                        {money(a.amount)}
-                      </td>
-                      <td className="px-2 py-2.5 text-emerald-700">{money(a.paidAmount)}</td>
-                      <td className="px-2 py-2.5 text-rose-600">{money(a.balance)}</td>
-                      <td className="px-2 py-2.5">
-                        <PayableStatusPill status={a.status} />
-                      </td>
-                      <td className="px-2 py-2.5 text-slate-600">{a.responsible}</td>
-                      <td className="max-w-[120px] truncate px-2 py-2.5 text-slate-500">
-                        {a.notes || "—"}
-                      </td>
-                      <td className="px-2 py-2.5">
-                        <span className="inline-flex items-center gap-1 text-xs text-slate-500">
-                          <Paperclip className="h-3.5 w-3.5" />
-                          {a.attachments}
-                        </span>
-                      </td>
-                      <td className="px-2 py-2.5">
-                        <div className="flex items-center gap-1">
-                          <IconBtn title="Visualizar" onClick={() => notify("Visualizar")}>
-                            <Eye className="h-3.5 w-3.5" />
-                          </IconBtn>
-                          <IconBtn title="Editar" onClick={() => notify("Editar")}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </IconBtn>
-                          <IconBtn title="Registrar Pagamento" onClick={() => openPay(a)}>
-                            <Banknote className="h-3.5 w-3.5" />
-                          </IconBtn>
-                          <IconBtn title="Duplicar" onClick={() => notify("Duplicar")}>
-                            <Copy className="h-3.5 w-3.5" />
-                          </IconBtn>
-                          <IconBtn
-                            title="Cancelar"
-                            onClick={() => {
-                              setData((d) => ({
-                                ...d,
-                                accounts: d.accounts.map((x) =>
-                                  x.id === a.id ? { ...x, status: "cancelado" } : x
-                                ),
-                              }));
-                            }}
-                          >
-                            <Ban className="h-3.5 w-3.5" />
-                          </IconBtn>
-                          <IconBtn
-                            title="Excluir"
-                            onClick={() => {
-                              setData((d) => ({
-                                ...d,
-                                accounts: d.accounts.filter((x) => x.id !== a.id),
-                              }));
-                            }}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </IconBtn>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div className="xl:col-span-4">
+            <SoftCard title="Próximos vencimentos" bodyClassName="!p-3">
+              <ul className="max-h-[280px] space-y-1.5 overflow-y-auto pr-1">
+                {data.upcoming.map((u) => (
+                  <li
+                    key={u.id}
+                    className="flex items-center justify-between gap-2 rounded-xl border border-slate-100 px-2.5 py-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-600">
+                        {u.when}
+                      </p>
+                      <p className="truncate text-sm text-slate-700">{u.label}</p>
+                    </div>
+                    <p className="shrink-0 text-sm font-semibold text-slate-900">{money(u.amount)}</p>
+                  </li>
+                ))}
+              </ul>
+            </SoftCard>
+          </div>
+        </div>
+
+        {/* Linha 2: gráficos + resumo + alertas (sem coluna lateral alta) */}
+        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+          <SoftCard title="Despesas por Categoria" bodyClassName="!p-3">
+            <CompactDonut items={data.categoryShare} />
+          </SoftCard>
+          <SoftCard title="Contas por Status" bodyClassName="!p-3">
+            <CompactDonut items={data.statusShare} />
+          </SoftCard>
+          <SoftCard title="Fluxo de Saídas" bodyClassName="!p-3">
+            <OutflowBars data={data.outflowMonthly} />
+          </SoftCard>
+          <SoftCard title="Resumo Financeiro" bodyClassName="!p-3">
+            <dl className="grid grid-cols-2 gap-2 text-xs">
+              <MiniStat label="Em aberto" value={money(data.summary.totalAberto)} />
+              <MiniStat label="Pago" value={money(data.summary.totalPago)} />
+              <MiniStat label="Em atraso" value={money(data.summary.emAtraso)} />
+              <MiniStat label="Previsão" value={money(data.summary.previsao)} />
+            </dl>
+            <div className="mt-3 space-y-1 border-t border-slate-100 pt-2 text-xs">
+              <p className="text-slate-500">
+                Maior fornecedor:{" "}
+                <span className="font-semibold text-slate-800">{data.summary.maiorFornecedor}</span>
+              </p>
+              <p className="text-slate-500">
+                Categoria líder:{" "}
+                <span className="font-semibold text-slate-800">{data.summary.categoriaTop}</span>
+              </p>
             </div>
           </SoftCard>
         </div>
 
-        <aside className="space-y-5 xl:sticky xl:top-4 xl:self-start">
-          <SoftCard title="Próximos vencimentos">
-            <ul className="space-y-2">
-              {data.upcoming.map((u) => (
-                <li
-                  key={u.id}
-                  className="flex items-start justify-between gap-2 rounded-xl border border-slate-100 px-3 py-2.5"
+        <SoftCard title="Alertas Financeiros" bodyClassName="!p-3">
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+            {data.alerts.map((a) => (
+              <div
+                key={a.id}
+                className={cn(
+                  "rounded-xl border px-3 py-2.5",
+                  a.priority === "alta" && "border-rose-200 bg-rose-50",
+                  a.priority === "media" && "border-amber-200 bg-amber-50",
+                  a.priority === "baixa" && "border-slate-200 bg-slate-50"
+                )}
+              >
+                <p className="text-sm font-semibold text-slate-900">{a.title}</p>
+                <p className="mt-0.5 line-clamp-2 text-xs text-slate-600">{a.detail}</p>
+                <button
+                  type="button"
+                  className="mt-1 text-xs font-semibold text-brand-700 hover:underline"
+                  onClick={() => notify(`Verificar: ${a.title}`)}
                 >
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-600">
-                      {u.when}
-                    </p>
-                    <p className="mt-0.5 text-sm text-slate-700">{u.label}</p>
-                    <p className="text-[11px] text-slate-400">{u.count} conta(s)</p>
-                  </div>
-                  <p className="text-sm font-semibold text-slate-900">{money(u.amount)}</p>
-                </li>
-              ))}
-            </ul>
-          </SoftCard>
+                  Verificar
+                </button>
+              </div>
+            ))}
+          </div>
+        </SoftCard>
 
-          <SoftCard title="Despesas por Categoria">
-            <PaymentDonut items={data.categoryShare} />
-          </SoftCard>
-
-          <SoftCard title="Contas por Status">
-            <PaymentDonut items={data.statusShare} />
-          </SoftCard>
-
-          <SoftCard title="Fluxo de Saídas">
-            <OutflowBars data={data.outflowMonthly} />
-          </SoftCard>
-
-          <SoftCard title="Alertas">
-            <ul className="space-y-2">
-              {data.alerts.map((a) => (
-                <li
-                  key={a.id}
-                  className={cn(
-                    "rounded-xl border px-3 py-2.5",
-                    a.priority === "alta" && "border-rose-200 bg-rose-50",
-                    a.priority === "media" && "border-amber-200 bg-amber-50",
-                    a.priority === "baixa" && "border-slate-200 bg-slate-50"
-                  )}
-                >
-                  <p className="text-sm font-semibold text-slate-900">{a.title}</p>
-                  <p className="mt-0.5 text-xs text-slate-600">{a.detail}</p>
-                  <button
-                    type="button"
-                    className="mt-1 text-xs font-semibold text-brand-700 hover:underline"
-                    onClick={() => notify(`Verificar: ${a.title}`)}
-                  >
-                    Verificar
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </SoftCard>
-
-          <SoftCard title="Resumo Financeiro">
-            <dl className="space-y-3 text-sm">
-              <Row label="Total em aberto" value={money(data.summary.totalAberto)} />
-              <Row label="Total pago" value={money(data.summary.totalPago)} />
-              <Row label="Em atraso" value={money(data.summary.emAtraso)} />
-              <Row label="Previsão de pagamentos" value={money(data.summary.previsao)} />
-              <Row label="Maior fornecedor" value={data.summary.maiorFornecedor} />
-              <Row label="Categoria líder" value={data.summary.categoriaTop} />
-            </dl>
-            <div className="mt-4 border-t border-slate-100 pt-3">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Últimos pagamentos
-              </p>
-              <ul className="space-y-2">
-                {data.summary.ultimosPagamentos.map((p) => (
-                  <li key={p.id} className="flex justify-between gap-2 text-sm">
-                    <span className="text-slate-600">
-                      {p.label}
-                      <span className="block text-[11px] text-slate-400">{p.date}</span>
-                    </span>
-                    <span className="font-semibold text-slate-900">{money(p.amount)}</span>
-                  </li>
+        {/* Tabela com rolagem interna */}
+        <SoftCard
+          title="Contas a Pagar"
+          description="Lista principal de despesas"
+          bodyClassName="!p-0"
+          action={
+            <Button type="button" variant="secondary" className="rounded-xl" onClick={batchPay}>
+              <CheckSquare className="h-4 w-4" />
+              Pagamento em lote ({selectedIds.length})
+            </Button>
+          }
+        >
+          <div className="max-h-[420px] overflow-auto">
+            <table className="min-w-[1200px] w-full text-left text-sm">
+              <thead className="sticky top-0 z-10 bg-white">
+                <tr className="border-b border-slate-100 text-[11px] uppercase tracking-wide text-slate-500">
+                  <th className="px-2 py-3">
+                    <input
+                      type="checkbox"
+                      checked={filtered.length > 0 && selectedIds.length === filtered.length}
+                      onChange={toggleSelectAll}
+                    />
+                  </th>
+                  {(
+                    [
+                      ["dueDate", "Vencimento"],
+                      ["supplier", "Fornecedor"],
+                      ["description", "Descrição"],
+                      ["category", "Categoria"],
+                      ["costCenter", "Centro"],
+                      ["bankAccount", "Conta"],
+                      ["paymentMethod", "Pagamento"],
+                      ["document", "Documento"],
+                      ["amount", "Valor"],
+                      ["paidAmount", "Pago"],
+                      ["balance", "Saldo"],
+                      ["status", "Status"],
+                      ["responsible", "Responsável"],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <th key={key} className="px-2 py-3">
+                      <button type="button" onClick={() => toggleSort(key)}>
+                        {label}
+                      </button>
+                    </th>
+                  ))}
+                  <th className="px-2 py-3">Anexos</th>
+                  <th className="px-2 py-3">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((a) => (
+                  <tr key={a.id} className="border-b border-slate-50 hover:bg-slate-50/70">
+                    <td className="px-2 py-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(a.id)}
+                        onChange={() => toggleSelect(a.id)}
+                      />
+                    </td>
+                    <td className="px-2 py-2 text-slate-700">{a.dueLabel}</td>
+                    <td className="px-2 py-2 font-medium text-slate-900">{a.supplier}</td>
+                    <td className="max-w-[160px] truncate px-2 py-2 text-slate-600">{a.description}</td>
+                    <td className="px-2 py-2">
+                      <CategoryBadge label={a.category} />
+                    </td>
+                    <td className="px-2 py-2 text-slate-600">{a.costCenter}</td>
+                    <td className="px-2 py-2 text-slate-600">{a.bankAccount}</td>
+                    <td className="px-2 py-2 text-slate-600">{a.paymentMethod}</td>
+                    <td className="px-2 py-2 text-slate-600">{a.document}</td>
+                    <td className="px-2 py-2 font-semibold text-slate-900">{money(a.amount)}</td>
+                    <td className="px-2 py-2 text-emerald-700">{money(a.paidAmount)}</td>
+                    <td className="px-2 py-2 text-rose-600">{money(a.balance)}</td>
+                    <td className="px-2 py-2">
+                      <PayableStatusPill status={a.status} />
+                    </td>
+                    <td className="px-2 py-2 text-slate-600">{a.responsible}</td>
+                    <td className="px-2 py-2">
+                      <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                        <Paperclip className="h-3.5 w-3.5" />
+                        {a.attachments}
+                      </span>
+                    </td>
+                    <td className="px-2 py-2">
+                      <div className="flex items-center gap-1">
+                        <IconBtn title="Visualizar" onClick={() => notify("Visualizar")}>
+                          <Eye className="h-3.5 w-3.5" />
+                        </IconBtn>
+                        <IconBtn title="Editar" onClick={() => notify("Editar")}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </IconBtn>
+                        <IconBtn title="Registrar Pagamento" onClick={() => openPay(a)}>
+                          <Banknote className="h-3.5 w-3.5" />
+                        </IconBtn>
+                        <IconBtn title="Duplicar" onClick={() => notify("Duplicar")}>
+                          <Copy className="h-3.5 w-3.5" />
+                        </IconBtn>
+                        <IconBtn
+                          title="Cancelar"
+                          onClick={() => {
+                            setData((d) => ({
+                              ...d,
+                              accounts: d.accounts.map((x) =>
+                                x.id === a.id ? { ...x, status: "cancelado" } : x
+                              ),
+                            }));
+                          }}
+                        >
+                          <Ban className="h-3.5 w-3.5" />
+                        </IconBtn>
+                        <IconBtn
+                          title="Excluir"
+                          onClick={() => {
+                            setData((d) => ({
+                              ...d,
+                              accounts: d.accounts.filter((x) => x.id !== a.id),
+                            }));
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </IconBtn>
+                      </div>
+                    </td>
+                  </tr>
                 ))}
-              </ul>
-            </div>
-          </SoftCard>
-        </aside>
+              </tbody>
+            </table>
+          </div>
+        </SoftCard>
       </div>
 
       <NewPayableDrawer
@@ -871,31 +850,98 @@ function Legend({ color, label }: { color: string; label: string }) {
   );
 }
 
-function OutflowBars({ data }: { data: { label: string; value: number }[] }) {
-  const max = Math.max(...data.map((d) => d.value), 1);
+function CompactDonut({
+  items,
+}: {
+  items: { name: string; percent: number; color: string }[];
+}) {
+  const size = 112;
+  const stroke = 14;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  let acc = 0;
+
   return (
-    <div className="flex h-40 items-end gap-2">
-      {data.map((d) => (
-        <div key={d.label} className="flex flex-1 flex-col items-center gap-1">
-          <div className="flex h-32 w-full items-end justify-center">
-            <div
-              className="w-full max-w-[18px] rounded-t-md bg-gradient-to-t from-brand-600 to-brand-400"
-              style={{ height: `${(d.value / max) * 100}%` }}
-              title={money(d.value)}
-            />
-          </div>
-          <span className="text-[10px] text-slate-500">{d.label}</span>
+    <div className="flex items-center gap-3">
+      <div className="relative h-28 w-28 shrink-0">
+        <svg viewBox={`0 0 ${size} ${size}`} className="h-full w-full -rotate-90">
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke="#f1f5f9"
+            strokeWidth={stroke}
+          />
+          {items.map((item) => {
+            const length = (item.percent / 100) * circumference;
+            const el = (
+              <circle
+                key={item.name}
+                cx={size / 2}
+                cy={size / 2}
+                r={radius}
+                fill="none"
+                stroke={item.color}
+                strokeWidth={stroke}
+                strokeDasharray={`${length} ${circumference - length}`}
+                strokeDashoffset={-acc}
+                strokeLinecap="butt"
+              />
+            );
+            acc += length;
+            return el;
+          })}
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-sm font-semibold text-slate-900">
+            {items.reduce((s, i) => s + i.percent, 0)}%
+          </span>
         </div>
-      ))}
+      </div>
+      <ul className="max-h-28 w-full space-y-1 overflow-y-auto pr-1">
+        {items.map((item) => (
+          <li key={item.name} className="flex items-center justify-between gap-2 text-[11px]">
+            <span className="flex min-w-0 items-center gap-1.5 text-slate-600">
+              <span
+                className="h-2 w-2 shrink-0 rounded-full"
+                style={{ background: item.color }}
+              />
+              <span className="truncate">{item.name}</span>
+            </span>
+            <span className="shrink-0 font-semibold text-slate-800">{item.percent}%</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function MiniStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-start justify-between gap-3">
-      <dt className="text-slate-500">{label}</dt>
-      <dd className="text-right font-semibold text-slate-900">{value}</dd>
+    <div className="rounded-xl bg-slate-50 px-2.5 py-2">
+      <p className="text-[10px] uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="mt-0.5 text-sm font-semibold text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+function OutflowBars({ data }: { data: { label: string; value: number }[] }) {
+  const max = Math.max(...data.map((d) => d.value), 1);
+  return (
+    <div className="flex h-28 items-end gap-1.5">
+      {data.map((d) => (
+        <div key={d.label} className="flex min-w-0 flex-1 flex-col items-center gap-1">
+          <div className="flex h-20 w-full items-end justify-center">
+            <div
+              className="w-full max-w-[16px] rounded-t-md bg-gradient-to-t from-brand-700 to-brand-400"
+              style={{ height: `${Math.max(8, (d.value / max) * 100)}%` }}
+              title={`${d.label}: ${money(d.value)}`}
+            />
+          </div>
+          <span className="text-[10px] font-medium text-slate-500">{d.label}</span>
+        </div>
+      ))}
     </div>
   );
 }
