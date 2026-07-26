@@ -35,6 +35,19 @@ export function maskCep(value: string) {
   return d.replace(/^(\d{5})(\d)/, "$1-$2");
 }
 
+export function maskCnpj(value: string) {
+  const d = onlyDigits(value).slice(0, 14);
+  return d
+    .replace(/^(\d{2})(\d)/, "$1.$2")
+    .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3")
+    .replace(/\.(\d{3})(\d)/, ".$1/$2")
+    .replace(/(\d{4})(\d)/, "$1-$2");
+}
+
+export function maskCro(value: string) {
+  return value.toUpperCase().replace(/[^A-Z0-9-\s]/g, "").slice(0, 16);
+}
+
 export function maskDateBr(value: string) {
   const d = onlyDigits(value).slice(0, 8);
   return d
