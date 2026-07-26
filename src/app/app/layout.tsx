@@ -9,13 +9,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const clinic = await prisma.clinic.findUnique({
     where: { id: session.clinicId },
-    select: { name: true },
+    select: { name: true, logoUrl: true },
   });
 
   return (
     <AppShell
       userName={session.name}
       clinicName={clinic?.name || "Clínica"}
+      clinicLogoUrl={clinic?.logoUrl}
       role={session.role}
     >
       {children}

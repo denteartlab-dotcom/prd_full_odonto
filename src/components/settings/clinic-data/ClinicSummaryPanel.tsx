@@ -1,19 +1,54 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Badge } from "@/components/ui";
 import { LogoPreview } from "./clinic-data-ui";
 import type { ClinicDataForm } from "@/lib/clinic-data-types";
 import { CheckCircle2, HardDrive } from "lucide-react";
 
-export function ClinicSummaryPanel({ data }: { data: ClinicDataForm }) {
+export function ClinicSummaryPanel({
+  data,
+  logoUrl,
+  onLogoChange,
+}: {
+  data: ClinicDataForm;
+  logoUrl?: string | null;
+  onLogoChange?: (logoUrl: string | null) => void;
+}) {
+  const router = useRouter();
+  const [savingLogo, setSavingLogo] = useState(false);
   const usedPct = Math.min(
     100,
     Math.round((data.resumo.espacoUsadoGb / data.resumo.espacoTotalGb) * 100)
   );
 
+  async function saveLogo(next: string | null) {
+    setSavingLogo(true);
+    try {
+      const res = await fetch("/api/clinic-logo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logoUrl: next }),
+      });
+      const json = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(json.error || "Falha ao salvar logo.");
+      onLogoChange?.(next);
+      router.refresh();
+    } finally {
+      setSavingLogo(false);
+    }
+  }
+
   return (
     <aside className="space-y-4 lg:sticky lg:top-4">
-      <LogoPreview name={data.gerais.nomeFantasia || data.gerais.nomeClinica} />
+      <LogoPreview
+        name={data.gerais.nomeFantasia || data.gerais.nomeClinica}
+        logoUrl={logoUrl || data.identidade.logoPrincipal || null}
+        saving={savingLogo}
+        onChange={(dataUrl) => void saveLogo(dataUrl)}
+        onRemove={() => void saveLogo(null)}
+      />
 
       <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)]">
         <h3 className="text-sm font-semibold text-slate-900">Resumo da Clínica</h3>

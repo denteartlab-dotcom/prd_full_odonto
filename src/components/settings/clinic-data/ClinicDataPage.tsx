@@ -70,6 +70,7 @@ function mergeApiIntoForm(
     cnpj?: string | null;
     responsibleDentist?: string | null;
     cro?: string | null;
+    logoUrl?: string | null;
   },
   settings?: {
     timezone?: string;
@@ -106,6 +107,10 @@ function mergeApiIntoForm(
       ufCro:
         clinic.cro?.match(/CRO-([A-Z]{2})/i)?.[1]?.toUpperCase() ||
         base.responsavel.ufCro,
+    },
+    identidade: {
+      ...base.identidade,
+      logoPrincipal: clinic.logoUrl || base.identidade.logoPrincipal,
     },
     financeiros: {
       ...base.financeiros,
@@ -455,7 +460,18 @@ export function ClinicDataPage() {
             />
           )}
         </div>
-        {tab !== "usuarios" ? <ClinicSummaryPanel data={data} /> : null}
+        {tab !== "usuarios" ? (
+          <ClinicSummaryPanel
+            data={data}
+            logoUrl={data.identidade.logoPrincipal || null}
+            onLogoChange={(logoUrl) =>
+              setData((d) => ({
+                ...d,
+                identidade: { ...d.identidade, logoPrincipal: logoUrl || "" },
+              }))
+            }
+          />
+        ) : null}
       </div>
 
       {tab !== "usuarios" ? (

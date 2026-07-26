@@ -18,11 +18,13 @@ export function AppShell({
   children,
   userName,
   clinicName,
+  clinicLogoUrl,
   role,
 }: {
   children: React.ReactNode;
   userName: string;
   clinicName: string;
+  clinicLogoUrl?: string | null;
   role: string;
 }) {
   const pathname = usePathname();
@@ -55,9 +57,18 @@ export function AppShell({
             title="Configurar dados do perfil e da clínica"
             className="flex items-center gap-3 rounded-xl outline-none transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-indigo-400/60"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-400 to-blue-600 text-white shadow-lg shadow-blue-900/40">
-              <Smile className="h-5 w-5" />
-            </div>
+            {clinicLogoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={clinicLogoUrl}
+                alt={clinicName}
+                className="h-10 w-10 rounded-xl object-cover shadow-lg shadow-blue-900/40 ring-1 ring-white/15"
+              />
+            ) : (
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-400 to-blue-600 text-white shadow-lg shadow-blue-900/40">
+                <Smile className="h-5 w-5" />
+              </div>
+            )}
             <div className="min-w-0">
               <p className="text-sm font-semibold text-white">Odonto Enterprise</p>
               <p className="truncate text-[11px] text-slate-400">{clinicName}</p>

@@ -14,6 +14,7 @@ function serializeClinic(clinic: {
   cnpj: string | null;
   responsibleDentist: string | null;
   cro: string | null;
+  logoUrl: string | null;
 }) {
   return {
     id: clinic.id,
@@ -27,6 +28,7 @@ function serializeClinic(clinic: {
     cnpj: clinic.cnpj,
     responsibleDentist: clinic.responsibleDentist,
     cro: clinic.cro,
+    logoUrl: clinic.logoUrl,
   };
 }
 
