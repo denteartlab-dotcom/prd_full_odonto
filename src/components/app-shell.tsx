@@ -62,11 +62,11 @@ export function AppShell({
               <img
                 src={clinicLogoUrl}
                 alt={clinicName}
-                className="h-10 w-10 rounded-xl object-cover shadow-lg shadow-blue-900/40 ring-1 ring-white/15"
+                className="h-[60px] w-[60px] shrink-0 rounded-xl object-cover shadow-lg shadow-blue-900/40 ring-1 ring-white/15"
               />
             ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-400 to-blue-600 text-white shadow-lg shadow-blue-900/40">
-                <Smile className="h-5 w-5" />
+              <div className="flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-400 to-blue-600 text-white shadow-lg shadow-blue-900/40">
+                <Smile className="h-7 w-7" />
               </div>
             )}
             <div className="min-w-0">

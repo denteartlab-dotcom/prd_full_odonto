@@ -204,10 +204,10 @@ export function LogoPreview({
             <img
               src={logoUrl}
               alt=""
-              className="h-10 w-10 rounded-xl object-cover ring-1 ring-white/20"
+              className="h-[60px] w-[60px] rounded-xl object-cover ring-1 ring-white/20"
             />
           ) : (
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-400 to-blue-600 text-sm font-bold text-white">
+            <div className="flex h-[60px] w-[60px] items-center justify-center rounded-xl bg-gradient-to-br from-indigo-400 to-blue-600 text-base font-bold text-white">
               {name.slice(0, 1).toUpperCase() || "C"}
             </div>
           )}
