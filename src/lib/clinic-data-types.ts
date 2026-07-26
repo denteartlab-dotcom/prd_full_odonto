@@ -172,4 +172,5 @@ export type ClinicDataTabId =
   | "identidade"
   | "documentos"
   | "lgpd"
-  | "configuracoes";
+  | "configuracoes"
+  | "usuarios";

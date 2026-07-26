@@ -1,34 +1,18 @@
-import { Card, PageHeader, Badge } from "@/components/ui";
-import { getSession } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+"use client";
 
-export default async function PermissoesPage() {
-  const session = await getSession();
-  if (!session) return null;
-  const users = await prisma.user.findMany({
-    where: { clinicId: session.clinicId },
-    orderBy: { name: "asc" },
-  });
+import { ClinicUsersTab } from "@/components/settings/clinic-data/ClinicUsersTab";
 
+export default function PermissoesPage() {
   return (
-    <div>
-      <PageHeader title="Permissões" description="Papéis e acessos (modules/permissions + auth)." />
-      <Card title="Usuários da clínica">
-        <div className="space-y-2">
-          {users.map((u) => (
-            <div
-              key={u.id}
-              className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2 text-sm"
-            >
-              <div>
-                <p className="font-medium">{u.name}</p>
-                <p className="text-xs text-slate-500">{u.email}</p>
-              </div>
-              <Badge tone="blue">{u.role}</Badge>
-            </div>
-          ))}
-        </div>
-      </Card>
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Permissões</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          Gerencie usuários e módulos liberados. Também disponível em Dados da Clínica → Mais →
+          Usuários e Permissões.
+        </p>
+      </div>
+      <ClinicUsersTab />
     </div>
   );
 }

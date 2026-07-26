@@ -45,6 +45,7 @@ model User {
   email           String
   passwordHash    String
   role            String   @default("recepcao")
+  permissions     String   @default("[]")
   active          Boolean  @default(true)
   memedExternalId String?
   createdAt       DateTime @default(now())

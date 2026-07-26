@@ -20,6 +20,7 @@ import {
   Upload,
   ChevronDown,
   MoreHorizontal,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui";
 import { CLINIC_DATA_MOCK } from "@/lib/clinic-data-mock";
@@ -29,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { ClinicDataSkeleton } from "./clinic-data-ui";
 import { ClinicDataTabContent } from "./ClinicDataTabContent";
 import { ClinicSummaryPanel } from "./ClinicSummaryPanel";
+import { ClinicUsersTab } from "./ClinicUsersTab";
 
 const PRIMARY_TABS: {
   id: ClinicDataTabId;
@@ -43,6 +45,7 @@ const PRIMARY_TABS: {
 ];
 
 const MORE_TABS: typeof PRIMARY_TABS = [
+  { id: "usuarios", label: "Usuários e Permissões", icon: Users },
   { id: "bancarios", label: "Dados Bancários", icon: Landmark },
   { id: "financeiros", label: "Dados Financeiros", icon: Wallet },
   { id: "fiscais", label: "Dados Fiscais", icon: FileSpreadsheet },
@@ -433,19 +436,29 @@ export function ClinicDataPage() {
         <p className="text-xs text-amber-600">Você possui alterações não salvas.</p>
       ) : null}
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div
+        className={cn(
+          "grid gap-5",
+          tab === "usuarios" ? "" : "xl:grid-cols-[minmax(0,1fr)_320px]"
+        )}
+      >
         <div className="min-w-0">
-          <ClinicDataTabContent
-            data={data}
-            setData={setData}
-            tab={tab}
-            cepLoading={cepLoading}
-            onCepBlur={() => void lookupCep()}
-          />
+          {tab === "usuarios" ? (
+            <ClinicUsersTab />
+          ) : (
+            <ClinicDataTabContent
+              data={data}
+              setData={setData}
+              tab={tab}
+              cepLoading={cepLoading}
+              onCepBlur={() => void lookupCep()}
+            />
+          )}
         </div>
-        <ClinicSummaryPanel data={data} />
+        {tab !== "usuarios" ? <ClinicSummaryPanel data={data} /> : null}
       </div>
 
+      {tab !== "usuarios" ? (
       <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 lg:left-[260px]">
         <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex flex-wrap gap-2">
@@ -508,6 +521,7 @@ export function ClinicDataPage() {
           </div>
         </div>
       </div>
+      ) : null}
     </div>
   );
 }
