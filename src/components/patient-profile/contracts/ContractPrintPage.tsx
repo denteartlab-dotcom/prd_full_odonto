@@ -5,11 +5,13 @@ import Link from "next/link";
 import { Printer, X } from "lucide-react";
 import { usePatients } from "@/contexts/patients-context";
 import { useMounted } from "@/hooks/use-mounted";
-import { buildExtracaoContractData, type ClinicContractParty } from "@/lib/contract-fill";
+import {
+  buildFilledContractParties,
+  type ClinicContractParty,
+} from "@/lib/contract-fill";
 import { getContractById } from "@/lib/patient-contracts";
-import { ContractPrintDocument } from "./ContractPrintDocument";
 import { ExtracoesDentariasFilledDocument } from "./ExtracoesDentariasFilledDocument";
-import { buildFilledContractPatient } from "@/lib/patient-contracts";
+import { GenericFilledContractDocument } from "./GenericFilledContractDocument";
 
 export function ContractPrintPage({
   patientId,
@@ -81,10 +83,7 @@ export function ContractPrintPage({
     );
   }
 
-  const isExtracoes = contract.id === "extracoes-dentarias";
-  const filledData = isExtracoes
-    ? buildExtracaoContractData(patient, clinic)
-    : null;
+  const filledData = buildFilledContractParties(patient, clinic);
 
   return (
     <div className="min-h-screen bg-[#323639] text-white">
@@ -113,14 +112,10 @@ export function ContractPrintPage({
       </div>
 
       <div className="py-4 print:py-0">
-        {isExtracoes && filledData ? (
+        {contract.id === "extracoes-dentarias" ? (
           <ExtracoesDentariasFilledDocument data={filledData} />
         ) : (
-          <ContractPrintDocument
-            contract={contract}
-            patient={buildFilledContractPatient(patient)}
-            clinicName={clinic?.name || "Clínica"}
-          />
+          <GenericFilledContractDocument contract={contract} data={filledData} />
         )}
       </div>
 

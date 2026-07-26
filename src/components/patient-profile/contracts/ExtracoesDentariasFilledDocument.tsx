@@ -1,14 +1,7 @@
 "use client";
 
 import type { FilledExtracaoContract } from "@/lib/contract-fill";
-
-function Filled({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="rounded-sm bg-amber-100 px-0.5 font-semibold text-slate-900 underline decoration-slate-400 decoration-1 underline-offset-2">
-      {children}
-    </span>
-  );
-}
+import { Filled } from "./FilledValue";
 
 export function ExtracoesDentariasFilledDocument({
   data,
@@ -20,7 +13,7 @@ export function ExtracoesDentariasFilledDocument({
   return (
     <div className="contract-pdf-pages mx-auto w-full max-w-[820px] space-y-4 bg-[#525659] p-4 print:max-w-none print:space-y-0 print:bg-white print:p-0">
       <Page>
-        <h1 className="text-center text-[15px] font-bold uppercase tracking-wide">
+        <h1 className="text-center text-[15px] font-bold uppercase tracking-wide text-slate-900">
           Contrato de Prestação de Serviços Odontológicos
         </h1>
         <h2 className="mt-1 text-center text-[13px] font-semibold uppercase text-slate-700">
@@ -32,31 +25,24 @@ export function ExtracoesDentariasFilledDocument({
           ODONTOLÓGICOS, de um lado, como CONTRATADA,{" "}
           <Filled>{clinic.name}</Filled>, pessoa jurídica de direito privado,
           inscrita no CNPJ sob o nº <Filled>{clinic.cnpj}</Filled>, estabelecida à{" "}
-          <Filled>{clinic.address}</Filled>
-          {clinic.city !== "________________"
-            ? <>
-                , <Filled>{clinic.city}/{clinic.state}</Filled>
-              </>
-            : null}
-          , neste ato representada por seu(sua) Cirurgião(ã)-Dentista{" "}
-          <Filled>{clinic.responsibleDentist}</Filled>, inscrito(a) no Conselho
-          Regional de Odontologia (CRO/UF) sob o nº <Filled>{clinic.cro}</Filled>,
-          doravante denominada simplesmente CONTRATADA.
+          <Filled>{clinic.address}</Filled>, neste ato representada por seu(sua)
+          Cirurgião(ã)-Dentista <Filled>{clinic.responsibleDentist}</Filled>,
+          inscrito(a) no Conselho Regional de Odontologia (CRO/UF) sob o nº{" "}
+          <Filled>{clinic.cro}</Filled>, doravante denominada simplesmente CONTRATADA.
         </p>
 
         <p className="mt-3 text-justify text-[12.5px] leading-relaxed text-slate-800">
           E, de outro lado, como CONTRATANTE, Eu, <Filled>{patient.name}</Filled>,
           nacionalidade <Filled>{patient.nationality}</Filled>, estado civil{" "}
-          <Filled>{patient.estadoCivil || "________________"}</Filled>, profissão{" "}
+          <Filled>{patient.estadoCivil}</Filled>, profissão{" "}
           <Filled>{patient.profession}</Filled>, inscrito(a) no Cadastro de Pessoas
           Físicas (CPF/MF) sob o nº <Filled>{patient.cpf}</Filled>, portador(a) da
-          Cédula de Identidade (RG) nº <Filled>{patient.rg || "________________"}</Filled>,
-          expedida por <Filled>{patient.orgaoExpedidor}</Filled>, residente e
-          domiciliado(a) à <Filled>{patient.address}</Filled>, nº{" "}
-          <Filled>{patient.numero}</Filled>, complemento{" "}
-          <Filled>{patient.complemento}</Filled>, bairro{" "}
+          Cédula de Identidade (RG) nº <Filled>{patient.rg}</Filled>, expedida por{" "}
+          <Filled>{patient.orgaoExpedidor}</Filled>, residente e domiciliado(a) à{" "}
+          <Filled>{patient.address}</Filled>, nº <Filled>{patient.numero}</Filled>,
+          complemento <Filled>{patient.complemento}</Filled>, bairro{" "}
           <Filled>{patient.bairro}</Filled>, cidade <Filled>{patient.city}</Filled>,
-          Estado <Filled>{patient.state}</Filled>, CEP <Filled>{patient.cep || "________________"}</Filled>,
+          Estado <Filled>{patient.state}</Filled>, CEP <Filled>{patient.cep}</Filled>,
           telefone <Filled>{patient.phone}</Filled>, e-mail{" "}
           <Filled>{patient.email}</Filled>, doravante denominado(a) simplesmente
           PACIENTE ou CONTRATANTE.
