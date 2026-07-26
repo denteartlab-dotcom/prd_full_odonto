@@ -42,10 +42,10 @@ const PRIMARY_TABS: {
   { id: "contatos", label: "Contatos", icon: Phone },
   { id: "responsavel", label: "Responsável Técnico", icon: Stethoscope },
   { id: "horario", label: "Horário de Funcionamento", icon: Clock3 },
+  { id: "usuarios", label: "Usuários e Permissões", icon: Users },
 ];
 
 const MORE_TABS: typeof PRIMARY_TABS = [
-  { id: "usuarios", label: "Usuários e Permissões", icon: Users },
   { id: "bancarios", label: "Dados Bancários", icon: Landmark },
   { id: "financeiros", label: "Dados Financeiros", icon: Wallet },
   { id: "fiscais", label: "Dados Fiscais", icon: FileSpreadsheet },
@@ -364,32 +364,37 @@ export function ClinicDataPage() {
         </div>
       </div>
 
-      <div className="flex items-center gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white px-2 py-1.5 shadow-sm">
-        {PRIMARY_TABS.map((item) => {
-          const Icon = item.icon;
-          const active = tab === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setTab(item.id)}
-              className={cn(
-                "inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-medium transition",
-                active
-                  ? "bg-brand-50 text-brand-700 ring-1 ring-brand-200"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {item.label}
-            </button>
-          );
-        })}
+      <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-white px-2 py-1.5 shadow-sm">
+        <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+          {PRIMARY_TABS.map((item) => {
+            const Icon = item.icon;
+            const active = tab === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setTab(item.id)}
+                className={cn(
+                  "inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-medium transition",
+                  active
+                    ? "bg-brand-50 text-brand-700 ring-1 ring-brand-200"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
 
-        <div className="relative ml-auto" ref={moreRef}>
+        <div className="relative shrink-0" ref={moreRef}>
           <button
             type="button"
-            onClick={() => setMoreOpen((v) => !v)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setMoreOpen((v) => !v);
+            }}
             className={cn(
               "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-medium transition",
               moreActive
@@ -402,7 +407,7 @@ export function ClinicDataPage() {
             <ChevronDown className="h-3.5 w-3.5" />
           </button>
           {moreOpen ? (
-            <div className="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white py-1 shadow-xl">
+            <div className="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white py-1 shadow-xl">
               {MORE_TABS.map((item) => {
                 const Icon = item.icon;
                 return (
