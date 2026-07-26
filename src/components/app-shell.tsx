@@ -28,7 +28,9 @@ export function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const isPrintView =
-    pathname?.includes("/anamnese/imprimir") || pathname?.includes("/orcamentos/imprimir");
+    pathname?.includes("/anamnese/imprimir") ||
+    pathname?.includes("/orcamentos/imprimir") ||
+    pathname?.includes("/contratos/");
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
