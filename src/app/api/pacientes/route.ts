@@ -60,9 +60,20 @@ export async function POST(req: Request) {
       return jsonError("Dados do paciente inválidos.");
     }
 
+    const clinic = await prisma.clinic.findUnique({
+      where: { id: session.clinicId },
+      select: { id: true },
+    });
+    if (!clinic) {
+      return jsonError(
+        "Clínica da sessão não encontrada. Faça logout e login novamente.",
+        400
+      );
+    }
+
     const row = await prisma.patient.create({
       data: {
-        clinicId: session.clinicId,
+        clinicId: clinic.id,
         ...data,
       },
     });

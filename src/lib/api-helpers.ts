@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { getSession, type SessionPayload } from "@/lib/auth";
+import { getApiSession, type SessionPayload } from "@/lib/auth";
 
 export async function requireApiSession(): Promise<
   SessionPayload | NextResponse
 > {
-  const session = await getSession();
+  const session = await getApiSession();
   if (!session) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
