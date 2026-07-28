@@ -59,12 +59,16 @@ export async function loadPrescriptionPdfPayload(input: {
 
   const envelope = parsePrescriptionEnvelope(row.medicationsJson);
   const issuedAt = row.createdAt.toLocaleDateString("pt-BR");
+  const birthDate = row.patient.birthDate
+    ? row.patient.birthDate.toLocaleDateString("pt-BR")
+    : undefined;
   const payload: PrescriptionPdfInput = {
     clinicName: row.clinic.name,
     clinicAddress: [row.clinic.address, row.clinic.city, row.clinic.state]
       .filter(Boolean)
       .join(" — "),
     clinicPhone: row.clinic.phone || undefined,
+    clinicCnpj: row.clinic.cnpj || undefined,
     clinicLogoUrl: row.clinic.logoUrl || null,
     dentistName:
       row.professional?.name ||
@@ -74,6 +78,7 @@ export async function loadPrescriptionPdfPayload(input: {
     dentistCro: row.professional?.cro || row.clinic.cro || undefined,
     patientName: row.patient.name,
     patientCpf: row.patient.cpf || undefined,
+    patientBirthDate: birthDate,
     kind: envelope.kind,
     medications: envelope.items.length
       ? envelope.items
