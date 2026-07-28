@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Printer, X } from "lucide-react";
 import { usePatients } from "@/contexts/patients-context";
 import { useMounted } from "@/hooks/use-mounted";
 import {
@@ -10,6 +9,7 @@ import {
   type ClinicContractParty,
 } from "@/lib/contract-fill";
 import { getContractById } from "@/lib/patient-contracts";
+import { ContractPdfViewer } from "./ContractPdfViewer";
 import { ExtracoesDentariasFilledDocument } from "./ExtracoesDentariasFilledDocument";
 import { GenericFilledContractDocument } from "./GenericFilledContractDocument";
 
@@ -84,48 +84,28 @@ export function ContractPrintPage({
   }
 
   const filledData = buildFilledContractParties(patient, clinic);
+  const fileName = contract.pdfFileName || `${contract.shortLabel}.pdf`;
+  const sourceKey = [
+    contract.id,
+    patient.id,
+    clinic?.name ?? "",
+    clinic?.cnpj ?? "",
+    clinic?.responsibleDentist ?? "",
+    patient.name,
+    patient.cpf,
+  ].join("|");
 
   return (
-    <div className="min-h-screen bg-[#323639] text-white">
-      <div className="no-print sticky top-0 z-20 flex items-center justify-between border-b border-black/40 bg-[#323639] px-3 py-2">
-        <p className="truncate text-xs text-white/80">
-          {contract.pdfFileName || `${contract.shortLabel}.pdf`}
-        </p>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="inline-flex items-center gap-1.5 rounded-md bg-white/10 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-white/20"
-            title="Imprimir / Salvar PDF"
-          >
-            <Printer className="h-3.5 w-3.5" />
-            Imprimir
-          </button>
-          <Link
-            href={`/app/pacientes/${patientId}`}
-            className="inline-flex items-center gap-1 rounded-md bg-white/10 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-white/20"
-            title="Fechar"
-          >
-            <X className="h-3.5 w-3.5" />
-          </Link>
-        </div>
-      </div>
-
-      <div className="py-4 print:py-0">
-        {contract.id === "extracoes-dentarias" ? (
-          <ExtracoesDentariasFilledDocument data={filledData} />
-        ) : (
-          <GenericFilledContractDocument contract={contract} data={filledData} />
-        )}
-      </div>
-
-      <style>{`
-        @media print {
-          .no-print { display: none !important; }
-          body, html { background: white !important; }
-          .contract-pdf-pages { background: white !important; padding: 0 !important; }
-        }
-      `}</style>
-    </div>
+    <ContractPdfViewer
+      fileName={fileName}
+      backHref={`/app/pacientes/${patientId}`}
+      sourceKey={sourceKey}
+    >
+      {contract.id === "extracoes-dentarias" ? (
+        <ExtracoesDentariasFilledDocument data={filledData} />
+      ) : (
+        <GenericFilledContractDocument contract={contract} data={filledData} />
+      )}
+    </ContractPdfViewer>
   );
 }

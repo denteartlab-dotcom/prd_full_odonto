@@ -19,7 +19,7 @@ export function GenericFilledContractDocument({
 
   return (
     <div className="contract-pdf-pages mx-auto w-full max-w-[820px] space-y-4 bg-[#525659] p-4 print:max-w-none print:space-y-0 print:bg-white print:p-0">
-      <section className="min-h-[1050px] rounded-sm bg-white px-10 py-10 text-slate-900 shadow-lg print:min-h-0 print:rounded-none print:px-8 print:py-8 print:shadow-none">
+      <section className="contract-pdf-page min-h-[1050px] rounded-sm bg-white px-10 py-10 text-slate-900 shadow-lg print:min-h-0 print:rounded-none print:px-8 print:py-8 print:shadow-none">
         <h1 className="text-center text-[15px] font-bold uppercase tracking-wide">
           {contract.title}
         </h1>

@@ -249,7 +249,7 @@ export function ExtracoesDentariasFilledDocument({
 
 function Page({ children }: { children: React.ReactNode }) {
   return (
-    <section className="min-h-[1050px] rounded-sm bg-white px-10 py-10 text-slate-900 shadow-lg print:min-h-0 print:break-after-page print:rounded-none print:px-8 print:py-8 print:shadow-none">
+    <section className="contract-pdf-page min-h-[1050px] rounded-sm bg-white px-10 py-10 text-slate-900 shadow-lg print:min-h-0 print:break-after-page print:rounded-none print:px-8 print:py-8 print:shadow-none">
       {children}
     </section>
   );
