@@ -54,3 +54,21 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ ok: true }, { status: 201 });
 }
+
+export async function DELETE(req: Request) {
+  const session = await requireApiSession();
+  if (!isSession(session)) return session;
+
+  const body = (await req.json().catch(() => ({}))) as { medicationId?: string };
+  const medicationId = (body.medicationId || "").trim();
+  if (!medicationId) return jsonError("Informe o medicamento.");
+
+  await prisma.favoriteMedication.deleteMany({
+    where: {
+      userId: session.userId,
+      medicationId,
+    },
+  });
+
+  return NextResponse.json({ ok: true });
+}

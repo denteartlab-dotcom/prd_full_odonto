@@ -79,6 +79,10 @@ export class MedicationService {
     await medicationApi.addFavorite(medication);
   }
 
+  async removeFavorite(medicationId: string): Promise<void> {
+    await medicationApi.removeFavorite(medicationId);
+  }
+
   trackRecent(medication: Medication) {
     medicationCache.pushRecent(medication);
   }

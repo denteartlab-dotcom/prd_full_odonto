@@ -78,4 +78,13 @@ export const medicationApi = {
     });
     await parseJson<{ ok: boolean }>(res);
   },
+
+  async removeFavorite(medicationId: string): Promise<void> {
+    const res = await fetch("/api/medications/favorites", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ medicationId }),
+    });
+    await parseJson<{ ok: boolean }>(res);
+  },
 };
