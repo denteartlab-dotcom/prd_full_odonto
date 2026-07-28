@@ -5,15 +5,18 @@ import { Eye, FileText, Loader2, MessageCircle, X } from "lucide-react";
 import type { PrescriptionRecord } from "@/lib/prescription-types";
 import { formatDisplayDate } from "@/lib/patients-list-mock";
 
-function buildWhatsAppUrl(phone: string, message: string) {
-  const digits = phone.replace(/\D/g, "");
-  const withCountry =
-    digits.length >= 12 && digits.startsWith("55")
-      ? digits
-      : digits.length >= 10
-        ? `55${digits}`
-        : digits;
-  return `https://wa.me/${withCountry}?text=${encodeURIComponent(message)}`;
+function downloadBase64Pdf(base64: string, filename: string) {
+  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  const blob = new Blob([bytes], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  return blob;
 }
 
 export function VisualizarPdfModal({
@@ -31,15 +34,17 @@ export function VisualizarPdfModal({
 }) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   if (!open) return null;
 
   function viewPdf(item: PrescriptionRecord) {
-    window.open(item.pdfUrl || `/api/prescricoes/${item.id}/imprimir`, "_blank");
+    window.open(`/api/prescricoes/${item.id}/pdf`, "_blank");
   }
 
   async function sendWhatsApp(item: PrescriptionRecord) {
     setError("");
+    setSuccess("");
     const phone = (patientPhone || "").replace(/\D/g, "");
     if (phone.length < 10) {
       setError("Paciente sem telefone válido cadastrado para WhatsApp.");
@@ -48,21 +53,44 @@ export function VisualizarPdfModal({
 
     setBusyId(item.id);
     try {
-      const res = await fetch(`/api/prescricoes/${item.id}/share`, {
-        cache: "no-store",
+      const res = await fetch(`/api/prescricoes/${item.id}/whatsapp`, {
+        method: "POST",
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Falha ao gerar link da receita.");
+      if (!res.ok) throw new Error(data.error || "Falha ao enviar PDF no WhatsApp.");
 
-      const dateLabel = formatDisplayDate(item.createdAt.slice(0, 10));
-      const message =
-        `Olá ${patientName.split(" ")[0]}! Segue o link da sua receita odontológica (${dateLabel}):\n\n` +
-        `${data.url}\n\n` +
-        `Abra o link e use “Imprimir / Salvar como PDF” no navegador.`;
+      if (data.mode === "sent") {
+        setSuccess(data.message || "PDF enviado no WhatsApp do paciente.");
+        return;
+      }
 
-      window.open(buildWhatsAppUrl(phone, message), "_blank", "noopener,noreferrer");
+      // Fallback sem Cloud API: baixa PDF e abre conversa
+      if (data.pdfBase64 && data.filename) {
+        const blob = downloadBase64Pdf(data.pdfBase64, data.filename);
+        const file = new File([blob], data.filename, { type: "application/pdf" });
+
+        if (typeof navigator !== "undefined" && navigator.share && navigator.canShare?.({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: "Receita odontológica",
+            text: `Receita de ${patientName}`,
+          });
+          setSuccess("PDF compartilhado. Se o WhatsApp abriu, confirme o envio.");
+          return;
+        }
+
+        if (data.waUrl) {
+          window.open(data.waUrl, "_blank", "noopener,noreferrer");
+        }
+        setSuccess(
+          "PDF gerado e baixado. Anexe o arquivo no WhatsApp que foi aberto (o app não permite anexo automático sem API oficial)."
+        );
+        return;
+      }
+
+      setSuccess(data.message || "Operação concluída.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não foi possível abrir o WhatsApp.");
+      setError(err instanceof Error ? err.message : "Não foi possível enviar o PDF.");
     } finally {
       setBusyId(null);
     }
@@ -85,7 +113,7 @@ export function VisualizarPdfModal({
             <div>
               <h3 className="text-base font-semibold text-slate-900">Receitas do paciente</h3>
               <p className="text-xs text-slate-500">
-                Escolha uma receita para visualizar o PDF ou enviar no WhatsApp
+                Visualize o PDF ou envie o arquivo direto no WhatsApp
               </p>
             </div>
           </div>
@@ -102,6 +130,11 @@ export function VisualizarPdfModal({
           {error ? (
             <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
               {error}
+            </div>
+          ) : null}
+          {success ? (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+              {success}
             </div>
           ) : null}
 
@@ -150,7 +183,7 @@ export function VisualizarPdfModal({
                         ) : (
                           <MessageCircle className="h-3.5 w-3.5" />
                         )}
-                        WhatsApp
+                        Enviar PDF
                       </button>
                     </div>
                   </div>
