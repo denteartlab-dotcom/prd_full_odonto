@@ -248,7 +248,7 @@ export function PatientTabPanels({
   }
 
   if (tab === "receitas") {
-    return <PatientPrescriptionsTab patient={patient} />;
+    return <PatientPrescriptionsTab patient={patient} userName={userName} />;
   }
 
   if (tab === "historico") {
