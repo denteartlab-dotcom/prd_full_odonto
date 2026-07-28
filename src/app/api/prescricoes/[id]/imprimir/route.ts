@@ -74,6 +74,7 @@ export async function GET(_req: Request, { params }: Params) {
       .join(" — "),
     clinicPhone: row.clinic.phone || undefined,
     clinicCnpj: row.clinic.cnpj || undefined,
+    clinicLogoUrl: row.clinic.logoUrl || null,
     dentistName:
       row.professional?.name ||
       row.clinic.responsibleDentist ||
@@ -95,7 +96,6 @@ export async function GET(_req: Request, { params }: Params) {
             duration: "",
           },
         ],
-    observations: envelope.observations || undefined,
     issuedAt,
     validUntil: envelope.validUntil
       ? new Date(`${envelope.validUntil}T12:00:00`).toLocaleDateString("pt-BR")

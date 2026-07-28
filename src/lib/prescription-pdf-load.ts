@@ -65,6 +65,7 @@ export async function loadPrescriptionPdfPayload(input: {
       .filter(Boolean)
       .join(" — "),
     clinicPhone: row.clinic.phone || undefined,
+    clinicLogoUrl: row.clinic.logoUrl || null,
     dentistName:
       row.professional?.name ||
       row.clinic.responsibleDentist ||
@@ -85,7 +86,6 @@ export async function loadPrescriptionPdfPayload(input: {
             duration: "",
           },
         ],
-    observations: envelope.observations || undefined,
     issuedAt,
     validUntil: envelope.validUntil
       ? new Date(`${envelope.validUntil}T12:00:00`).toLocaleDateString("pt-BR")

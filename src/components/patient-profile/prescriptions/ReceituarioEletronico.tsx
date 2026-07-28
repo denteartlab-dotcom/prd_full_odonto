@@ -245,7 +245,7 @@ export function ReceituarioEletronico({
       await loadHistory();
       setMessage("Receita emitida com sucesso.");
       if (data.item?.id) {
-        window.open(`/api/prescricoes/${data.item.id}/imprimir`, "_blank");
+        window.open(`/api/prescricoes/${data.item.id}/pdf`, "_blank");
       }
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Erro ao emitir.");
@@ -282,7 +282,7 @@ export function ReceituarioEletronico({
           icon={Printer}
           label="Imprimir"
           onClick={() => {
-            if (lastId) window.open(`/api/prescricoes/${lastId}/imprimir`, "_blank");
+            if (lastId) window.open(`/api/prescricoes/${lastId}/pdf`, "_blank");
             else setMessage("Emita uma receita para imprimir.");
           }}
         />
@@ -378,7 +378,7 @@ export function ReceituarioEletronico({
         items={history}
         onDuplicate={duplicateFromHistory}
         onView={(item) =>
-          window.open(item.pdfUrl || `/api/prescricoes/${item.id}/imprimir`, "_blank")
+          window.open(item.pdfUrl || `/api/prescricoes/${item.id}/pdf`, "_blank")
         }
       />
       <VisualizarPdfModal
