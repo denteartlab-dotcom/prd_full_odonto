@@ -465,7 +465,7 @@ export async function POST(req: Request) {
         attempts,
         alerts: [
           ...groq.result.alerts,
-          "Sugestão via Groq (gratuito). O dentista deve validar posologia e interações antes de emitir.",
+          "O dentista deve validar posologia e interações antes de emitir.",
         ],
       });
     }
@@ -478,7 +478,7 @@ export async function POST(req: Request) {
         attempts,
         alerts: [
           ...gemini.result.alerts,
-          "Sugestão via Google Gemini com pesquisa. O dentista deve validar posologia e interações antes de emitir.",
+          "O dentista deve validar posologia e interações antes de emitir.",
         ],
       });
     }
@@ -491,7 +491,7 @@ export async function POST(req: Request) {
         attempts,
         alerts: [
           ...perplexity.result.alerts,
-          "Sugestão baseada em pesquisa na internet. O dentista deve validar posologia e interações antes de emitir.",
+          "O dentista deve validar posologia e interações antes de emitir.",
         ],
       });
     }
@@ -504,7 +504,7 @@ export async function POST(req: Request) {
         attempts,
         alerts: [
           ...openai.result.alerts,
-          "Sugestão via OpenAI. O dentista deve validar posologia e interações antes de emitir.",
+          "O dentista deve validar posologia e interações antes de emitir.",
         ],
       });
     }

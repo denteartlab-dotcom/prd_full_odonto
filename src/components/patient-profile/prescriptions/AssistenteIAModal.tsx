@@ -1,9 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, Check, Loader2, Sparkles, X } from "lucide-react";
+import { AlertTriangle, Check, Loader2, RefreshCw, Sparkles, X } from "lucide-react";
 import type { ReceituarioLine } from "@/lib/receituario-types";
 import type { AssistenteResult } from "@/lib/receituario-assistente";
+
+function isProviderBrandingAlert(alert: string) {
+  return /via\s+(groq|gemini|openai|perplexity)|pesquisa na internet|gratuito\)/i.test(alert);
+}
 
 export function AssistenteIAModal({
   open,
@@ -52,7 +56,11 @@ export function AssistenteIAModal({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Falha ao gerar sugestão.");
-      setResult(data as AssistenteResult);
+      const parsed = data as AssistenteResult;
+      setResult({
+        ...parsed,
+        alerts: (parsed.alerts || []).filter((a) => !isProviderBrandingAlert(a)),
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não foi possível gerar a sugestão.");
     } finally {
@@ -116,6 +124,11 @@ export function AssistenteIAModal({
               }
               className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/15"
             />
+            {result ? (
+              <p className="mt-1.5 text-[11px] text-slate-500">
+                Pode reescrever o texto acima e clicar em “Gerar outra sugestão”.
+              </p>
+            ) : null}
           </div>
 
           {error ? (
@@ -129,18 +142,6 @@ export function AssistenteIAModal({
               <div className="rounded-xl border border-indigo-100 bg-indigo-50/70 px-3 py-2.5">
                 <p className="text-xs font-semibold text-indigo-900">{result.procedureLabel}</p>
                 <p className="mt-1 text-xs text-indigo-800">{result.summary}</p>
-                <p className="mt-1 text-[10px] font-medium uppercase tracking-wide text-indigo-500">
-                  Fonte:{" "}
-                  {result.source === "groq"
-                    ? "Groq (gratuito)"
-                    : result.source === "gemini"
-                      ? "Google Gemini (pesquisa)"
-                      : result.source === "perplexity"
-                        ? "Perplexity (pesquisa na internet)"
-                        : result.source === "openai"
-                          ? "OpenAI"
-                          : "Assistente clínico local (gratuito)"}
-                </p>
                 {result.source === "local" &&
                 result.attempts?.some((a) => !a.ok && a.detail && !a.detail.includes("ausente")) ? (
                   <p className="mt-1 text-[11px] text-amber-800">
@@ -208,13 +209,13 @@ export function AssistenteIAModal({
             </div>
           ) : (
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-600">
-              Recomendado: GROQ_API_KEY (gratuito, cota maior). Alternativa: GEMINI_API_KEY. Sem
-              chave, usa protocolos locais. Sempre revise antes de emitir.
+              Descreva o caso clínico e gere uma sugestão inicial. O dentista sempre valida doses e
+              interações antes de emitir.
             </div>
           )}
         </div>
 
-        <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-4">
+        <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 px-5 py-4">
           <button
             type="button"
             onClick={onClose}
@@ -223,14 +224,30 @@ export function AssistenteIAModal({
             Fechar
           </button>
           {result ? (
-            <button
-              type="button"
-              onClick={apply}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
-            >
-              <Check className="h-4 w-4" />
-              Aplicar na receita
-            </button>
+            <>
+              <button
+                type="button"
+                disabled={!prompt.trim() || loading}
+                onClick={() => void generate()}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-50"
+              >
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                {loading ? "Gerando…" : "Gerar outra sugestão"}
+              </button>
+              <button
+                type="button"
+                onClick={apply}
+                disabled={loading}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+              >
+                <Check className="h-4 w-4" />
+                Aplicar na receita
+              </button>
+            </>
           ) : (
             <button
               type="button"
