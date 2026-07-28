@@ -2,16 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Copy,
   FilePlus2,
   History,
   Loader2,
-  Mail,
   MessageCircle,
   Printer,
-  Save,
   Sparkles,
-  Star,
   BookTemplate,
   FileText,
   Send,
@@ -258,21 +254,12 @@ export function ReceituarioEletronico({
     }
   }
 
-  function saveDraftLocal() {
-    window.localStorage.setItem(
-      DRAFT_KEY(patient.id),
-      JSON.stringify({ lines, generalNotes })
-    );
-    setMessage("Rascunho salvo neste dispositivo.");
-  }
-
   const lastId = history[0]?.id;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm">
         <ToolbarBtn icon={FilePlus2} label="Nova Receita" onClick={clearDraft} />
-        <ToolbarBtn icon={Save} label="Salvar Rascunho" onClick={saveDraftLocal} />
         <ToolbarBtn
           icon={saving ? Loader2 : Send}
           label="Emitir Receita"
@@ -312,23 +299,8 @@ export function ReceituarioEletronico({
         >
           <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
         </button>
-        <a
-          href={patient.email ? `mailto:${patient.email}` : "#"}
-          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-        >
-          <Mail className="h-3.5 w-3.5" /> E-mail
-        </a>
-        <ToolbarBtn
-          icon={Copy}
-          label="Duplicar"
-          onClick={() => {
-            if (history[0]) duplicateFromHistory(history[0]);
-            else setMessage("Não há receita anterior para duplicar.");
-          }}
-        />
         <ToolbarBtn icon={History} label="Histórico" onClick={() => setHistoryOpen(true)} />
         <ToolbarBtn icon={BookTemplate} label="Modelos" onClick={() => setModelsOpen(true)} />
-        <ToolbarBtn icon={Star} label="Favoritos" onClick={() => setMessage("Use a coluna esquerda — seção Favoritos.")} />
         <button
           type="button"
           onClick={() => setAiOpen(true)}
