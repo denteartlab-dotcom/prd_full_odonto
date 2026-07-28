@@ -43,11 +43,6 @@ export function PrescriptionsModulePage() {
         }
       />
 
-      <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-        Módulo nativo e gratuito (sem Memed). Ideal para CRO. Para assinatura digital ICP-Brasil
-        oficial, use também o portal do CFO.
-      </div>
-
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
         {loading ? (
           <p className="p-8 text-sm text-slate-400">Carregando prescrições...</p>
