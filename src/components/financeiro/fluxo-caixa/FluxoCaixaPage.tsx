@@ -76,9 +76,15 @@ const KPI_TONES = {
 } as const;
 
 const ALERT_TONE = {
-  alta: "border-rose-200 bg-rose-50 text-rose-800",
-  media: "border-amber-200 bg-amber-50 text-amber-800",
-  baixa: "border-slate-200 bg-slate-50 text-slate-700",
+  alta: "border-l-rose-500 bg-rose-50/80 text-rose-800",
+  media: "border-l-amber-500 bg-amber-50/80 text-amber-800",
+  baixa: "border-l-slate-300 bg-slate-50 text-slate-700",
+} as const;
+
+const ALERT_DOT = {
+  alta: "bg-rose-500",
+  media: "bg-amber-500",
+  baixa: "bg-slate-400",
 } as const;
 
 type SortKey =
@@ -796,22 +802,39 @@ export function FluxoCaixaPage() {
             </div>
           </SoftCard>
 
-          <SoftCard title="Fluxo Projetado" description="Próximos 30 dias">
+          <SoftCard title="Fluxo Projetado" description="30 dias" bodyClassName="!p-3">
             <ProjectedFlowChart data={data.projection} />
           </SoftCard>
 
-          <SoftCard title="Alertas Financeiros" bodyClassName="!p-3">
-            <ul className="space-y-2">
+          <SoftCard
+            title="Alertas Financeiros"
+            description={`${data.alerts.length} itens`}
+            bodyClassName="!p-2"
+          >
+            <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-100">
               {data.alerts.map((alert) => (
                 <li
                   key={alert.id}
                   className={cn(
-                    "rounded-xl border px-3 py-2.5",
+                    "flex items-start gap-2 border-l-2 px-2.5 py-1.5",
                     ALERT_TONE[alert.priority]
                   )}
+                  title={alert.detail}
                 >
-                  <p className="text-sm font-semibold">{alert.title}</p>
-                  <p className="mt-0.5 text-xs opacity-90">{alert.detail}</p>
+                  <span
+                    className={cn(
+                      "mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full",
+                      ALERT_DOT[alert.priority]
+                    )}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[12px] font-semibold leading-tight text-slate-900">
+                      {alert.title}
+                    </p>
+                    <p className="mt-0.5 line-clamp-1 text-[11px] leading-snug text-slate-600">
+                      {alert.detail}
+                    </p>
+                  </div>
                 </li>
               ))}
             </ul>

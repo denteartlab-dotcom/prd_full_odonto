@@ -93,8 +93,8 @@ export function CombinedCashflowChart({ data }: { data: CashflowSeriesPoint[] })
 export function ProjectedFlowChart({ data }: { data: CashProjectionPoint[] }) {
   if (!data.length) return null;
   const w = 280;
-  const h = 120;
-  const pad = 16;
+  const h = 88;
+  const pad = 12;
   const values = data.map((d) => d.saldo);
   const max = Math.max(...values);
   const min = Math.min(...values);
@@ -109,7 +109,7 @@ export function ProjectedFlowChart({ data }: { data: CashProjectionPoint[] }) {
 
   return (
     <div>
-      <svg viewBox={`0 0 ${w} ${h}`} className="h-28 w-full">
+      <svg viewBox={`0 0 ${w} ${h}`} className="h-20 w-full">
         <polygon points={`${pad},${h - pad} ${points} ${w - pad},${h - pad}`} fill="rgba(37,99,235,0.12)" />
         <polyline
           points={points}
@@ -120,7 +120,7 @@ export function ProjectedFlowChart({ data }: { data: CashProjectionPoint[] }) {
           strokeLinejoin="round"
         />
       </svg>
-      <div className="mt-1 flex justify-between text-[10px] text-slate-400">
+      <div className="mt-0.5 flex justify-between text-[10px] text-slate-400">
         <span>{data[0]?.label}</span>
         <span>{money(values[values.length - 1] || 0)}</span>
         <span>{data[data.length - 1]?.label}</span>
