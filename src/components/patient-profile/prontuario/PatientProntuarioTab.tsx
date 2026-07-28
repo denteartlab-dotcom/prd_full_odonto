@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { PatientProfile } from "@/lib/patient-profile-types";
-import { createProntuarioMock, filterEvolucoes } from "@/lib/prontuario-mock";
+import { filterEvolucoes } from "@/lib/prontuario-mock";
 import type {
   EvolucaoClinica,
   NovaEvolucaoForm,
@@ -15,19 +15,37 @@ import { ProntuarioSidebar } from "./ProntuarioSidebar";
 import { ProntuarioTimeline } from "./ProntuarioTimeline";
 
 const STORAGE_PREFIX = "odonto-prontuario:";
+const CLEARED_FLAG = "odonto-prontuario-cleared-v1";
+
+function clearAllProntuarioStorage() {
+  if (typeof window === "undefined") return;
+  try {
+    if (window.localStorage.getItem(CLEARED_FLAG) === "1") return;
+    const keys: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const key = window.localStorage.key(i);
+      if (key?.startsWith(STORAGE_PREFIX)) keys.push(key);
+    }
+    keys.forEach((key) => window.localStorage.removeItem(key));
+    window.localStorage.setItem(CLEARED_FLAG, "1");
+  } catch {
+    /* ignore */
+  }
+}
 
 function loadEvolucoes(patientId: string): EvolucaoClinica[] {
-  if (typeof window === "undefined") return createProntuarioMock(patientId);
+  if (typeof window === "undefined") return [];
+  clearAllProntuarioStorage();
   try {
     const raw = window.localStorage.getItem(`${STORAGE_PREFIX}${patientId}`);
     if (raw) {
       const parsed = JSON.parse(raw) as EvolucaoClinica[];
-      if (Array.isArray(parsed) && parsed.length) return parsed;
+      if (Array.isArray(parsed)) return parsed;
     }
   } catch {
     /* ignore */
   }
-  return createProntuarioMock(patientId);
+  return [];
 }
 
 function persistEvolucoes(patientId: string, items: EvolucaoClinica[]) {
