@@ -98,7 +98,7 @@ export function ReceituarioSearchPanel({
     );
   }, [search.items, activeCategory]);
 
-  const showDropdown = open && query.trim().length > 0;
+  const showDropdown = open && query.trim().length >= 3;
 
   async function handleAdd(m: Medication) {
     medicationService.trackRecent(m);
@@ -153,7 +153,7 @@ export function ReceituarioSearchPanel({
                 window.setTimeout(() => setOpen(false), 160);
               }}
               onKeyDown={onKeyDown}
-              placeholder="Nome, genérico, princípio ativo, fabricante, ANVISA..."
+              placeholder="Digite ao menos 3 letras (nome, genérico, PA, fabricante, ANVISA)..."
               className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-9 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/15"
               autoComplete="off"
             />
