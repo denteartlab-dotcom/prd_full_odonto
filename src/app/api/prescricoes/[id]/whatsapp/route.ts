@@ -12,6 +12,13 @@ import {
 
 type Params = { params: Promise<{ id: string }> };
 
+function buildWhatsAppWebUrl(phone: string, text: string) {
+  const digits = phone.replace(/\D/g, "");
+  const withCountry =
+    digits.length >= 12 && digits.startsWith("55") ? digits : `55${digits}`;
+  return `https://web.whatsapp.com/send?phone=${withCountry}&text=${encodeURIComponent(text)}`;
+}
+
 export async function POST(req: NextRequest, { params }: Params) {
   const session = await requireApiSession();
   if (!isSession(session)) return session;
@@ -35,7 +42,8 @@ export async function POST(req: NextRequest, { params }: Params) {
   });
   const publicPdfPath = `/api/receitas-publicas/${encodeURIComponent(token)}/pdf`;
   const publicPdfUrl = absoluteAppUrl(publicPdfPath, req);
-  const caption = `Olá ${loaded.patientName.split(" ")[0]}! Segue sua receita odontológica em PDF.`;
+  const firstName = loaded.patientName.split(" ")[0] || "paciente";
+  const caption = `Olá ${firstName}! Segue o link da sua receita odontológica em PDF:\n${publicPdfUrl}`;
 
   if (isWhatsAppCloudConfigured()) {
     try {
@@ -43,7 +51,7 @@ export async function POST(req: NextRequest, { params }: Params) {
         toPhone: phone,
         pdfBytes: loaded.bytes,
         filename: loaded.filename,
-        caption,
+        caption: `Olá ${firstName}! Segue sua receita odontológica em PDF.`,
         publicPdfUrl: publicPdfUrl.startsWith("https://") ? publicPdfUrl : undefined,
       });
       return NextResponse.json({
@@ -56,30 +64,17 @@ export async function POST(req: NextRequest, { params }: Params) {
       });
     } catch (err) {
       console.error("[whatsapp pdf]", err);
-      return jsonError(
-        err instanceof Error ? err.message : "Falha ao enviar PDF no WhatsApp.",
-        502
-      );
+      // Se a Cloud API falhar, abre WhatsApp Web com o link público
     }
   }
 
-  // Sem Cloud API: devolve PDF + wa.me para o cliente baixar e anexar
-  const pdfBase64 = Buffer.from(loaded.bytes).toString("base64");
-  const digits = phone.replace(/\D/g, "");
-  const withCountry =
-    digits.length >= 12 && digits.startsWith("55") ? digits : `55${digits}`;
-  const waUrl = `https://wa.me/${withCountry}?text=${encodeURIComponent(
-    `${caption}\n\nO arquivo PDF "${loaded.filename}" foi baixado — anexe no chat.`
-  )}`;
+  const waUrl = buildWhatsAppWebUrl(phone, caption);
 
   return NextResponse.json({
     ok: true,
-    mode: "download_attach",
-    filename: loaded.filename,
-    pdfBase64,
+    mode: "whatsapp_web_link",
     waUrl,
     publicPdfUrl,
-    message:
-      "WhatsApp Cloud API não configurada. Baixamos o PDF para você anexar no WhatsApp.",
+    message: "Abrindo WhatsApp Web com o link do PDF.",
   });
 }

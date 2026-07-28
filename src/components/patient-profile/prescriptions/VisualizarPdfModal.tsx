@@ -5,25 +5,10 @@ import { Eye, FileText, Loader2, MessageCircle, X } from "lucide-react";
 import type { PrescriptionRecord } from "@/lib/prescription-types";
 import { formatDisplayDate } from "@/lib/patients-list-mock";
 
-function downloadBase64Pdf(base64: string, filename: string) {
-  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-  const blob = new Blob([bytes], { type: "application/pdf" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-  return blob;
-}
-
 export function VisualizarPdfModal({
   open,
   onClose,
   items,
-  patientName,
   patientPhone,
 }: {
   open: boolean;
@@ -57,40 +42,22 @@ export function VisualizarPdfModal({
         method: "POST",
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Falha ao enviar PDF no WhatsApp.");
+      if (!res.ok) throw new Error(data.error || "Falha ao enviar no WhatsApp.");
 
       if (data.mode === "sent") {
         setSuccess(data.message || "PDF enviado no WhatsApp do paciente.");
         return;
       }
 
-      // Fallback sem Cloud API: baixa PDF e abre conversa
-      if (data.pdfBase64 && data.filename) {
-        const blob = downloadBase64Pdf(data.pdfBase64, data.filename);
-        const file = new File([blob], data.filename, { type: "application/pdf" });
-
-        if (typeof navigator !== "undefined" && navigator.share && navigator.canShare?.({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: "Receita odontológica",
-            text: `Receita de ${patientName}`,
-          });
-          setSuccess("PDF compartilhado. Se o WhatsApp abriu, confirme o envio.");
-          return;
-        }
-
-        if (data.waUrl) {
-          window.open(data.waUrl, "_blank", "noopener,noreferrer");
-        }
-        setSuccess(
-          "PDF gerado e baixado. Anexe o arquivo no WhatsApp que foi aberto (o app não permite anexo automático sem API oficial)."
-        );
+      if (data.waUrl) {
+        window.open(data.waUrl, "_blank", "noopener,noreferrer");
+        setSuccess("WhatsApp Web aberto com o link do PDF. Confirme o envio na conversa.");
         return;
       }
 
       setSuccess(data.message || "Operação concluída.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não foi possível enviar o PDF.");
+      setError(err instanceof Error ? err.message : "Não foi possível enviar no WhatsApp.");
     } finally {
       setBusyId(null);
     }
@@ -113,7 +80,7 @@ export function VisualizarPdfModal({
             <div>
               <h3 className="text-base font-semibold text-slate-900">Receitas do paciente</h3>
               <p className="text-xs text-slate-500">
-                Visualize o PDF ou envie o arquivo direto no WhatsApp
+                Visualize o PDF ou envie o link pelo WhatsApp Web
               </p>
             </div>
           </div>
@@ -183,7 +150,7 @@ export function VisualizarPdfModal({
                         ) : (
                           <MessageCircle className="h-3.5 w-3.5" />
                         )}
-                        Enviar PDF
+                        Enviar WhatsApp
                       </button>
                     </div>
                   </div>
