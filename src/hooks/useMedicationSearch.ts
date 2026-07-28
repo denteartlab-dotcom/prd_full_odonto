@@ -57,6 +57,17 @@ export function useMedicationCategories() {
   });
 }
 
+export function useMedicationByCategory(categoryId: string, enabled = true) {
+  return useQuery<MedicationSearchResult, Error>({
+    queryKey: ["medications", "by-category", categoryId],
+    queryFn: () => medicationService.getByCategory(categoryId),
+    enabled: enabled && categoryId.trim().length > 0,
+    staleTime: 5 * 60_000,
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+}
+
 export function useMedicationRecent() {
   const [items, setItems] = useState<Medication[]>([]);
 

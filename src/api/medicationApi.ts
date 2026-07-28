@@ -50,6 +50,14 @@ export const medicationApi = {
     return data.items;
   },
 
+  async byCategory(categoryId: string): Promise<MedicationSearchResult> {
+    const q = encodeURIComponent(categoryId.trim());
+    const res = await fetch(`/api/medications/by-category?category=${q}`, {
+      cache: "no-store",
+    });
+    return parseJson<MedicationSearchResult>(res);
+  },
+
   async getManufacturers(): Promise<string[]> {
     const res = await fetch("/api/medications/manufacturers", { cache: "no-store" });
     const data = await parseJson<{ items: string[] }>(res);

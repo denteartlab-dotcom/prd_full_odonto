@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Clock, Loader2, Plus, Search, Star } from "lucide-react";
 import {
+  useMedicationByCategory,
   useMedicationCategories,
   useMedicationFavorites,
   useMedicationRecent,
@@ -78,7 +79,7 @@ export function ReceituarioSearchPanel({
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
-  const [activeCategory, setActiveCategory] = useState("");
+  const [activeCategoryId, setActiveCategoryId] = useState("");
   const [highlight, setHighlight] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
@@ -87,18 +88,16 @@ export function ReceituarioSearchPanel({
   const favorites = useMedicationFavorites();
   const categories = useMedicationCategories();
   const recent = useMedicationRecent();
+  const byCategory = useMedicationByCategory(activeCategoryId, Boolean(activeCategoryId));
 
-  const filteredItems = useMemo(() => {
-    if (!activeCategory) return search.items;
-    const needle = activeCategory.toLowerCase();
-    return search.items.filter(
-      (m) =>
-        m.category.toLowerCase().includes(needle) ||
-        m.name.toLowerCase().includes(needle)
-    );
-  }, [search.items, activeCategory]);
+  const searchItems = search.items;
+  const categoryItems = byCategory.data?.items ?? [];
+  const activeCategoryLabel =
+    (categories.data || []).find((c) => c.id === activeCategoryId)?.label || "";
 
-  const showDropdown = open && query.trim().length >= 2;
+  const filteredItems = useMemo(() => searchItems, [searchItems]);
+
+  const showDropdown = open && query.trim().length >= 2 && !activeCategoryId;
 
   async function handleAdd(m: Medication) {
     medicationService.trackRecent(m);
@@ -144,7 +143,7 @@ export function ReceituarioSearchPanel({
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
-                setActiveCategory("");
+                setActiveCategoryId("");
                 setOpen(true);
                 setHighlight(0);
               }}
@@ -202,6 +201,36 @@ export function ReceituarioSearchPanel({
       </div>
 
       <div className="flex-1 space-y-4 overflow-y-auto p-4">
+        {activeCategoryId ? (
+          <div>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-indigo-600">
+                {activeCategoryLabel || "Categoria"}
+              </p>
+              <button
+                type="button"
+                onClick={() => setActiveCategoryId("")}
+                className="text-[11px] font-semibold text-slate-500 hover:text-slate-700"
+              >
+                Limpar
+              </button>
+            </div>
+            {byCategory.isFetching ? <MedicationSkeleton /> : null}
+            {!byCategory.isFetching && !categoryItems.length ? (
+              <p className="text-xs text-slate-400">
+                Nenhum medicamento nesta categoria no catálogo odontológico.
+              </p>
+            ) : null}
+            <ul className="space-y-1.5">
+              {categoryItems.map((m) => (
+                <li key={`cat-${m.id}`}>
+                  <ResultItem m={m} onPick={(med) => void handleAdd(med)} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
         <div>
           <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
             <Star className="h-3 w-3" /> Favoritos
@@ -261,15 +290,14 @@ export function ReceituarioSearchPanel({
                 key={c.id}
                 type="button"
                 onClick={() => {
-                  const next = activeCategory === c.label ? "" : c.label;
-                  setActiveCategory(next);
-                  setQuery(next);
-                  setOpen(Boolean(next));
-                  inputRef.current?.focus();
+                  const next = activeCategoryId === c.id ? "" : c.id;
+                  setActiveCategoryId(next);
+                  setQuery("");
+                  setOpen(false);
                 }}
                 className={cn(
                   "rounded-full px-2.5 py-1 text-[11px] font-semibold transition",
-                  activeCategory === c.label
+                  activeCategoryId === c.id
                     ? "bg-indigo-600 text-white"
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 )}

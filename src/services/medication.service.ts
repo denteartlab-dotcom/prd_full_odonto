@@ -51,6 +51,16 @@ export class MedicationService {
     return items;
   }
 
+  async getByCategory(categoryId: string): Promise<MedicationSearchResult> {
+    const key = `category:${categoryId.trim().toLowerCase()}`;
+    const cached = medicationCache.get<MedicationSearchResult>(key);
+    if (cached) return cached;
+
+    const result = await medicationApi.byCategory(categoryId);
+    medicationCache.set(key, result);
+    return result;
+  }
+
   async getManufacturers(): Promise<string[]> {
     const key = "manufacturers";
     const cached = medicationCache.get<string[]>(key);

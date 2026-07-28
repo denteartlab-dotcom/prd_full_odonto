@@ -237,8 +237,15 @@ export async function providerGetMedicineLeaflet(id: string): Promise<string | n
 }
 
 export async function providerGetCategories() {
-  if (isMedicamentosApiConfigured()) return API_CATEGORIES;
+  // Sempre o catálogo odontológico local — a API externa não lista por categoria.
   return FALLBACK_CATEGORIES;
+}
+
+export async function providerListByCategory(categoryId: string) {
+  const id = categoryId.trim().toLowerCase();
+  if (!id) return [] as Medication[];
+
+  return DENTAL_MEDICATIONS.filter((row) => row.category === id).map(fromDental);
 }
 
 export async function providerGetManufacturers() {
