@@ -138,7 +138,19 @@ export function ReceituarioEletronico({
     setMessage("Nova receita iniciada.");
   }
 
-  async function applyTemplate(tpl: ReceituarioTemplate) {
+  async function applyTemplate(tpl: ReceituarioTemplate & { lines?: ReceituarioLine[] }) {
+    if (tpl.lines?.length) {
+      setLines(
+        tpl.lines.map((l, i) => ({
+          ...l,
+          id: `line-tpl-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`,
+        }))
+      );
+      if (tpl.generalNotes) setGeneralNotes(tpl.generalNotes);
+      setMessage(`Modelo “${tpl.name}” aplicado.`);
+      return;
+    }
+
     const meds: ReceituarioLine[] = [];
     for (const id of tpl.medicineIds) {
       try {
@@ -354,6 +366,8 @@ export function ReceituarioEletronico({
         open={modelsOpen}
         onClose={() => setModelsOpen(false)}
         onSelect={(tpl) => void applyTemplate(tpl)}
+        currentLines={lines}
+        currentNotes={generalNotes}
       />
       <HistoricoReceitasModal
         open={historyOpen}
