@@ -361,7 +361,20 @@ export function ReceituarioEletronico({
         />
       </div>
 
-      <AssistenteIAModal open={aiOpen} onClose={() => setAiOpen(false)} />
+      <AssistenteIAModal
+        open={aiOpen}
+        onClose={() => setAiOpen(false)}
+        patientContext={{
+          allergies: patient.anamnesis.allergies,
+          diseases: patient.anamnesis.diseases,
+          medicationsInUse: patient.anamnesis.medications,
+        }}
+        onApply={({ lines: nextLines, notes, summary }) => {
+          setLines(nextLines);
+          if (notes) setGeneralNotes(notes);
+          setMessage(summary || "Sugestão da IA aplicada na receita.");
+        }}
+      />
       <ModelosReceitaModal
         open={modelsOpen}
         onClose={() => setModelsOpen(false)}
