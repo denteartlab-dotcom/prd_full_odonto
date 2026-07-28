@@ -38,7 +38,20 @@ export type ReceituarioDraft = {
 };
 
 export function medicineToLine(m: Medication): ReceituarioLine {
-  const dental = DENTAL_MEDICATIONS.find((d) => d.id === m.id);
+  const dental =
+    DENTAL_MEDICATIONS.find((d) => d.id === m.id) ||
+    DENTAL_MEDICATIONS.find((d) => {
+      const base = d.name.replace(/\s+\d+.*$/, "").trim().toLowerCase();
+      const hay = `${m.name} ${m.activeIngredient} ${m.genericName}`
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+      const needle = base
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+      return Boolean(needle) && hay.includes(needle);
+    });
+
   return {
     id: `line-${m.id}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     medicineId: m.id,

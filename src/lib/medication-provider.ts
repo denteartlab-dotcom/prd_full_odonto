@@ -1,7 +1,7 @@
 /**
  * Provedor server-side de medicamentos.
- * Preferência: Bulapi (gratuita, sem autenticação).
- * Fallback: catálogo odontológico interno.
+ * Preferência: medicamentos.api.br (Free, X-API-Key).
+ * Fallback: catálogo odontológico interno (com posologia).
  */
 import {
   DENTAL_MEDICATIONS,
@@ -9,10 +9,12 @@ import {
   type DentalMedication,
 } from "@/lib/dental-medications";
 import {
-  bulapiGetByIdRaw,
-  bulapiSearchRaw,
-  isBulapiEnabled,
-} from "@/lib/bulapi-client";
+  isMedicamentosApiConfigured,
+  medicamentosApiGetByEan,
+  medicamentosApiGetByRegistro,
+  medicamentosApiSearch,
+  type MedicamentosApiItem,
+} from "@/lib/medicamentos-api-br";
 import type { Medication, MedicationCategory } from "@/types/medication";
 
 function parseConcentration(name: string) {
@@ -25,7 +27,17 @@ function inferForm(name: string) {
   if (n.includes("gel")) return "Gel";
   if (n.includes("clorexidina") || n.includes("%") || n.includes("peróxido")) return "Solução";
   if (n.includes("cápsula") || n.includes("capsula")) return "Cápsula";
+  if (n.includes("xarope")) return "Xarope";
+  if (n.includes("comprimido")) return "Comprimido";
   return "Comprimido";
+}
+
+function humanizeSlug(value: string) {
+  return value
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function fromDental(row: DentalMedication): Medication {
@@ -55,7 +67,7 @@ const FALLBACK_CATEGORIES: MedicationCategory[] = Object.entries(
   MEDICATION_CATEGORY_LABELS
 ).map(([id, label]) => ({ id, label }));
 
-const BULAPI_CATEGORIES: MedicationCategory[] = [
+const API_CATEGORIES: MedicationCategory[] = [
   { id: "analgesico", label: "Analgésicos" },
   { id: "antibiotico", label: "Antibióticos" },
   { id: "anti-inflamatorio", label: "Anti-inflamatórios" },
@@ -66,7 +78,7 @@ const BULAPI_CATEGORIES: MedicationCategory[] = [
   { id: "vitamina", label: "Vitaminas" },
 ];
 
-const BULAPI_MANUFACTURERS = [
+const API_MANUFACTURERS = [
   "EMS",
   "Medley",
   "Eurofarma",
@@ -95,164 +107,98 @@ function matchesQuery(m: Medication, q: string) {
   return hay.includes(q);
 }
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+function mapClassLabel(classe?: string) {
+  if (!classe) return "Medicamento";
+  const known = API_CATEGORIES.find(
+    (c) => c.id === classe.toLowerCase() || c.label.toLowerCase() === classe.toLowerCase()
+  );
+  return known?.label || humanizeSlug(classe);
 }
 
-function str(obj: Record<string, unknown>, keys: string[], fallback = "") {
-  for (const key of keys) {
-    const value = obj[key];
-    if (typeof value === "string" && value.trim()) return value.trim();
-    if (typeof value === "number") return String(value);
-  }
-  return fallback;
-}
-
-function bool(obj: Record<string, unknown>, keys: string[]) {
-  for (const key of keys) {
-    const value = obj[key];
-    if (typeof value === "boolean") return value;
-    if (typeof value === "string") {
-      const v = value.toLowerCase();
-      if (["true", "1", "sim", "yes"].includes(v)) return true;
-      if (["false", "0", "nao", "não", "no"].includes(v)) return false;
-    }
-  }
-  return false;
-}
-
-function extractList(payload: unknown): Record<string, unknown>[] {
-  if (Array.isArray(payload)) {
-    return payload.filter((x): x is Record<string, unknown> => !!x && typeof x === "object");
-  }
-  const obj = asRecord(payload);
-  if (!obj) return [];
-
-  for (const key of ["items", "data", "results", "resultados", "produtos", "apresentacoes"]) {
-    const value = obj[key];
-    if (Array.isArray(value)) {
-      return value.filter((x): x is Record<string, unknown> => !!x && typeof x === "object");
-    }
-  }
-
-  // Objeto único
-  if (obj.id != null || obj.nome || obj.name) return [obj];
-  return [];
-}
-
-function activeFromRaw(raw: Record<string, unknown>) {
-  const direct = str(raw, [
-    "principio_ativo",
-    "principioAtivo",
-    "activeIngredient",
-    "substancia",
-    "substância",
-    "substance",
-  ]);
-  if (direct) return direct;
-
-  const lista = raw.principios_ativos || raw.substancias || raw.composicao;
-  if (Array.isArray(lista)) {
-    return lista
-      .map((item) => {
-        if (typeof item === "string") return item;
-        const rec = asRecord(item);
-        if (!rec) return "";
-        return str(rec, ["nome", "nome_dcb", "substancia", "principio_ativo"]);
-      })
-      .filter(Boolean)
-      .join(", ");
-  }
-  return "";
-}
-
-export function fromBulapiItem(raw: Record<string, unknown>, index = 0): Medication {
-  const name =
-    str(raw, ["nome", "name", "produto", "nome_comercial", "commercialName"]) ||
-    `Medicamento ${index + 1}`;
-  const active = activeFromRaw(raw) || name;
-  const concentration = str(raw, [
-    "concentracao",
-    "concentração",
-    "concentration",
-    "dosagem",
-  ]) || parseConcentration(name);
-  const dosageForm = str(raw, [
-    "forma_farmaceutica",
-    "formaFarmaceutica",
-    "dosageForm",
-    "tipo",
-    "forma",
-  ]) || inferForm(name);
-  const presentation = str(raw, [
-    "apresentacao",
-    "apresentação",
-    "presentation",
-    "descricao",
-  ]) || `${dosageForm} — ${concentration}`;
-  const manufacturer = str(raw, [
-    "laboratorio",
-    "laboratório",
-    "fabricante",
-    "manufacturer",
-    "empresa",
-  ]);
-  const category = str(raw, [
-    "classe_terapeutica",
-    "classeTerapeutica",
-    "categoria",
-    "category",
-    "classificacao",
-  ]) || "Medicamento";
-  const anvisaCode = str(raw, [
-    "registro_anvisa",
-    "registroAnvisa",
-    "registro",
-    "anvisaCode",
-    "codigo_anvisa",
-  ]);
-  const controlled = bool(raw, ["controlado", "controlled"]) ||
-    /preta|vermelha|controlad/i.test(str(raw, ["tarja"]));
+export function fromMedicamentosApiItem(item: MedicamentosApiItem): Medication {
+  const name = item.nome || "Medicamento";
+  const active = item.principioAtivo
+    ? humanizeSlug(item.principioAtivo)
+    : name;
+  const dosageForm = item.tipo ? humanizeSlug(item.tipo) : inferForm(name);
+  const concentration = parseConcentration(name);
+  const manufacturer = item.fabricante
+    ? humanizeSlug(item.fabricante)
+    : "—";
+  const anvisaCode = item.registro || "";
+  const category = mapClassLabel(item.classe) || humanizeSlug(item.categoria || "");
+  const controlled = /antibiot|corticoid|controlad/i.test(
+    `${item.classe || ""} ${item.categoria || ""} ${name}`
+  );
 
   return {
-    id: str(raw, ["id", "produto_id", "apresentacao_id", "registro_anvisa", "registro"], "") ||
-      `bulapi-${index}-${name}`,
+    id: anvisaCode || item.slug || name,
     name,
-    genericName: str(raw, ["nome_generico", "genericName", "categoria_regulatoria"]) || active,
+    genericName: humanizeSlug(item.categoria || "") || active,
     activeIngredient: active,
     concentration,
-    presentation,
+    presentation: `${dosageForm}${concentration !== "—" ? ` — ${concentration}` : ""}`,
     dosageForm,
-    manufacturer: manufacturer || "—",
-    category,
-    route: str(raw, ["via", "route"], "Oral") || "Oral",
+    manufacturer,
+    category: category || "Medicamento",
+    route: /bucal|topico|t[oó]pico|gel|enxagu/i.test(dosageForm) ? "Bucal" : "Oral",
     prescriptionType: controlled ? "controle_especial" : "simples",
     controlled,
     anvisaCode,
-    leafletUrl: str(raw, ["bula_url", "leafletUrl", "bula"]) ||
-      (name
+    leafletUrl: item.slug
+      ? `https://medicamentos.api.br/medicamento/${item.slug}/`
+      : anvisaCode
         ? `https://consultas.anvisa.gov.br/#/bulario/?q=${encodeURIComponent(name)}`
-        : ""),
+        : "",
   };
 }
 
-async function searchBulapi(query: string): Promise<Medication[]> {
-  const payload = await bulapiSearchRaw(query);
-  return extractList(payload)
-    .map((item, i) => fromBulapiItem(item, i))
-    .slice(0, 40);
+function isEan(query: string) {
+  return /^\d{13}$/.test(query.trim());
+}
+
+function isRegistro(query: string) {
+  return /^\d{8,15}$/.test(query.trim());
+}
+
+async function searchMedicamentosApi(query: string): Promise<Medication[]> {
+  const q = query.trim();
+  const byId = new Map<string, Medication>();
+
+  const addAll = (items?: MedicamentosApiItem[]) => {
+    for (const item of items || []) {
+      const med = fromMedicamentosApiItem(item);
+      byId.set(med.id, med);
+    }
+  };
+
+  if (isEan(q)) {
+    const data = await medicamentosApiGetByEan(q);
+    addAll(data.resultados);
+    return [...byId.values()];
+  }
+
+  if (isRegistro(q)) {
+    const data = await medicamentosApiGetByRegistro(q);
+    addAll(data.resultados);
+    if (byId.size) return [...byId.values()];
+  }
+
+  const data = await medicamentosApiSearch(q, 1);
+  addAll(data.resultados);
+  return [...byId.values()];
 }
 
 export async function providerSearchMedicines(query: string) {
   const q = query.trim();
 
-  if (isBulapiEnabled() && q.length >= 2) {
+  if (isMedicamentosApiConfigured() && q.length >= 2) {
     try {
-      const items = await searchBulapi(q);
+      const items = await searchMedicamentosApi(q);
       return { items, source: "external" as const, query: q };
     } catch (err) {
-      console.warn("[Bulapi search] fallback odontológico:", err);
-      // Soft-fallback: Bulapi costuma ficar intermitente (tunnel Cloudflare).
+      console.error("[medicamentos.api.br search]", err);
+      throw err;
     }
   }
 
@@ -265,13 +211,14 @@ export async function providerSearchMedicines(query: string) {
 }
 
 export async function providerGetMedicineById(id: string) {
-  if (isBulapiEnabled()) {
+  if (isMedicamentosApiConfigured() && /^\d+$/.test(id)) {
     try {
-      const payload = await bulapiGetByIdRaw(id);
-      const list = extractList(payload);
-      if (list[0]) return fromBulapiItem(list[0]);
+      const data = await medicamentosApiGetByRegistro(id);
+      const first = data.resultados?.[0];
+      if (first) return fromMedicamentosApiItem(first);
     } catch (err) {
-      console.warn("[Bulapi getById] fallback:", err);
+      console.error("[medicamentos.api.br getById]", err);
+      throw err;
     }
   }
 
@@ -290,11 +237,11 @@ export async function providerGetMedicineLeaflet(id: string): Promise<string | n
 }
 
 export async function providerGetCategories() {
-  if (isBulapiEnabled()) return BULAPI_CATEGORIES;
+  if (isMedicamentosApiConfigured()) return API_CATEGORIES;
   return FALLBACK_CATEGORIES;
 }
 
 export async function providerGetManufacturers() {
-  if (isBulapiEnabled()) return BULAPI_MANUFACTURERS;
+  if (isMedicamentosApiConfigured()) return API_MANUFACTURERS;
   return [...new Set(FALLBACK_CATALOG.map((m) => m.manufacturer))];
 }

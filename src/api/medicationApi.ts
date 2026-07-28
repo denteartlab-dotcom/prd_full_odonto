@@ -1,6 +1,6 @@
 /**
  * Cliente HTTP interno — fala apenas com /api/medications/*
- * A API externa (Bulapi) é chamada só no backend.
+ * A API externa (medicamentos.api.br) é chamada só no backend.
  */
 import type {
   Medication,
