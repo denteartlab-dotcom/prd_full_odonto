@@ -33,6 +33,7 @@ import { ModelosReceitaModal } from "./ModelosReceitaModal";
 import { ReceituarioEditor } from "./ReceituarioEditor";
 import { ReceituarioPatientPanel } from "./ReceituarioPatientPanel";
 import { ReceituarioSearchPanel } from "./ReceituarioSearchPanel";
+import { VisualizarPdfModal } from "./VisualizarPdfModal";
 
 type ProfessionalOption = { id: string; name: string; cro?: string | null };
 
@@ -56,6 +57,7 @@ export function ReceituarioEletronico({
   const [aiOpen, setAiOpen] = useState(false);
   const [modelsOpen, setModelsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [pdfOpen, setPdfOpen] = useState(false);
 
   const loadHistory = useCallback(async () => {
     const res = await fetch(`/api/prescricoes?patientId=${patient.id}`, { cache: "no-store" });
@@ -266,8 +268,11 @@ export function ReceituarioEletronico({
           icon={FileText}
           label="Visualizar PDF"
           onClick={() => {
-            if (lastId) window.open(`/api/prescricoes/${lastId}/imprimir`, "_blank");
-            else setMessage("Emita uma receita para visualizar o PDF.");
+            if (!history.length) {
+              setMessage("Emita uma receita para visualizar o PDF.");
+              return;
+            }
+            setPdfOpen(true);
           }}
         />
         <ToolbarBtn
@@ -278,14 +283,19 @@ export function ReceituarioEletronico({
             else setMessage("Emita uma receita para imprimir.");
           }}
         />
-        <a
-          href={`https://wa.me/55${(patient.phone || "").replace(/\D/g, "")}`}
-          target="_blank"
-          rel="noreferrer"
+        <button
+          type="button"
+          onClick={() => {
+            if (!history.length) {
+              setMessage("Emita uma receita para enviar no WhatsApp.");
+              return;
+            }
+            setPdfOpen(true);
+          }}
           className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
         >
           <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
-        </a>
+        </button>
         <a
           href={patient.email ? `mailto:${patient.email}` : "#"}
           className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
@@ -390,6 +400,13 @@ export function ReceituarioEletronico({
         onView={(item) =>
           window.open(item.pdfUrl || `/api/prescricoes/${item.id}/imprimir`, "_blank")
         }
+      />
+      <VisualizarPdfModal
+        open={pdfOpen}
+        onClose={() => setPdfOpen(false)}
+        items={history}
+        patientName={patient.name}
+        patientPhone={patient.phone}
       />
     </div>
   );
