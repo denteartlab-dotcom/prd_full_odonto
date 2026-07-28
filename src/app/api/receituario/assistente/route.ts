@@ -33,8 +33,60 @@ function userPayload(input: {
     medicamentosEmUso: input.medicationsInUse || "",
     catalogoOdontologicoReferencia: catalogPayload(),
     instrucao:
-      "Pesquise protocolos odontológicos atuais na internet e monte a sugestão de receita em JSON.",
+      "Monte a sugestão de receita odontológica em JSON, com posologias usuais no Brasil.",
   });
+}
+
+async function callGemini(input: {
+  prompt: string;
+  allergies?: string;
+  diseases?: string;
+  medicationsInUse?: string;
+}): Promise<AssistenteResult | null> {
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  if (!apiKey) return null;
+
+  const model = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text:
+                buildAssistenteSystemPrompt() +
+                "\n\n" +
+                userPayload(input),
+            },
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.2,
+        responseMimeType: "application/json",
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    console.warn("[assistente IA] Gemini falhou", await res.text());
+    return null;
+  }
+
+  const data = (await res.json()) as {
+    candidates?: Array<{
+      content?: { parts?: Array<{ text?: string }> };
+    }>;
+  };
+  const content = data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "";
+  const parsedJson = extractJsonObject(content);
+  if (!parsedJson) return null;
+  return parseOpenAiAssistentePayload(parsedJson, input.prompt, "gemini");
 }
 
 async function callPerplexity(input: {
@@ -152,18 +204,19 @@ export async function POST(req: Request) {
     medicationsInUse: body.medicationsInUse,
   };
 
-  const hasWebAi =
-    Boolean(process.env.PERPLEXITY_API_KEY?.trim()) ||
-    Boolean(process.env.OPENAI_API_KEY?.trim());
-
-  if (!hasWebAi) {
-    return jsonError(
-      "Configure PERPLEXITY_API_KEY (recomendado: IA com pesquisa na internet) ou OPENAI_API_KEY na Vercel/.env.",
-      503
-    );
-  }
-
   try {
+    // Ordem: Gemini (tier gratuito) → Perplexity → OpenAI → local (sempre gratuito)
+    const fromGemini = await callGemini(input);
+    if (fromGemini) {
+      return NextResponse.json({
+        ...fromGemini,
+        alerts: [
+          ...fromGemini.alerts,
+          "Sugestão via Google Gemini (gratuito). O dentista deve validar posologia e interações antes de emitir.",
+        ],
+      });
+    }
+
     const fromPerplexity = await callPerplexity(input);
     if (fromPerplexity) {
       return NextResponse.json({
@@ -181,24 +234,30 @@ export async function POST(req: Request) {
         ...fromOpenAi,
         alerts: [
           ...fromOpenAi.alerts,
-          "Sugestão via OpenAI. Para pesquisa web em tempo real, configure PERPLEXITY_API_KEY.",
+          "Sugestão via OpenAI. O dentista deve validar posologia e interações antes de emitir.",
         ],
       });
     }
 
-    // Último recurso: local, com aviso explícito de baixa precisão
     const local = buildLocalAssistenteSuggestion(input);
     return NextResponse.json({
       ...local,
-      summary:
-        "As IAs externas falharam. Sugestão local provisória (pode ser imprecisa) — revise com cuidado.",
       alerts: [
         ...local.alerts,
-        "Fallback local ativo. Verifique PERPLEXITY_API_KEY / OPENAI_API_KEY.",
+        "Modo gratuito local (protocolos odontológicos do sistema). Sem chave de IA externa.",
       ],
     });
   } catch (err) {
     console.error("[assistente IA]", err);
-    return jsonError("Não foi possível consultar a IA de pesquisa no momento.", 502);
+    const local = buildLocalAssistenteSuggestion(input);
+    return NextResponse.json({
+      ...local,
+      summary:
+        "Falha na IA externa. Sugestão local provisória — revise com cuidado.",
+      alerts: [
+        ...local.alerts,
+        "Fallback local ativo após erro na IA externa.",
+      ],
+    });
   }
 }

@@ -13,7 +13,7 @@ export type AssistenteResult = {
   suggestions: AssistenteSuggestion[];
   notes: string;
   alerts: string[];
-  source: "local" | "openai" | "perplexity";
+  source: "local" | "gemini" | "openai" | "perplexity";
   citations?: string[];
 };
 

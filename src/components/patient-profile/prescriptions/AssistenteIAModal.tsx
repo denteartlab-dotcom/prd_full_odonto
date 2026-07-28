@@ -131,11 +131,13 @@ export function AssistenteIAModal({
                 <p className="mt-1 text-xs text-indigo-800">{result.summary}</p>
                 <p className="mt-1 text-[10px] font-medium uppercase tracking-wide text-indigo-500">
                   Fonte:{" "}
-                  {result.source === "perplexity"
-                    ? "Perplexity (pesquisa na internet)"
-                    : result.source === "openai"
-                      ? "OpenAI"
-                      : "Assistente clínico local"}
+                  {result.source === "gemini"
+                    ? "Google Gemini (gratuito)"
+                    : result.source === "perplexity"
+                      ? "Perplexity (pesquisa na internet)"
+                      : result.source === "openai"
+                        ? "OpenAI"
+                        : "Assistente clínico local (gratuito)"}
                 </p>
               </div>
 
@@ -197,8 +199,8 @@ export function AssistenteIAModal({
             </div>
           ) : (
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-600">
-              A IA pesquisa protocolos odontológicos na internet (Perplexity) e sugere uma receita
-              inicial. O dentista sempre valida doses e interações antes de emitir.
+              Funciona de graça com protocolos locais. Opcional: configure GEMINI_API_KEY (Google AI
+              Studio, tier gratuito) para sugestões com IA. O dentista sempre valida antes de emitir.
             </div>
           )}
         </div>
