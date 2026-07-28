@@ -36,60 +36,85 @@ function detectImageFormat(dataUrl: string): "PNG" | "JPEG" | null {
   return null;
 }
 
-export function buildPrescriptionPdfBytes(input: PrescriptionPdfInput): Uint8Array {
-  const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
-  const margin = 18;
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const contentWidth = pageWidth - margin * 2;
-  let y = 18;
+function wrap(
+  doc: jsPDF,
+  text: string,
+  maxWidth: number,
+  size: number,
+  bold = false
+) {
+  doc.setFont("helvetica", bold ? "bold" : "normal");
+  doc.setFontSize(size);
+  return doc.splitTextToSize(text || "", maxWidth) as string[];
+}
 
-  const setText = (
-    text: string,
+export function buildPrescriptionPdfBytes(input: PrescriptionPdfInput): Uint8Array {
+  // A4: 210 × 297 mm
+  const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+  const pageW = doc.internal.pageSize.getWidth(); // 210
+  const pageH = doc.internal.pageSize.getHeight(); // 297
+  const margin = 20;
+  const contentW = pageW - margin * 2;
+  let y = 20;
+
+  const drawText = (
+    rows: string[],
+    x: number,
+    startY: number,
     opts: {
-      x?: number;
-      size?: number;
+      size: number;
       bold?: boolean;
       color?: [number, number, number];
-      maxWidth?: number;
-    } = {}
+      align?: "left" | "center";
+      lineH?: number;
+    }
   ) => {
-    const x = opts.x ?? margin;
-    const size = opts.size ?? 11;
+    const lineH = opts.lineH ?? opts.size * 0.42;
     doc.setFont("helvetica", opts.bold ? "bold" : "normal");
-    doc.setFontSize(size);
+    doc.setFontSize(opts.size);
     doc.setTextColor(...(opts.color || ([15, 23, 42] as [number, number, number])));
-    const rows = doc.splitTextToSize(text, opts.maxWidth ?? contentWidth);
-    doc.text(rows, x, y);
-    return rows.length * (size * 0.38);
+    if (opts.align === "center") {
+      doc.text(rows, x, startY, { align: "center" });
+    } else {
+      doc.text(rows, x, startY);
+    }
+    return rows.length * lineH;
   };
 
-  // ——— Cabeçalho (logo + nome + contato) ———
+  // ——— Cabeçalho ———
   const logoUrl = (input.clinicLogoUrl || "").trim();
   const logoFormat = logoUrl ? detectImageFormat(logoUrl) : null;
-  const logoSize = 18;
-  const textX = logoFormat ? margin + logoSize + 4 : margin;
-  const textWidth = logoFormat ? contentWidth - logoSize - 4 : contentWidth;
-  const headerTop = y;
+  const logoSize = 16;
+  const hasLogo = Boolean(logoFormat && logoUrl);
+  const textX = hasLogo ? margin + logoSize + 5 : margin;
+  const textW = hasLogo ? contentW - logoSize - 5 : contentW;
+  const headerY = y;
 
-  if (logoFormat && logoUrl) {
+  if (hasLogo && logoFormat) {
     try {
       doc.setDrawColor(226, 232, 240);
-      doc.setFillColor(255, 255, 255);
-      doc.roundedRect(margin, headerTop, logoSize, logoSize, 2, 2, "S");
-      doc.addImage(logoUrl, logoFormat, margin + 1, headerTop + 1, logoSize - 2, logoSize - 2);
+      doc.setLineWidth(0.3);
+      doc.roundedRect(margin, headerY, logoSize, logoSize, 2, 2, "S");
+      doc.addImage(
+        logoUrl,
+        logoFormat,
+        margin + 0.8,
+        headerY + 0.8,
+        logoSize - 1.6,
+        logoSize - 1.6
+      );
     } catch {
-      // ignora logo inválida
+      // logo inválida
     }
   }
 
-  y = headerTop + 6;
-  const nameHeight = setText(input.clinicName || "Clínica", {
-    x: textX,
-    size: 16,
+  const nameRows = wrap(doc, input.clinicName || "Clínica", textW, 15, true);
+  let textCursor = headerY + 5;
+  textCursor += drawText(nameRows, textX, textCursor, {
+    size: 15,
     bold: true,
-    maxWidth: textWidth,
+    lineH: 6,
   });
-  y = headerTop + 6 + nameHeight + 2;
 
   const contact = [
     input.clinicAddress?.trim(),
@@ -98,190 +123,205 @@ export function buildPrescriptionPdfBytes(input: PrescriptionPdfInput): Uint8Arr
   ]
     .filter(Boolean)
     .join(" · ");
+
   if (contact) {
-    const contactHeight = setText(contact, {
-      x: textX,
-      size: 9,
+    textCursor += 1.5;
+    const contactRows = wrap(doc, contact, textW, 8.5);
+    textCursor += drawText(contactRows, textX, textCursor, {
+      size: 8.5,
       color: [100, 116, 139],
-      maxWidth: textWidth,
+      lineH: 3.8,
     });
-    y += contactHeight + 2;
   }
 
-  y = Math.max(y, headerTop + (logoFormat ? logoSize : 0) + 4) + 3;
+  y = Math.max(headerY + (hasLogo ? logoSize : 0), textCursor) + 5;
   doc.setDrawColor(29, 78, 216);
-  doc.setLineWidth(0.7);
-  doc.line(margin, y, pageWidth - margin, y);
-  y += 10;
+  doc.setLineWidth(0.65);
+  doc.line(margin, y, pageW - margin, y);
+  y += 8;
 
   // ——— Título ———
-  y += setText(KIND_LABELS[input.kind] || "Receituário", { size: 14, bold: true });
-  y += 6;
+  y += drawText([KIND_LABELS[input.kind] || "Receituário"], margin, y, {
+    size: 13,
+    bold: true,
+    lineH: 5.5,
+  });
+  y += 5;
 
-  // ——— Caixa do paciente ———
-  const boxPad = 5;
-  const boxX = margin;
-  const boxW = contentWidth;
-  const boxInnerW = boxW - boxPad * 2;
-  const boxStartY = y;
-
-  let boxContentH = 0;
-  const measure = (text: string, size: number, bold?: boolean) => {
-    doc.setFont("helvetica", bold ? "bold" : "normal");
-    doc.setFontSize(size);
-    return doc.splitTextToSize(text, boxInnerW).length * (size * 0.38);
-  };
-  boxContentH += measure("PACIENTE", 9, true) + 2;
-  boxContentH += measure(input.patientName, 12, true) + 2;
-  const patientMeta = [
+  // ——— Caixa do paciente (altura calculada pelo conteúdo real) ———
+  const boxPadX = 6;
+  const boxPadY = 5;
+  const innerW = contentW - boxPadX * 2;
+  const labelRows = wrap(doc, "PACIENTE", innerW, 8, true);
+  const patientNameRows = wrap(doc, input.patientName, innerW, 11.5, true);
+  const metaParts = [
     input.patientCpf ? `CPF: ${input.patientCpf}` : "",
     input.patientBirthDate ? `Nascimento: ${input.patientBirthDate}` : "",
   ]
     .filter(Boolean)
     .join(" · ");
-  if (patientMeta) boxContentH += measure(patientMeta, 9) + 1;
+  const metaRows = metaParts ? wrap(doc, metaParts, innerW, 8.5) : [];
 
-  const boxH = boxContentH + boxPad * 2;
+  const boxInnerH =
+    labelRows.length * 3.4 +
+    2 +
+    patientNameRows.length * 5 +
+    (metaRows.length ? 2 + metaRows.length * 3.6 : 0);
+  const boxH = boxInnerH + boxPadY * 2;
+
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(boxX, boxStartY, boxW, boxH, 3, 3, "FD");
+  doc.setLineWidth(0.35);
+  doc.roundedRect(margin, y, contentW, boxH, 2.5, 2.5, "FD");
 
-  y = boxStartY + boxPad + 3.5;
-  y +=
-    setText("PACIENTE", {
-      x: boxX + boxPad,
-      size: 9,
-      bold: true,
+  let boxY = y + boxPadY + 3;
+  boxY += drawText(labelRows, margin + boxPadX, boxY, {
+    size: 8,
+    bold: true,
+    color: [100, 116, 139],
+    lineH: 3.4,
+  });
+  boxY += 2;
+  boxY += drawText(patientNameRows, margin + boxPadX, boxY, {
+    size: 11.5,
+    bold: true,
+    lineH: 5,
+  });
+  if (metaRows.length) {
+    boxY += 2;
+    drawText(metaRows, margin + boxPadX, boxY, {
+      size: 8.5,
       color: [100, 116, 139],
-      maxWidth: boxInnerW,
-    }) + 2;
-  y +=
-    setText(input.patientName, {
-      x: boxX + boxPad,
-      size: 12,
-      bold: true,
-      maxWidth: boxInnerW,
-    }) + 2;
-  if (patientMeta) {
-    y += setText(patientMeta, {
-      x: boxX + boxPad,
-      size: 9,
-      color: [100, 116, 139],
-      maxWidth: boxInnerW,
+      lineH: 3.6,
     });
   }
-  y = boxStartY + boxH + 8;
+  y += boxH + 8;
 
-  // ——— Tabela de medicamentos ———
+  // ——— Tabela medicamentos ———
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   doc.setTextColor(100, 116, 139);
   doc.text("#", margin, y);
-  doc.text("MEDICAMENTO / POSOLOGIA", margin + 12, y);
+  doc.text("MEDICAMENTO / POSOLOGIA", margin + 10, y);
   y += 2;
   doc.setDrawColor(226, 232, 240);
   doc.setLineWidth(0.3);
-  doc.line(margin, y, pageWidth - margin, y);
+  doc.line(margin, y, pageW - margin, y);
   y += 6;
 
+  const medW = contentW - 10;
   input.medications.forEach((m, i) => {
-    if (y > 250) {
+    if (y > pageH - 55) {
       doc.addPage();
       y = 20;
     }
 
-    const idx = String(i + 1);
-    const detail = [m.dose, m.frequency, m.duration].filter(Boolean).join(" · ");
-    const medWidth = contentWidth - 12;
-
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(11);
+    doc.setFontSize(10.5);
     doc.setTextColor(15, 23, 42);
-    doc.text(idx, margin, y);
+    doc.text(String(i + 1), margin, y);
 
-    doc.setFont("helvetica", "bold");
-    const nameRows = doc.splitTextToSize(m.medicationName, medWidth);
-    doc.text(nameRows, margin + 12, y);
-    y += nameRows.length * 4.5;
+    const nameRows = wrap(doc, m.medicationName, medW, 10.5, true);
+    y += drawText(nameRows, margin + 10, y, {
+      size: 10.5,
+      bold: true,
+      lineH: 4.6,
+    });
 
+    const detail = [m.dose, m.frequency, m.duration].filter(Boolean).join(" · ");
     if (detail) {
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      doc.setTextColor(71, 85, 105);
-      const detailRows = doc.splitTextToSize(detail, medWidth);
-      doc.text(detailRows, margin + 12, y);
-      y += detailRows.length * 4.2;
+      const detailRows = wrap(doc, detail, medW, 9.5);
+      y += drawText(detailRows, margin + 10, y, {
+        size: 9.5,
+        color: [71, 85, 105],
+        lineH: 4.1,
+      });
     }
 
     if (m.instructions?.trim()) {
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.setTextColor(100, 116, 139);
-      const instRows = doc.splitTextToSize(m.instructions.trim(), medWidth);
-      doc.text(instRows, margin + 12, y);
-      y += instRows.length * 4;
+      const instRows = wrap(doc, m.instructions.trim(), medW, 8.5);
+      y += drawText(instRows, margin + 10, y, {
+        size: 8.5,
+        color: [100, 116, 139],
+        lineH: 3.8,
+      });
     }
 
     y += 3;
     doc.setDrawColor(226, 232, 240);
-    doc.line(margin, y, pageWidth - margin, y);
-    y += 6;
+    doc.line(margin, y, pageW - margin, y);
+    y += 5.5;
   });
 
   if (!input.medications.length) {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(100, 116, 139);
-    doc.text("Sem itens.", margin, y);
-    y += 8;
+    y += drawText(["Sem itens."], margin, y, {
+      size: 10,
+      color: [100, 116, 139],
+      lineH: 4.5,
+    });
+    y += 4;
   }
 
   // ——— Data ———
-  y += 2;
   const issued =
     `Emitida em ${input.issuedAt}` +
     (input.validUntil ? ` · Validade até ${input.validUntil}` : "");
-  y += setText(issued, { size: 9, color: [100, 116, 139] }) + 4;
+  y += 2;
+  y += drawText([issued], margin, y, {
+    size: 9,
+    color: [100, 116, 139],
+    lineH: 4,
+  });
 
-  // ——— Assinaturas (2 colunas) ———
-  y = Math.max(y + 16, 235);
-  const colW = (contentWidth - 12) / 2;
+  // ——— Assinaturas fixas na parte inferior da página A4 ———
+  const sigBlockTop = Math.min(Math.max(y + 18, pageH - 48), pageH - 42);
+  const colGap = 14;
+  const colW = (contentW - colGap) / 2;
   const leftX = margin;
-  const rightX = margin + colW + 12;
-  const sigY = y;
+  const rightX = margin + colW + colGap;
+  const lineY = sigBlockTop;
 
   doc.setDrawColor(148, 163, 184);
-  doc.setLineWidth(0.4);
-  doc.line(leftX, sigY, leftX + colW, sigY);
-  doc.line(rightX, sigY, rightX + colW, sigY);
+  doc.setLineWidth(0.35);
+  doc.line(leftX, lineY, leftX + colW, lineY);
+  doc.line(rightX, lineY, rightX + colW, lineY);
 
-  y = sigY + 6;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(15, 23, 42);
-  const dentistRows = doc.splitTextToSize(input.dentistName, colW);
-  doc.text(dentistRows, leftX + colW / 2, y, { align: "center" });
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(71, 85, 105);
-  doc.text(
-    `Cirurgião(ã)-Dentista · CRO ${input.dentistCro || "—"}`,
+  let leftY = lineY + 5;
+  const dentistNameRows = wrap(doc, input.dentistName, colW, 9.5, true);
+  leftY += drawText(dentistNameRows, leftX + colW / 2, leftY, {
+    size: 9.5,
+    bold: true,
+    align: "center",
+    lineH: 4.2,
+  });
+  drawText(
+    [`Cirurgião(ã)-Dentista · CRO ${input.dentistCro || "—"}`],
     leftX + colW / 2,
-    y + dentistRows.length * 4 + 3,
-    { align: "center" }
+    leftY + 1,
+    {
+      size: 8,
+      color: [71, 85, 105],
+      align: "center",
+      lineH: 3.6,
+    }
   );
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(71, 85, 105);
-  doc.text("Paciente / Responsável", rightX + colW / 2, y, { align: "center" });
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(15, 23, 42);
-  const patientRows = doc.splitTextToSize(input.patientName, colW);
-  doc.text(patientRows, rightX + colW / 2, y + 5, { align: "center" });
+  let rightY = lineY + 5;
+  rightY += drawText(["Paciente / Responsável"], rightX + colW / 2, rightY, {
+    size: 8,
+    color: [71, 85, 105],
+    align: "center",
+    lineH: 3.6,
+  });
+  drawText(wrap(doc, input.patientName, colW, 9.5, true), rightX + colW / 2, rightY + 1, {
+    size: 9.5,
+    bold: true,
+    align: "center",
+    lineH: 4.2,
+  });
+
+  // Preferência de abertura no visualizador (Chrome/Edge respeitam em geral)
+  doc.setDisplayMode(75);
 
   const ab = doc.output("arraybuffer");
   return new Uint8Array(ab as ArrayBuffer);
@@ -296,4 +336,11 @@ export function pdfFilename(patientName: string, issuedAt: string) {
     .slice(0, 40);
   const day = issuedAt.replace(/\//g, "-");
   return `receita-${safe || "paciente"}-${day}.pdf`;
+}
+
+/** Fragmento de URL para abrir o PDF no navegador com zoom 75%. */
+export const PRESCRIPTION_PDF_ZOOM = "zoom=75";
+
+export function prescriptionPdfViewerUrl(prescriptionId: string) {
+  return `/api/prescricoes/${prescriptionId}/pdf#${PRESCRIPTION_PDF_ZOOM}`;
 }

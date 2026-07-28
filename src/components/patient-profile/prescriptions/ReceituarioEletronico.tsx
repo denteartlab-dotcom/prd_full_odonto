@@ -15,6 +15,7 @@ import {
 import type { PatientProfile } from "@/lib/patient-profile-types";
 import type { PrescriptionRecord } from "@/lib/prescription-types";
 import { PrescriptionPdfService } from "@/lib/medication-service";
+import { prescriptionPdfViewerUrl } from "@/lib/prescription-pdf";
 import { medicationService } from "@/services/medication.service";
 import type { Medication } from "@/types/medication";
 import {
@@ -245,7 +246,7 @@ export function ReceituarioEletronico({
       await loadHistory();
       setMessage("Receita emitida com sucesso.");
       if (data.item?.id) {
-        window.open(`/api/prescricoes/${data.item.id}/pdf`, "_blank");
+        window.open(prescriptionPdfViewerUrl(data.item.id), "_blank");
       }
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Erro ao emitir.");
@@ -282,7 +283,7 @@ export function ReceituarioEletronico({
           icon={Printer}
           label="Imprimir"
           onClick={() => {
-            if (lastId) window.open(`/api/prescricoes/${lastId}/pdf`, "_blank");
+            if (lastId) window.open(prescriptionPdfViewerUrl(lastId), "_blank");
             else setMessage("Emita uma receita para imprimir.");
           }}
         />
@@ -378,7 +379,7 @@ export function ReceituarioEletronico({
         items={history}
         onDuplicate={duplicateFromHistory}
         onView={(item) =>
-          window.open(item.pdfUrl || `/api/prescricoes/${item.id}/pdf`, "_blank")
+          window.open(item.pdfUrl || prescriptionPdfViewerUrl(item.id), "_blank")
         }
       />
       <VisualizarPdfModal

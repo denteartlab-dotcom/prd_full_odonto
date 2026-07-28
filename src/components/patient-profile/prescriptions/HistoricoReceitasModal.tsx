@@ -79,7 +79,7 @@ export function HistoricoReceitasModal({
                             <Copy className="h-4 w-4" />
                           </button>
                           <a
-                            href={item.pdfUrl || `/api/prescricoes/${item.id}/imprimir`}
+                            href={item.pdfUrl || `/api/prescricoes/${item.id}/pdf#zoom=75`}
                             target="_blank"
                             rel="noreferrer"
                             title="Reimprimir"

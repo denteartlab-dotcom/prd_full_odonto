@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Eye, FileText, Loader2, MessageCircle, X } from "lucide-react";
 import type { PrescriptionRecord } from "@/lib/prescription-types";
 import { formatDisplayDate } from "@/lib/patients-list-mock";
+import { prescriptionPdfViewerUrl } from "@/lib/prescription-pdf";
 
 export function VisualizarPdfModal({
   open,
@@ -24,7 +25,7 @@ export function VisualizarPdfModal({
   if (!open) return null;
 
   function viewPdf(item: PrescriptionRecord) {
-    window.open(`/api/prescricoes/${item.id}/pdf`, "_blank");
+    window.open(prescriptionPdfViewerUrl(item.id), "_blank");
   }
 
   async function sendWhatsApp(item: PrescriptionRecord) {
