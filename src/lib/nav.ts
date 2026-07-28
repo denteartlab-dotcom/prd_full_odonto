@@ -41,7 +41,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/app", label: "Início", icon: LayoutDashboard, module: "dashboard" },
       { href: "/app/pacientes", label: "Pacientes", icon: Users, module: "patients" },
       { href: "/app/agenda", label: "Agenda", icon: CalendarDays, module: "schedule" },
-      { href: "/app/receitas-medicas", label: "Receitas médicas", icon: Pill, module: "prescriptions" },
+      { href: "/app/receitas-medicas", label: "Receitas odontológicas", icon: Pill, module: "prescriptions" },
     ],
   },
   {

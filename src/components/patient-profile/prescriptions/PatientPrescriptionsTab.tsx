@@ -2,52 +2,35 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  ExternalLink,
-  FileText,
-  Pill,
-  RefreshCw,
-  ShieldAlert,
-} from "lucide-react";
+import { FileText, Pill, Plus, RefreshCw } from "lucide-react";
 import type { PatientProfile } from "@/lib/patient-profile-types";
 import type { PrescriptionRecord } from "@/lib/prescription-types";
 import { formatDisplayDate } from "@/lib/patients-list-mock";
-import { MemedPrescriptionLauncher } from "@/components/memed/MemedPrescriptionLauncher";
+import { NewPrescriptionDrawer } from "@/components/prescriptions/NewPrescriptionDrawer";
 import { ProfileCard } from "../ProfileCard";
 
-function patientToMemedInput(patient: PatientProfile) {
-  return {
-    id: patient.id,
-    name: patient.name,
-    cpf: patient.cpf,
-    birthDate: patient.birthDate,
-    phone: patient.phone,
-    email: patient.email,
-    sexo: patient.sexo,
-    endereco: patient.endereco,
-    numero: patient.numero,
-    bairro: patient.bairro,
-    cidade: patient.city,
-    estado: patient.state,
-    cep: patient.cep,
-  };
-}
+type ProfessionalOption = { id: string; name: string; cro?: string | null };
 
 export function PatientPrescriptionsTab({ patient }: { patient: PatientProfile }) {
   const [items, setItems] = useState<PrescriptionRecord[]>([]);
-  const [configured, setConfigured] = useState(true);
+  const [professionals, setProfessionals] = useState<ProfessionalOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const loadPrescriptions = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/memed/prescriptions?patientId=${patient.id}`);
+      const res = await fetch(`/api/prescricoes?patientId=${patient.id}`, {
+        cache: "no-store",
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Falha ao carregar receitas.");
-      setConfigured(data.configured !== false);
       setItems(data.items ?? []);
+      if (Array.isArray(data.professionals)) {
+        setProfessionals(data.professionals);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao carregar receitas.");
     } finally {
@@ -56,46 +39,44 @@ export function PatientPrescriptionsTab({ patient }: { patient: PatientProfile }
   }, [patient.id]);
 
   useEffect(() => {
-    loadPrescriptions();
+    void loadPrescriptions();
   }, [loadPrescriptions]);
 
   return (
     <div className="space-y-4">
-      {!configured ? (
-        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0" />
-          <div>
-            <p className="font-semibold">Memed não configurada</p>
-            <p className="mt-1 text-amber-800">
-              Adicione <code>MEMED_API_KEY</code>, <code>MEMED_SECRET_KEY</code> e{" "}
-              <code>MEMED_PRESCRIBER_EXTERNAL_ID</code> nas variáveis de ambiente (Vercel e .env local).
-            </p>
-          </div>
-        </div>
-      ) : null}
+      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+        <p className="font-semibold">Receituário odontológico gratuito</p>
+        <p className="mt-1 text-emerald-800">
+          Módulo nativo para cirurgião-dentista (CRO), sem Memed e sem custo. Catálogo com
+          antibióticos, analgésicos e antissépticos de uso odontológico.
+        </p>
+      </div>
 
       <ProfileCard
-        title="Receituário digital (Memed)"
+        title="Receitas odontológicas"
         action={
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={loadPrescriptions}
+              onClick={() => void loadPrescriptions()}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
             >
               <RefreshCw className="h-3.5 w-3.5" />
               Atualizar
             </button>
-            <MemedPrescriptionLauncher
-              patient={patientToMemedInput(patient)}
-              onSaved={loadPrescriptions}
-              label="Prescrever"
-            />
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(true)}
+              className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Nova receita
+            </button>
           </div>
         }
       >
         <p className="mb-4 text-sm text-slate-500">
-          Prescrições eletrônicas com validação de interações medicamentosas, receita digital e PDF.
+          Emita receitas com posologia, imprima/PDF e registre no prontuário do paciente.
         </p>
 
         {loading ? (
@@ -105,9 +86,9 @@ export function PatientPrescriptionsTab({ patient }: { patient: PatientProfile }
         ) : items.length === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center">
             <Pill className="mx-auto h-8 w-8 text-slate-300" />
-            <p className="mt-3 text-sm font-medium text-slate-700">Nenhuma prescrição registrada</p>
+            <p className="mt-3 text-sm font-medium text-slate-700">Nenhuma receita registrada</p>
             <p className="mt-1 text-xs text-slate-400">
-              Clique em &quot;Prescrever&quot; para abrir o módulo Memed deste paciente.
+              Clique em &quot;Nova receita&quot; para prescrever medicamentos odontológicos.
             </p>
           </div>
         ) : (
@@ -119,40 +100,35 @@ export function PatientPrescriptionsTab({ patient }: { patient: PatientProfile }
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="font-semibold text-slate-900">{item.content}</p>
+                    <p className="whitespace-pre-line font-semibold text-slate-900">
+                      {item.content}
+                    </p>
                     <p className="mt-1 text-xs text-slate-500">
                       {formatDisplayDate(item.createdAt.slice(0, 10))}
                       {item.professionalName ? ` · ${item.professionalName}` : ""}
-                      {item.memedId ? ` · Memed #${item.memedId}` : ""}
+                      {item.professionalCro ? ` · CRO ${item.professionalCro}` : ""}
                     </p>
                   </div>
-                  <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-semibold uppercase text-emerald-700">
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase ${
+                      item.status === "cancelada"
+                        ? "bg-slate-100 text-slate-600"
+                        : "bg-emerald-100 text-emerald-700"
+                    }`}
+                  >
                     {item.status}
                   </span>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {item.pdfUrl ? (
-                    <a
-                      href={item.pdfUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                    >
-                      <FileText className="h-3.5 w-3.5" />
-                      PDF
-                    </a>
-                  ) : null}
-                  {item.digitalLink ? (
-                    <a
-                      href={item.digitalLink}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                      Receita digital
-                    </a>
-                  ) : null}
+                  <a
+                    href={item.pdfUrl || `/api/prescricoes/${item.id}/imprimir`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    Imprimir / PDF
+                  </a>
                 </div>
               </li>
             ))}
@@ -161,11 +137,29 @@ export function PatientPrescriptionsTab({ patient }: { patient: PatientProfile }
       </ProfileCard>
 
       <p className="text-xs text-slate-400">
-        Integração Memed Sinapse Prescrição.{" "}
+        Para assinatura digital ICP-Brasil oficial, use também{" "}
+        <a
+          href="https://prescricao.cfo.org.br"
+          target="_blank"
+          rel="noreferrer"
+          className="font-semibold text-indigo-600 hover:underline"
+        >
+          Prescrição Eletrônica CFO
+        </a>
+        .{" "}
         <Link href="/app/receitas-medicas" className="font-semibold text-indigo-600 hover:underline">
           Ver todas as receitas da clínica
         </Link>
       </p>
+
+      <NewPrescriptionDrawer
+        open={drawerOpen}
+        patientId={patient.id}
+        patientName={patient.name}
+        professionals={professionals}
+        onClose={() => setDrawerOpen(false)}
+        onSaved={() => void loadPrescriptions()}
+      />
     </div>
   );
 }
