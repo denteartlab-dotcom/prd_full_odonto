@@ -4,6 +4,7 @@ export type DentalMedicationCategory =
   | "anti_inflamatorio"
   | "anestesico"
   | "antisseptico"
+  | "antifungico"
   | "corticoide"
   | "outros";
 
@@ -134,6 +135,33 @@ export const DENTAL_MEDICATIONS: DentalMedication[] = [
     defaultFrequency: "em jejum",
     defaultDuration: "junto ao uso de AINE",
   },
+  {
+    id: "nistatina-susp",
+    name: "Nistatina suspensão oral 100.000 UI/ml",
+    category: "antifungico",
+    defaultDose: "4 a 6 ml",
+    defaultFrequency: "4x ao dia",
+    defaultDuration: "7 a 14 dias",
+    notes: "Manter em contato com a mucosa; engolir após; continuar alguns dias após remissão",
+  },
+  {
+    id: "miconazol-gel",
+    name: "Miconazol gel oral 2%",
+    category: "antifungico",
+    defaultDose: "aplicar fina camada",
+    defaultFrequency: "4x ao dia",
+    defaultDuration: "7 a 14 dias",
+    notes: "Aplicar nas lesões após as refeições",
+  },
+  {
+    id: "fluconazol-150",
+    name: "Fluconazol 150 mg",
+    category: "antifungico",
+    defaultDose: "1 cápsula",
+    defaultFrequency: "1x ao dia",
+    defaultDuration: "conforme orientação (casos extensos/recorrentes)",
+    notes: "Reservar a casos mais extensos; avaliar interações",
+  },
 ];
 
 export const MEDICATION_CATEGORY_LABELS: Record<DentalMedicationCategory, string> = {
@@ -142,6 +170,7 @@ export const MEDICATION_CATEGORY_LABELS: Record<DentalMedicationCategory, string
   anti_inflamatorio: "Anti-inflamatório",
   anestesico: "Anestésico",
   antisseptico: "Antisséptico",
+  antifungico: "Antifúngico",
   corticoide: "Corticoide",
   outros: "Outros",
 };

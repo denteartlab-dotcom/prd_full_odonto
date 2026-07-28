@@ -9,6 +9,8 @@ import {
 } from "@/lib/receituario-assistente";
 import { DENTAL_MEDICATIONS } from "@/lib/dental-medications";
 
+type AiAttempt = { provider: string; ok: boolean; detail?: string };
+
 function catalogPayload() {
   return DENTAL_MEDICATIONS.map((m) => ({
     id: m.id,
@@ -33,8 +35,114 @@ function userPayload(input: {
     medicamentosEmUso: input.medicationsInUse || "",
     catalogoOdontologicoReferencia: catalogPayload(),
     instrucao:
-      "Monte a sugestão de receita odontológica em JSON, com posologias usuais no Brasil.",
+      "Pesquise protocolos odontológicos atuais e monte a sugestão de receita em JSON, com posologias usuais no Brasil. Para candidíase oral use antifúngicos (nistatina/miconazol/fluconazol), nunca só analgésico.",
   });
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function summarizeGeminiError(status: number, body: string) {
+  if (status === 429) {
+    return "Cota gratuita do Gemini esgotada (429). Aguarde alguns minutos ou gere outra key em aistudio.google.com/apikey e faça Redeploy na Vercel.";
+  }
+  if (status === 403) {
+    return "Gemini recusou a key (403). Confirme GEMINI_API_KEY da AI Studio (geralmente começa com AIza) e permissão do modelo.";
+  }
+  if (status === 400) {
+    return `Gemini rejeitou a requisição (400): ${body.slice(0, 180)}`;
+  }
+  if (status === 404) {
+    return "Modelo Gemini não encontrado (404). Ajuste GEMINI_MODEL.";
+  }
+  return `Gemini falhou (${status}): ${body.slice(0, 180) || "sem detalhes"}`;
+}
+
+async function callGeminiOnce(
+  model: string,
+  apiKey: string,
+  input: {
+    prompt: string;
+    allergies?: string;
+    diseases?: string;
+    medicationsInUse?: string;
+  },
+  withSearch: boolean
+): Promise<{ result: AssistenteResult | null; detail?: string; status?: number }> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+  const body: Record<string, unknown> = {
+    contents: [
+      {
+        role: "user",
+        parts: [
+          {
+            text:
+              buildAssistenteSystemPrompt() +
+              "\nUse pesquisa atualizada quando disponível.\n\n" +
+              userPayload(input),
+          },
+        ],
+      },
+    ],
+    generationConfig: {
+      temperature: 0.2,
+      ...(withSearch ? {} : { responseMimeType: "application/json" }),
+    },
+  };
+
+  if (withSearch) {
+    body.tools = [{ google_search: {} }];
+  }
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  const raw = await res.text();
+  if (!res.ok) {
+    return { result: null, detail: summarizeGeminiError(res.status, raw), status: res.status };
+  }
+
+  let data: {
+    candidates?: Array<{
+      content?: { parts?: Array<{ text?: string }> };
+      groundingMetadata?: {
+        groundingChunks?: Array<{ web?: { uri?: string; title?: string } }>;
+      };
+    }>;
+  };
+  try {
+    data = JSON.parse(raw) as typeof data;
+  } catch {
+    return { result: null, detail: "Resposta inválida do Gemini." };
+  }
+
+  const candidate = data.candidates?.[0];
+  const content = candidate?.content?.parts?.map((p) => p.text || "").join("") || "";
+  const parsedJson = extractJsonObject(content);
+  if (!parsedJson) {
+    return { result: null, detail: `Modelo ${model} respondeu sem JSON utilizável.` };
+  }
+
+  const citations =
+    candidate?.groundingMetadata?.groundingChunks
+      ?.map((c) => c.web?.uri || "")
+      .filter(Boolean) || [];
+
+  const result = parseOpenAiAssistentePayload(
+    parsedJson,
+    input.prompt,
+    "gemini",
+    citations
+  );
+  if (!result) {
+    return { result: null, detail: `Modelo ${model} retornou JSON sem medicamentos.` };
+  }
+  return { result, detail: withSearch ? `${model} + Google Search` : model };
 }
 
 async function callGemini(input: {
@@ -42,51 +150,74 @@ async function callGemini(input: {
   allergies?: string;
   diseases?: string;
   medicationsInUse?: string;
-}): Promise<AssistenteResult | null> {
-  const apiKey = process.env.GEMINI_API_KEY?.trim();
-  if (!apiKey) return null;
+}): Promise<{ result: AssistenteResult | null; attempt: AiAttempt }> {
+  const apiKey =
+    process.env.GEMINI_API_KEY?.trim() ||
+    process.env.GOOGLE_API_KEY?.trim() ||
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim();
 
-  const model = process.env.GEMINI_MODEL || "gemini-2.0-flash";
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text:
-                buildAssistenteSystemPrompt() +
-                "\n\n" +
-                userPayload(input),
-            },
-          ],
-        },
-      ],
-      generationConfig: {
-        temperature: 0.2,
-        responseMimeType: "application/json",
+  if (!apiKey) {
+    return {
+      result: null,
+      attempt: {
+        provider: "gemini",
+        ok: false,
+        detail: "GEMINI_API_KEY não encontrada no ambiente (Vercel/.env).",
       },
-    }),
-  });
-
-  if (!res.ok) {
-    console.warn("[assistente IA] Gemini falhou", await res.text());
-    return null;
+    };
   }
 
-  const data = (await res.json()) as {
-    candidates?: Array<{
-      content?: { parts?: Array<{ text?: string }> };
-    }>;
+  const preferred = process.env.GEMINI_MODEL?.trim();
+  const models = [
+    preferred,
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-lite",
+    "gemini-2.5-flash",
+    "gemini-flash-latest",
+  ].filter((m, i, arr): m is string => Boolean(m) && arr.indexOf(m) === i);
+
+  let lastDetail = "Falha desconhecida no Gemini.";
+
+  for (const model of models) {
+    // 1) com pesquisa Google (IA de pesquisa)
+    let once = await callGeminiOnce(model, apiKey, input, true);
+    if (once.result) {
+      return {
+        result: once.result,
+        attempt: { provider: "gemini", ok: true, detail: once.detail },
+      };
+    }
+    if (once.status === 429) {
+      await sleep(1200);
+      once = await callGeminiOnce(model, apiKey, input, true);
+      if (once.result) {
+        return {
+          result: once.result,
+          attempt: { provider: "gemini", ok: true, detail: once.detail },
+        };
+      }
+    }
+
+    // 2) sem search (mais compatível / menos cota)
+    once = await callGeminiOnce(model, apiKey, input, false);
+    if (once.result) {
+      return {
+        result: once.result,
+        attempt: { provider: "gemini", ok: true, detail: once.detail },
+      };
+    }
+
+    lastDetail = once.detail || lastDetail;
+    if (once.status && once.status !== 404 && once.status !== 403) {
+      // 429 etc.: não gastar todos os modelos se a cota é global
+      if (once.status === 429) break;
+    }
+  }
+
+  return {
+    result: null,
+    attempt: { provider: "gemini", ok: false, detail: lastDetail },
   };
-  const content = data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "";
-  const parsedJson = extractJsonObject(content);
-  if (!parsedJson) return null;
-  return parseOpenAiAssistentePayload(parsedJson, input.prompt, "gemini");
 }
 
 async function callPerplexity(input: {
@@ -94,9 +225,14 @@ async function callPerplexity(input: {
   allergies?: string;
   diseases?: string;
   medicationsInUse?: string;
-}): Promise<AssistenteResult | null> {
+}): Promise<{ result: AssistenteResult | null; attempt: AiAttempt }> {
   const apiKey = process.env.PERPLEXITY_API_KEY?.trim();
-  if (!apiKey) return null;
+  if (!apiKey) {
+    return {
+      result: null,
+      attempt: { provider: "perplexity", ok: false, detail: "PERPLEXITY_API_KEY ausente." },
+    };
+  }
 
   const model = process.env.PERPLEXITY_MODEL || "sonar";
   const res = await fetch("https://api.perplexity.ai/chat/completions", {
@@ -117,8 +253,15 @@ async function callPerplexity(input: {
   });
 
   if (!res.ok) {
-    console.warn("[assistente IA] Perplexity falhou", await res.text());
-    return null;
+    const body = await res.text();
+    return {
+      result: null,
+      attempt: {
+        provider: "perplexity",
+        ok: false,
+        detail: `Perplexity falhou (${res.status}): ${body.slice(0, 160)}`,
+      },
+    };
   }
 
   const data = (await res.json()) as {
@@ -127,13 +270,26 @@ async function callPerplexity(input: {
   };
   const content = data.choices?.[0]?.message?.content || "";
   const parsedJson = extractJsonObject(content);
-  if (!parsedJson) return null;
-  return parseOpenAiAssistentePayload(
+  if (!parsedJson) {
+    return {
+      result: null,
+      attempt: { provider: "perplexity", ok: false, detail: "Resposta sem JSON." },
+    };
+  }
+  const result = parseOpenAiAssistentePayload(
     parsedJson,
     input.prompt,
     "perplexity",
     data.citations || []
   );
+  return {
+    result,
+    attempt: {
+      provider: "perplexity",
+      ok: Boolean(result),
+      detail: result ? model : "JSON sem medicamentos",
+    },
+  };
 }
 
 async function callOpenAi(input: {
@@ -141,9 +297,14 @@ async function callOpenAi(input: {
   allergies?: string;
   diseases?: string;
   medicationsInUse?: string;
-}): Promise<AssistenteResult | null> {
+}): Promise<{ result: AssistenteResult | null; attempt: AiAttempt }> {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
-  if (!apiKey) return null;
+  if (!apiKey) {
+    return {
+      result: null,
+      attempt: { provider: "openai", ok: false, detail: "OPENAI_API_KEY ausente." },
+    };
+  }
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -168,8 +329,15 @@ async function callOpenAi(input: {
   });
 
   if (!res.ok) {
-    console.warn("[assistente IA] OpenAI falhou", await res.text());
-    return null;
+    const body = await res.text();
+    return {
+      result: null,
+      attempt: {
+        provider: "openai",
+        ok: false,
+        detail: `OpenAI falhou (${res.status}): ${body.slice(0, 160)}`,
+      },
+    };
   }
 
   const data = (await res.json()) as {
@@ -177,8 +345,21 @@ async function callOpenAi(input: {
   };
   const content = data.choices?.[0]?.message?.content || "";
   const parsedJson = extractJsonObject(content);
-  if (!parsedJson) return null;
-  return parseOpenAiAssistentePayload(parsedJson, input.prompt, "openai");
+  if (!parsedJson) {
+    return {
+      result: null,
+      attempt: { provider: "openai", ok: false, detail: "Resposta sem JSON." },
+    };
+  }
+  const result = parseOpenAiAssistentePayload(parsedJson, input.prompt, "openai");
+  return {
+    result,
+    attempt: {
+      provider: "openai",
+      ok: Boolean(result),
+      detail: result ? "ok" : "JSON sem medicamentos",
+    },
+  };
 }
 
 export async function POST(req: Request) {
@@ -204,47 +385,57 @@ export async function POST(req: Request) {
     medicationsInUse: body.medicationsInUse,
   };
 
+  const attempts: AiAttempt[] = [];
+
   try {
-    // Ordem: Gemini (tier gratuito) → Perplexity → OpenAI → local (sempre gratuito)
-    const fromGemini = await callGemini(input);
-    if (fromGemini) {
+    const gemini = await callGemini(input);
+    attempts.push(gemini.attempt);
+    if (gemini.result) {
       return NextResponse.json({
-        ...fromGemini,
+        ...gemini.result,
+        attempts,
         alerts: [
-          ...fromGemini.alerts,
-          "Sugestão via Google Gemini (gratuito). O dentista deve validar posologia e interações antes de emitir.",
+          ...gemini.result.alerts,
+          "Sugestão via Google Gemini com pesquisa. O dentista deve validar posologia e interações antes de emitir.",
         ],
       });
     }
 
-    const fromPerplexity = await callPerplexity(input);
-    if (fromPerplexity) {
+    const perplexity = await callPerplexity(input);
+    attempts.push(perplexity.attempt);
+    if (perplexity.result) {
       return NextResponse.json({
-        ...fromPerplexity,
+        ...perplexity.result,
+        attempts,
         alerts: [
-          ...fromPerplexity.alerts,
+          ...perplexity.result.alerts,
           "Sugestão baseada em pesquisa na internet. O dentista deve validar posologia e interações antes de emitir.",
         ],
       });
     }
 
-    const fromOpenAi = await callOpenAi(input);
-    if (fromOpenAi) {
+    const openai = await callOpenAi(input);
+    attempts.push(openai.attempt);
+    if (openai.result) {
       return NextResponse.json({
-        ...fromOpenAi,
+        ...openai.result,
+        attempts,
         alerts: [
-          ...fromOpenAi.alerts,
+          ...openai.result.alerts,
           "Sugestão via OpenAI. O dentista deve validar posologia e interações antes de emitir.",
         ],
       });
     }
 
+    const failed = attempts.filter((a) => !a.ok && a.detail && !a.detail.includes("ausente"));
     const local = buildLocalAssistenteSuggestion(input);
     return NextResponse.json({
       ...local,
+      attempts,
       alerts: [
         ...local.alerts,
-        "Modo gratuito local (protocolos odontológicos do sistema). Sem chave de IA externa.",
+        failed[0]?.detail ||
+          "IA externa indisponível. Usando protocolos locais do sistema — revise com cuidado.",
       ],
     });
   } catch (err) {
@@ -252,6 +443,7 @@ export async function POST(req: Request) {
     const local = buildLocalAssistenteSuggestion(input);
     return NextResponse.json({
       ...local,
+      attempts,
       summary:
         "Falha na IA externa. Sugestão local provisória — revise com cuidado.",
       alerts: [

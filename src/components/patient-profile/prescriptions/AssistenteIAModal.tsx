@@ -132,13 +132,20 @@ export function AssistenteIAModal({
                 <p className="mt-1 text-[10px] font-medium uppercase tracking-wide text-indigo-500">
                   Fonte:{" "}
                   {result.source === "gemini"
-                    ? "Google Gemini (gratuito)"
+                    ? "Google Gemini (pesquisa)"
                     : result.source === "perplexity"
                       ? "Perplexity (pesquisa na internet)"
                       : result.source === "openai"
                         ? "OpenAI"
                         : "Assistente clínico local (gratuito)"}
                 </p>
+                {result.source === "local" &&
+                result.attempts?.some((a) => !a.ok && a.detail && !a.detail.includes("ausente")) ? (
+                  <p className="mt-1 text-[11px] text-amber-800">
+                    {result.attempts.find((a) => !a.ok && a.detail && !a.detail.includes("ausente"))
+                      ?.detail}
+                  </p>
+                ) : null}
               </div>
 
               {result.citations?.length ? (
@@ -199,8 +206,8 @@ export function AssistenteIAModal({
             </div>
           ) : (
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-600">
-              Funciona de graça com protocolos locais. Opcional: configure GEMINI_API_KEY (Google AI
-              Studio, tier gratuito) para sugestões com IA. O dentista sempre valida antes de emitir.
+              Preferência: Google Gemini com pesquisa (GEMINI_API_KEY na Vercel). Se a cota gratuita
+              acabar, usa protocolos locais — sempre revise antes de emitir.
             </div>
           )}
         </div>

@@ -15,6 +15,7 @@ export type AssistenteResult = {
   alerts: string[];
   source: "local" | "gemini" | "openai" | "perplexity";
   citations?: string[];
+  attempts?: Array<{ provider: string; ok: boolean; detail?: string }>;
 };
 
 function normalize(text: string) {
@@ -49,6 +50,7 @@ function pick(id: string) {
 }
 
 function detectProcedure(text: string) {
+  if (/candidi|candidas|sapinho|moniliase|monil[ií]ase/.test(text)) return "candidiase";
   if (/implante|enxerto/.test(text)) return "implante";
   if (/extrac|exodon|siso|terceiro molar|dente do siso/.test(text)) return "extracao";
   if (/canal|endodon|pulpite/.test(text)) return "canal";
@@ -62,6 +64,7 @@ function detectProcedure(text: string) {
 }
 
 const PROCEDURE_LABELS: Record<string, string> = {
+  candidiase: "Candidíase oral",
   implante: "Implante / enxerto",
   extracao: "Extração dentária",
   canal: "Tratamento de canal",
@@ -93,6 +96,15 @@ function buildProtocol(procedure: string, ctx: string) {
   };
 
   switch (procedure) {
+    case "candidiase":
+      add("nistatina-susp", "Antifúngico de primeira linha na candidíase oral");
+      add("miconazol-gel", "Alternativa tópica em gel oral");
+      notes =
+        "Higiene oral rigorosa; se uso de prótese, higienizar e deixar fora à noite. Avaliar imunossupressão/antibiótico recente.";
+      alerts.push(
+        "Candidíase oral — não usar analgésico/AINE como tratamento principal; priorizar antifúngico."
+      );
+      break;
     case "extracao":
       add("ibuprofeno-600", "Anti-inflamatório pós-exodontia");
       add("dipirona-500", "Analgesia de resgate");
