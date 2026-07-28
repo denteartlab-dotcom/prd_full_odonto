@@ -9,6 +9,7 @@ export type PatientProfileTab =
   | "resumo"
   | "anamnese"
   | "odontograma"
+  | "prontuario"
   | "orcamentos"
   | "financeiro"
   | "consultas"

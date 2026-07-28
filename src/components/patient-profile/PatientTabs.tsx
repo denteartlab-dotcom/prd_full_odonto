@@ -8,6 +8,7 @@ const TABS: { id: PatientProfileTab; label: string }[] = [
   { id: "resumo", label: "Resumo" },
   { id: "anamnese", label: "Anamnese" },
   { id: "odontograma", label: "Odontograma" },
+  { id: "prontuario", label: "Prontuário" },
   { id: "orcamentos", label: "Orçamentos" },
   { id: "financeiro", label: "Financeiro" },
   { id: "consultas", label: "Consultas" },

@@ -19,6 +19,7 @@ import { PatientConsultationsTab } from "./consultations";
 import { PatientDocumentsTab } from "./documents";
 import { PatientPrescriptionsTab } from "./prescriptions";
 import { PatientHistoryTab } from "./history";
+import { PatientProntuarioTab } from "./prontuario";
 import { ProfileCard, ProfileField, ProfileLinkButton } from "./ProfileCard";
 
 function money(value: number) {
@@ -212,6 +213,10 @@ export function PatientTabPanels({
         </p>
       </div>
     );
+  }
+
+  if (tab === "prontuario") {
+    return <PatientProntuarioTab patient={patient} userName={userName} />;
   }
 
   if (tab === "orcamentos") {
