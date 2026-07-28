@@ -18,7 +18,7 @@ export function useMedicationSearch(query: string, enabled = true) {
   const searchQuery = useQuery<MedicationSearchResult, Error>({
     queryKey: ["medications", "search", debounced],
     queryFn: () => medicationService.searchMedicines(debounced),
-    enabled: enabled && debounced.length >= 3,
+    enabled: enabled && debounced.length >= 2,
     staleTime: 60_000,
     retry: 1,
     refetchOnWindowFocus: false,
