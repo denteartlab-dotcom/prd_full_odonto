@@ -53,6 +53,7 @@ model User {
   updatedAt       DateTime @updatedAt
 
   clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  favoriteMedications FavoriteMedication[]
 
   @@unique([clinicId, email])
 }
@@ -316,4 +317,17 @@ model ClinicSetting {
   workEnd         String @default("18:00")
 
   clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+}
+
+model FavoriteMedication {
+  id             String   @id @default(cuid())
+  userId         String
+  medicationId   String
+  medicationJson String
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, medicationId])
+  @@index([userId])
 }

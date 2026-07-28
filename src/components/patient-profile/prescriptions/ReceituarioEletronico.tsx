@@ -18,7 +18,9 @@ import {
 } from "lucide-react";
 import type { PatientProfile } from "@/lib/patient-profile-types";
 import type { PrescriptionRecord } from "@/lib/prescription-types";
-import { MedicationService, PrescriptionPdfService, type Medicine } from "@/lib/medication-service";
+import { PrescriptionPdfService } from "@/lib/medication-service";
+import { medicationService } from "@/services/medication.service";
+import type { Medication } from "@/types/medication";
 import {
   buildReceituarioAlerts,
   medicineToLine,
@@ -121,12 +123,12 @@ export function ReceituarioEletronico({
     cro: null,
   };
 
-  function addMedicine(m: Medicine) {
+  function addMedicine(m: Medication) {
     setLines((cur) => {
       if (cur.some((l) => l.medicineId === m.id)) return cur;
       return [...cur, medicineToLine(m)];
     });
-    setMessage(`${m.commercialName} adicionado à receita.`);
+    setMessage(`${m.name} adicionado à receita.`);
   }
 
   function clearDraft() {
@@ -139,8 +141,12 @@ export function ReceituarioEletronico({
   async function applyTemplate(tpl: ReceituarioTemplate) {
     const meds: ReceituarioLine[] = [];
     for (const id of tpl.medicineIds) {
-      const m = await MedicationService.getMedicine(id);
-      if (m) meds.push(medicineToLine(m));
+      try {
+        const m = await medicationService.getMedicineById(id);
+        meds.push(medicineToLine(m));
+      } catch {
+        /* ignore missing ids */
+      }
     }
     setLines(meds);
     if (tpl.generalNotes) setGeneralNotes(tpl.generalNotes);

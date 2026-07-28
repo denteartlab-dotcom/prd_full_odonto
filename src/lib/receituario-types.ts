@@ -1,4 +1,5 @@
-import type { Medicine, MedicineCategoryId } from "@/lib/medication-service";
+import type { Medication } from "@/types/medication";
+import { DENTAL_MEDICATIONS } from "@/lib/dental-medications";
 
 export type ReceituarioLine = {
   id: string;
@@ -36,18 +37,19 @@ export type ReceituarioDraft = {
   status: "rascunho" | "emitida";
 };
 
-export function medicineToLine(m: Medicine): ReceituarioLine {
+export function medicineToLine(m: Medication): ReceituarioLine {
+  const dental = DENTAL_MEDICATIONS.find((d) => d.id === m.id);
   return {
     id: `line-${m.id}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     medicineId: m.id,
-    name: m.commercialName,
+    name: m.name,
     concentration: m.concentration,
-    quantity: m.defaultQuantity,
-    pharmaceuticalForm: m.pharmaceuticalForm,
-    route: m.defaultRoute,
-    posology: m.defaultPosology,
-    duration: m.defaultDuration,
-    notes: m.notes || "",
+    quantity: dental?.defaultDose || "1 unidade",
+    pharmaceuticalForm: m.dosageForm,
+    route: m.route || "Oral",
+    posology: dental?.defaultFrequency || "conforme orientação",
+    duration: dental?.defaultDuration || "conforme orientação",
+    notes: dental?.notes || "",
     controlled: m.controlled,
   };
 }
@@ -177,8 +179,5 @@ export function buildReceituarioAlerts(input: {
     });
   }
 
-  // Estrutura pronta para: interação medicamentosa, dose acima, pediátrico, idosos
   return alerts;
 }
-
-export type { MedicineCategoryId };
