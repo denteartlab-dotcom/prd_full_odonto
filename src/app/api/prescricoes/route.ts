@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireApiSession, isSession, jsonError } from "@/lib/api-helpers";
+import { resolveLoggedPrescriber } from "@/lib/resolve-logged-prescriber";
 import {
   formatPrescriptionContent,
   type NewPrescriptionPayload,
@@ -99,10 +100,13 @@ export async function GET(req: NextRequest) {
     orderBy: { name: "asc" },
   });
 
+  const prescriber = await resolveLoggedPrescriber(session);
+
   return NextResponse.json({
     provider: "nativo",
     free: true,
     professionals,
+    prescriber,
     items: items.map(mapRow),
   });
 }
@@ -128,18 +132,19 @@ export async function POST(req: NextRequest) {
   });
   if (!patient) return jsonError("Paciente não encontrado.", 404);
 
-  let professionalId = body.professionalId || null;
+  const logged = await resolveLoggedPrescriber(session);
+  let professionalId = logged.id;
+
+  // Se o client enviar um id, só aceita se for o próprio prescritor logado
+  if (body.professionalId && body.professionalId === logged.id) {
+    professionalId = body.professionalId;
+  }
+
   if (professionalId) {
     const professional = await prisma.professional.findFirst({
       where: { id: professionalId, clinicId: session.clinicId },
     });
-    if (!professional) return jsonError("Profissional não encontrado.", 404);
-  } else {
-    const first = await prisma.professional.findFirst({
-      where: { clinicId: session.clinicId, active: true },
-      orderBy: { name: "asc" },
-    });
-    professionalId = first?.id ?? null;
+    if (!professional) professionalId = null;
   }
 
   const items: PrescriptionItem[] = body.medications.map((m, index) => ({

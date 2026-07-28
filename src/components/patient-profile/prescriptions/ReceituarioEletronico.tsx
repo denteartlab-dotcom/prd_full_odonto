@@ -35,7 +35,14 @@ import { ReceituarioPatientPanel } from "./ReceituarioPatientPanel";
 import { ReceituarioSearchPanel } from "./ReceituarioSearchPanel";
 import { VisualizarPdfModal } from "./VisualizarPdfModal";
 
-type ProfessionalOption = { id: string; name: string; cro?: string | null };
+type ProfessionalOption = {
+  id: string | null;
+  name: string;
+  cro?: string | null;
+  specialty?: string | null;
+  phone?: string | null;
+  email?: string | null;
+};
 
 const DRAFT_KEY = (patientId: string) => `odonto-receituario-draft:${patientId}`;
 
@@ -48,8 +55,11 @@ export function ReceituarioEletronico({
 }) {
   const [lines, setLines] = useState<ReceituarioLine[]>([]);
   const [generalNotes, setGeneralNotes] = useState("");
-  const [professionals, setProfessionals] = useState<ProfessionalOption[]>([]);
-  const [professionalId, setProfessionalId] = useState("");
+  const [prescriber, setPrescriber] = useState<ProfessionalOption>({
+    id: null,
+    name: userName || "Dr(a). Responsável",
+    cro: null,
+  });
   const [history, setHistory] = useState<PrescriptionRecord[]>([]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -64,14 +74,20 @@ export function ReceituarioEletronico({
     const data = await res.json();
     if (res.ok) {
       setHistory(data.items ?? []);
-      if (Array.isArray(data.professionals)) {
-        setProfessionals(data.professionals);
-        if (!professionalId && data.professionals[0]?.id) {
-          setProfessionalId(data.professionals[0].id);
-        }
+      if (data.prescriber?.name) {
+        setPrescriber({
+          id: data.prescriber.id ?? null,
+          name: data.prescriber.name,
+          cro: data.prescriber.cro ?? null,
+          specialty: data.prescriber.specialty ?? null,
+          phone: data.prescriber.phone ?? null,
+          email: data.prescriber.email ?? null,
+        });
+      } else if (userName) {
+        setPrescriber((cur) => ({ ...cur, name: userName }));
       }
     }
-  }, [patient.id, professionalId]);
+  }, [patient.id, userName]);
 
   useEffect(() => {
     void loadHistory();
@@ -84,11 +100,9 @@ export function ReceituarioEletronico({
       const draft = JSON.parse(raw) as {
         lines?: ReceituarioLine[];
         generalNotes?: string;
-        professionalId?: string;
       };
       if (draft.lines?.length) setLines(draft.lines);
       if (draft.generalNotes) setGeneralNotes(draft.generalNotes);
-      if (draft.professionalId) setProfessionalId(draft.professionalId);
     } catch {
       /* ignore */
     }
@@ -99,7 +113,7 @@ export function ReceituarioEletronico({
       try {
         window.localStorage.setItem(
           DRAFT_KEY(patient.id),
-          JSON.stringify({ lines, generalNotes, professionalId })
+          JSON.stringify({ lines, generalNotes })
         );
         setAutosaveHint(`Rascunho salvo · ${new Date().toLocaleTimeString("pt-BR")}`);
       } catch {
@@ -107,7 +121,7 @@ export function ReceituarioEletronico({
       }
     }, 800);
     return () => window.clearTimeout(t);
-  }, [lines, generalNotes, professionalId, patient.id]);
+  }, [lines, generalNotes, patient.id]);
 
   const alerts = useMemo(
     () =>
@@ -120,9 +134,11 @@ export function ReceituarioEletronico({
     [lines, patient.anamnesis]
   );
 
-  const dentist = professionals.find((p) => p.id === professionalId) || {
-    name: userName || "Dr(a). Responsável",
-    cro: null,
+  const dentist = {
+    name: prescriber.name || userName || "Dr(a). Responsável",
+    cro: prescriber.cro,
+    specialty: prescriber.specialty || "Clínica Geral",
+    phone: prescriber.phone,
   };
 
   function addMedicine(m: Medication) {
@@ -198,7 +214,7 @@ export function ReceituarioEletronico({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           patientId: patient.id,
-          professionalId: professionalId || null,
+          professionalId: prescriber.id || null,
           kind: "receituario_simples",
           observations: generalNotes,
           medications: lines.map((l) => ({
@@ -245,7 +261,7 @@ export function ReceituarioEletronico({
   function saveDraftLocal() {
     window.localStorage.setItem(
       DRAFT_KEY(patient.id),
-      JSON.stringify({ lines, generalNotes, professionalId })
+      JSON.stringify({ lines, generalNotes })
     );
     setMessage("Rascunho salvo neste dispositivo.");
   }
@@ -323,26 +339,17 @@ export function ReceituarioEletronico({
         </button>
       </div>
 
-      {professionals.length ? (
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-slate-500">Prescritor:</span>
-          <select
-            value={professionalId}
-            onChange={(e) => setProfessionalId(e.target.value)}
-            className="rounded-xl border border-slate-200 px-3 py-1.5 text-sm outline-none"
-          >
-            {professionals.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-                {p.cro ? ` · ${p.cro}` : ""}
-              </option>
-            ))}
-          </select>
-          {autosaveHint ? (
-            <span className="text-[11px] text-emerald-600">{autosaveHint}</span>
-          ) : null}
-        </div>
-      ) : null}
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="text-slate-500">Prescritor:</span>
+        <span className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 font-medium text-slate-800">
+          {dentist.name}
+          {dentist.cro ? ` · ${dentist.cro}` : ""}
+        </span>
+        <span className="text-[11px] text-slate-400">(usuário logado)</span>
+        {autosaveHint ? (
+          <span className="text-[11px] text-emerald-600">{autosaveHint}</span>
+        ) : null}
+      </div>
 
       {message ? (
         <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
@@ -363,8 +370,9 @@ export function ReceituarioEletronico({
           dentist={{
             name: dentist.name,
             cro: dentist.cro,
-            specialty: "Clínica Geral",
+            specialty: dentist.specialty || "Clínica Geral",
             clinic: "Clínica",
+            phone: dentist.phone || undefined,
             city: patient.city,
           }}
           alerts={alerts}
