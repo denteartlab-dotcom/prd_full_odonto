@@ -6,11 +6,14 @@ import {
   computeHistoryStats,
   computeProfessionalStats,
   computeQuickIndicators,
-  createPatientHistoryMock,
   filterHistoryEvents,
   groupHistoryEvents,
   uniqueProfessionals,
-} from "@/lib/patient-history-mock";
+} from "@/lib/patient-history";
+import {
+  buildHistoryExtrasFromProfile,
+  mergeHistoryEvents,
+} from "@/lib/patient-history-profile";
 import {
   DEFAULT_HISTORY_FILTERS,
   type HistoryFilterState,
@@ -34,16 +37,44 @@ export function PatientHistoryTab({ patient }: { patient: PatientProfile }) {
   const [selected, setSelected] = useState<PatientHistoryEventFull | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    setLoading(true);
-    const timer = window.setTimeout(() => {
-      const seed = parseInt(patient.id.replace(/\D/g, "") || "1", 10) || 1;
-      setEvents(createPatientHistoryMock(seed));
-      setLoading(false);
-    }, 450);
-    return () => window.clearTimeout(timer);
-  }, [patient.id]);
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      setLoadError(null);
+      try {
+        const res = await fetch(`/api/pacientes/${patient.id}/history`, {
+          cache: "no-store",
+        });
+        if (!res.ok) {
+          throw new Error("Falha ao carregar histórico do paciente.");
+        }
+        const data = (await res.json()) as { events?: PatientHistoryEventFull[] };
+        const fromDb = Array.isArray(data.events) ? data.events : [];
+        const fromProfile = buildHistoryExtrasFromProfile(patient);
+        if (!cancelled) {
+          setEvents(mergeHistoryEvents(fromDb, fromProfile));
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setEvents(buildHistoryExtrasFromProfile(patient));
+          setLoadError(
+            err instanceof Error ? err.message : "Não foi possível sincronizar o histórico."
+          );
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [patient]);
 
   useEffect(() => {
     setPage(1);
@@ -82,49 +113,10 @@ export function PatientHistoryTab({ patient }: { patient: PatientProfile }) {
     showToast(`Exportação PDF preparada (${filtered.length} eventos).`);
   }
 
-  function handleCreateFirst() {
-    const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const created: PatientHistoryEventFull = {
-      id: `h-new-${Date.now()}`,
-      type: "sistema",
-      title: "Atividade registrada",
-      description: "Primeira atividade manual do paciente",
-      professional: "Recepção",
-      specialty: "Atendimento",
-      date: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
-      time: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
-      status: "concluida",
-      observations: "Criada pelo Centro de Atividades.",
-    };
-    setEvents((list) => [created, ...list]);
-    showToast("Primeira atividade registrada.");
-    openEvent(created);
-  }
-
-  function handleDuplicate(event: PatientHistoryEventFull) {
-    const copy: PatientHistoryEventFull = {
-      ...event,
-      id: `h-copy-${Date.now()}`,
-      title: `${event.title} (cópia)`,
-      status: "rascunho",
-    };
-    setEvents((list) => [copy, ...list]);
-    showToast("Evento duplicado.");
-  }
-
-  function handleDelete() {
-    if (!selected) return;
-    setEvents((list) => list.filter((e) => e.id !== selected.id));
-    setDrawerOpen(false);
-    setSelected(null);
-    showToast("Evento excluído.");
-  }
-
   if (loading) return <HistorySkeleton />;
 
   if (events.length === 0) {
-    return <HistoryEmptyState onCreate={handleCreateFirst} />;
+    return <HistoryEmptyState />;
   }
 
   return (
@@ -132,9 +124,12 @@ export function PatientHistoryTab({ patient }: { patient: PatientProfile }) {
       <div className="mb-4">
         <h2 className="text-lg font-semibold text-slate-900">Histórico do paciente</h2>
         <p className="text-sm text-slate-500">
-          Centro de atividades — localize qualquer evento clínico, financeiro ou
-          administrativo em segundos.
+          Centro de atividades — sincronizado com consultas, financeiro, orçamentos,
+          documentos, receitas e demais módulos.
         </p>
+        {loadError ? (
+          <p className="mt-1 text-xs text-amber-600">{loadError}</p>
+        ) : null}
       </div>
 
       <HistoryQuickCards
@@ -206,13 +201,15 @@ export function PatientHistoryTab({ patient }: { patient: PatientProfile }) {
                 onView={openEvent}
                 onEdit={(e) => {
                   openEvent(e);
-                  showToast("Modo edição disponível no painel.");
+                  showToast("Abra o módulo correspondente para editar.");
                 }}
                 onPrint={(e) => {
                   openEvent(e);
-                  showToast("Pronto para impressão.");
+                  showToast("Use o módulo de origem para imprimir.");
                 }}
-                onDuplicate={handleDuplicate}
+                onDuplicate={() =>
+                  showToast("Histórico é somente leitura — edite no módulo de origem.")
+                }
               />
             )}
           </div>
@@ -238,9 +235,11 @@ export function PatientHistoryTab({ patient }: { patient: PatientProfile }) {
         open={drawerOpen}
         event={selected}
         onClose={() => setDrawerOpen(false)}
-        onEdit={() => showToast("Edição salva localmente (mock).")}
-        onPrint={() => showToast("Enviado para impressão.")}
-        onDelete={handleDelete}
+        onEdit={() => showToast("Edite este evento no módulo de origem.")}
+        onPrint={() => showToast("Use o módulo de origem para imprimir.")}
+        onDelete={() =>
+          showToast("Eventos do histórico não podem ser excluídos por aqui.")
+        }
       />
 
       {toast ? (
