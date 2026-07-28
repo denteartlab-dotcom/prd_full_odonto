@@ -131,13 +131,15 @@ export function AssistenteIAModal({
                 <p className="mt-1 text-xs text-indigo-800">{result.summary}</p>
                 <p className="mt-1 text-[10px] font-medium uppercase tracking-wide text-indigo-500">
                   Fonte:{" "}
-                  {result.source === "gemini"
-                    ? "Google Gemini (pesquisa)"
-                    : result.source === "perplexity"
-                      ? "Perplexity (pesquisa na internet)"
-                      : result.source === "openai"
-                        ? "OpenAI"
-                        : "Assistente clínico local (gratuito)"}
+                  {result.source === "groq"
+                    ? "Groq (gratuito)"
+                    : result.source === "gemini"
+                      ? "Google Gemini (pesquisa)"
+                      : result.source === "perplexity"
+                        ? "Perplexity (pesquisa na internet)"
+                        : result.source === "openai"
+                          ? "OpenAI"
+                          : "Assistente clínico local (gratuito)"}
                 </p>
                 {result.source === "local" &&
                 result.attempts?.some((a) => !a.ok && a.detail && !a.detail.includes("ausente")) ? (
@@ -206,8 +208,8 @@ export function AssistenteIAModal({
             </div>
           ) : (
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-600">
-              Preferência: Google Gemini com pesquisa (GEMINI_API_KEY na Vercel). Se a cota gratuita
-              acabar, usa protocolos locais — sempre revise antes de emitir.
+              Recomendado: GROQ_API_KEY (gratuito, cota maior). Alternativa: GEMINI_API_KEY. Sem
+              chave, usa protocolos locais. Sempre revise antes de emitir.
             </div>
           )}
         </div>

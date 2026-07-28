@@ -13,7 +13,7 @@ export type AssistenteResult = {
   suggestions: AssistenteSuggestion[];
   notes: string;
   alerts: string[];
-  source: "local" | "gemini" | "openai" | "perplexity";
+  source: "local" | "groq" | "gemini" | "openai" | "perplexity";
   citations?: string[];
   attempts?: Array<{ provider: string; ok: boolean; detail?: string }>;
 };
@@ -57,7 +57,13 @@ function detectProcedure(text: string) {
   if (/periodont|raspagem|gengiv/.test(text)) return "periodontia";
   if (/protese|pr[oó]tese/.test(text)) return "protese";
   if (/clareament/.test(text)) return "clareamento";
-  if (/abscess|infecc|celulite|fistula|drenagem/.test(text)) return "infeccao";
+  if (
+    /abscess|infecc|celulite|fistula|drenagem|secrec|pus|exsud|supurac|purulen/.test(
+      text
+    )
+  ) {
+    return "infeccao";
+  }
   if (/urgencia|dor intensa|dor forte|emergencia/.test(text)) return "urgencia";
   if (/cirurg|pos[- ]?operator/.test(text)) return "pos-operatorio";
   return "geral";

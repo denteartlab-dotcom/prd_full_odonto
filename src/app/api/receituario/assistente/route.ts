@@ -362,6 +362,74 @@ async function callOpenAi(input: {
   };
 }
 
+async function callGroq(input: {
+  prompt: string;
+  allergies?: string;
+  diseases?: string;
+  medicationsInUse?: string;
+}): Promise<{ result: AssistenteResult | null; attempt: AiAttempt }> {
+  const apiKey = process.env.GROQ_API_KEY?.trim();
+  if (!apiKey) {
+    return {
+      result: null,
+      attempt: { provider: "groq", ok: false, detail: "GROQ_API_KEY ausente." },
+    };
+  }
+
+  const model = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0.2,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content:
+            buildAssistenteSystemPrompt() +
+            "\nUse conhecimento clínico odontológico atualizado no Brasil. Seja conservador nas doses. Para dor com secreção/pus, priorize antibiótico adequado + analgesia — não só analgésico.",
+        },
+        { role: "user", content: userPayload(input) },
+      ],
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    const detail =
+      res.status === 429
+        ? "Cota gratuita do Groq esgotada momentaneamente. Aguarde ou tente de novo em alguns minutos."
+        : `Groq falhou (${res.status}): ${body.slice(0, 160)}`;
+    return { result: null, attempt: { provider: "groq", ok: false, detail } };
+  }
+
+  const data = (await res.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
+  const content = data.choices?.[0]?.message?.content || "";
+  const parsedJson = extractJsonObject(content);
+  if (!parsedJson) {
+    return {
+      result: null,
+      attempt: { provider: "groq", ok: false, detail: "Resposta sem JSON." },
+    };
+  }
+  const result = parseOpenAiAssistentePayload(parsedJson, input.prompt, "groq");
+  return {
+    result,
+    attempt: {
+      provider: "groq",
+      ok: Boolean(result),
+      detail: result ? model : "JSON sem medicamentos",
+    },
+  };
+}
+
 export async function POST(req: Request) {
   const session = await requireApiSession();
   if (!isSession(session)) return session;
@@ -388,6 +456,20 @@ export async function POST(req: Request) {
   const attempts: AiAttempt[] = [];
 
   try {
+    // Groq primeiro: tier gratuito com cota bem mais folgada que Gemini free
+    const groq = await callGroq(input);
+    attempts.push(groq.attempt);
+    if (groq.result) {
+      return NextResponse.json({
+        ...groq.result,
+        attempts,
+        alerts: [
+          ...groq.result.alerts,
+          "Sugestão via Groq (gratuito). O dentista deve validar posologia e interações antes de emitir.",
+        ],
+      });
+    }
+
     const gemini = await callGemini(input);
     attempts.push(gemini.attempt);
     if (gemini.result) {
