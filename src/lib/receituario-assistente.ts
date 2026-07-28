@@ -13,7 +13,8 @@ export type AssistenteResult = {
   suggestions: AssistenteSuggestion[];
   notes: string;
   alerts: string[];
-  source: "local" | "openai";
+  source: "local" | "openai" | "perplexity";
+  citations?: string[];
 };
 
 function normalize(text: string) {
@@ -194,7 +195,9 @@ export function buildLocalAssistenteSuggestion(input: {
 
 export function parseOpenAiAssistentePayload(
   raw: unknown,
-  fallbackPrompt: string
+  fallbackPrompt: string,
+  source: AssistenteResult["source"] = "openai",
+  citations: string[] = []
 ): AssistenteResult | null {
   if (!raw || typeof raw !== "object") return null;
   const data = raw as {
@@ -264,6 +267,50 @@ export function parseOpenAiAssistentePayload(
     suggestions,
     notes: data.notes || "",
     alerts: Array.isArray(data.alerts) ? data.alerts.map(String) : [],
-    source: "openai",
+    source,
+    citations: citations.filter(Boolean).slice(0, 8),
   };
+}
+
+export function extractJsonObject(text: string): unknown | null {
+  const trimmed = text.trim();
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    const match = trimmed.match(/\{[\s\S]*\}/);
+    if (!match) return null;
+    try {
+      return JSON.parse(match[0]);
+    } catch {
+      return null;
+    }
+  }
+}
+
+export function buildAssistenteSystemPrompt() {
+  return `Você é um assistente clínico odontológico brasileiro.
+Pesquise fontes atualizadas (protocolos odontológicos, bulas, literatura) e sugira uma receita inicial.
+Priorize medicamentos disponíveis no Brasil e posologias usualmente usadas em odontologia.
+Se houver catálogo local, use medicineId quando houver correspondência; caso contrário, informe o nome comercial/genérico correto.
+Responda APENAS JSON válido no formato:
+{
+  "summary": string,
+  "procedureLabel": string,
+  "notes": string,
+  "alerts": string[],
+  "medications": [
+    {
+      "medicineId": string,
+      "name": string,
+      "reason": string,
+      "quantity": string,
+      "posology": string,
+      "duration": string,
+      "notes": string,
+      "route": string
+    }
+  ]
+}
+Não invente doses perigosas. Sempre indique que o dentista deve validar antes de emitir.
+Inclua alertas para alergias, gestação e interações quando relevantes.`;
 }

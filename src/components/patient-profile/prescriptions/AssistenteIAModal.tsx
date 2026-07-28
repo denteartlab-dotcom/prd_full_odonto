@@ -130,9 +130,34 @@ export function AssistenteIAModal({
                 <p className="text-xs font-semibold text-indigo-900">{result.procedureLabel}</p>
                 <p className="mt-1 text-xs text-indigo-800">{result.summary}</p>
                 <p className="mt-1 text-[10px] font-medium uppercase tracking-wide text-indigo-500">
-                  Fonte: {result.source === "openai" ? "OpenAI" : "Assistente clínico local"}
+                  Fonte:{" "}
+                  {result.source === "perplexity"
+                    ? "Perplexity (pesquisa na internet)"
+                    : result.source === "openai"
+                      ? "OpenAI"
+                      : "Assistente clínico local"}
                 </p>
               </div>
+
+              {result.citations?.length ? (
+                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                  <p className="text-[11px] font-semibold text-slate-700">Fontes consultadas</p>
+                  <ul className="mt-1 space-y-1">
+                    {result.citations.map((url) => (
+                      <li key={url}>
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="break-all text-[11px] text-indigo-600 hover:underline"
+                        >
+                          {url}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
 
               {result.alerts.length ? (
                 <ul className="space-y-1.5">
@@ -172,8 +197,8 @@ export function AssistenteIAModal({
             </div>
           ) : (
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-600">
-              A IA considera o procedimento e dados do paciente (alergias/doenças) para sugerir
-              uma receita inicial. O dentista sempre valida antes de emitir.
+              A IA pesquisa protocolos odontológicos na internet (Perplexity) e sugere uma receita
+              inicial. O dentista sempre valida doses e interações antes de emitir.
             </div>
           )}
         </div>
