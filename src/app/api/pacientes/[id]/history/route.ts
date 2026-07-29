@@ -42,6 +42,10 @@ export async function GET(_req: Request, { params }: Params) {
       medicalNotes: {
         orderBy: { createdAt: "desc" },
       },
+      medicalCertificates: {
+        include: { professional: true },
+        orderBy: { createdAt: "desc" },
+      },
       anamnesis: true,
       odontogram: {
         orderBy: { createdAt: "desc" },
@@ -117,6 +121,14 @@ export async function GET(_req: Request, { params }: Params) {
       title: n.title,
       content: n.content,
       createdAt: n.createdAt,
+    })),
+    medicalCertificates: patient.medicalCertificates.map((c) => ({
+      id: c.id,
+      documentNumber: c.documentNumber,
+      certificateType: c.certificateType,
+      certificateText: c.certificateText,
+      createdAt: c.createdAt,
+      professionalName: c.professional?.name ?? c.issuedByName ?? null,
     })),
     anamnesis: patient.anamnesis
       ? {

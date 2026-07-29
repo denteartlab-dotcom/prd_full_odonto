@@ -36,6 +36,8 @@ model Clinic {
   inventoryItems  InventoryItem[]
   documents       Document[]
   prescriptions   Prescription[]
+  medicalCertificates MedicalCertificate[]
+  certificateTemplates CertificateTemplate[]
   settings        ClinicSetting?
 }
 
@@ -77,6 +79,7 @@ model Professional {
   commissions   Commission[]
   budgets       Budget[]
   prescriptions Prescription[]
+  medicalCertificates MedicalCertificate[]
 }
 
 model Patient {
@@ -102,6 +105,7 @@ model Patient {
   budgets       Budget[]
   receivables   Receivable[]
   prescriptions Prescription[]
+  medicalCertificates MedicalCertificate[]
   documents     Document[]
 
   @@unique([clinicId, chartNumber])
@@ -296,6 +300,62 @@ model Prescription {
   clinic       Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
   patient      Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
   professional Professional? @relation(fields: [professionalId], references: [id])
+}
+
+model MedicalCertificate {
+  id               String    @id @default(cuid())
+  clinicId         String
+  patientId        String
+  appointmentId    String?
+  dentistId        String?
+  certificateType  String
+  certificateText  String
+  procedureName    String?
+  attendanceDate   DateTime?
+  startTime        String?
+  endTime          String?
+  days             Int?
+  hours            Int?
+  restStartDate    DateTime?
+  restEndDate      DateTime?
+  companionName    String?
+  companionCpf     String?
+  cid              String?
+  cidDescription   String?
+  observations     String?
+  documentNumber   String
+  validationHash   String
+  pdfUrl           String?
+  issuedByUserId   String?
+  issuedByName     String?
+  issuedIp         String?
+  auditJson        String?
+  status           String    @default("emitido")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  clinic       Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patient      Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  professional Professional? @relation(fields: [dentistId], references: [id])
+
+  @@unique([clinicId, documentNumber])
+  @@index([clinicId, patientId])
+  @@map("medical_certificates")
+}
+
+model CertificateTemplate {
+  id        String   @id @default(cuid())
+  clinicId  String
+  name      String
+  type      String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId])
+  @@map("certificate_templates")
 }
 
 model Document {

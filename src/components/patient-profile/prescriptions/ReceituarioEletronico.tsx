@@ -11,6 +11,7 @@ import {
   BookTemplate,
   FileText,
   Send,
+  Stethoscope,
 } from "lucide-react";
 import type { PatientProfile } from "@/lib/patient-profile-types";
 import type { PrescriptionRecord } from "@/lib/prescription-types";
@@ -25,6 +26,7 @@ import {
   type ReceituarioTemplate,
 } from "@/lib/receituario-types";
 import { AssistenteIAModal } from "./AssistenteIAModal";
+import { AtestadoOdontologicoModal } from "./AtestadoOdontologicoModal";
 import { HistoricoReceitasModal } from "./HistoricoReceitasModal";
 import { ModelosReceitaModal } from "./ModelosReceitaModal";
 import { ReceituarioEditor } from "./ReceituarioEditor";
@@ -65,6 +67,7 @@ export function ReceituarioEletronico({
   const [modelsOpen, setModelsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [pdfOpen, setPdfOpen] = useState(false);
+  const [atestadoOpen, setAtestadoOpen] = useState(false);
 
   const loadHistory = useCallback(async () => {
     const res = await fetch(`/api/prescricoes?patientId=${patient.id}`, { cache: "no-store" });
@@ -132,6 +135,7 @@ export function ReceituarioEletronico({
   );
 
   const dentist = {
+    id: prescriber.id,
     name: prescriber.name || userName || "Dr(a). Responsável",
     cro: prescriber.cro,
     specialty: prescriber.specialty || "Clínica Geral",
@@ -302,6 +306,11 @@ export function ReceituarioEletronico({
         </button>
         <ToolbarBtn icon={History} label="Histórico" onClick={() => setHistoryOpen(true)} />
         <ToolbarBtn icon={BookTemplate} label="Modelos" onClick={() => setModelsOpen(true)} />
+        <ToolbarBtn
+          icon={Stethoscope}
+          label="Atestado"
+          onClick={() => setAtestadoOpen(true)}
+        />
         <button
           type="button"
           onClick={() => setAiOpen(true)}
@@ -388,6 +397,17 @@ export function ReceituarioEletronico({
         items={history}
         patientName={patient.name}
         patientPhone={patient.phone}
+      />
+      <AtestadoOdontologicoModal
+        open={atestadoOpen}
+        onClose={() => setAtestadoOpen(false)}
+        patient={patient}
+        dentist={{
+          id: dentist.id,
+          name: dentist.name,
+          cro: dentist.cro,
+          specialty: dentist.specialty,
+        }}
       />
     </div>
   );

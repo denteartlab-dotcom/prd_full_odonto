@@ -105,6 +105,14 @@ export type HistoryDbSources = {
     content: string;
     createdAt: Date;
   }[];
+  medicalCertificates: {
+    id: string;
+    documentNumber: string;
+    certificateType: string;
+    certificateText: string;
+    createdAt: Date;
+    professionalName: string | null;
+  }[];
   anamnesis: {
     updatedAt: Date;
     allergies: string | null;
@@ -225,6 +233,7 @@ export function buildHistoryEventsFromDb(sources: HistoryDbSources): PatientHist
   }
 
   for (const d of sources.documents) {
+    if ((d.type || "").toLowerCase() === "atestado") continue;
     const { date, time } = splitDateTime(d.createdAt);
     const isImage = /radio|imagem|foto|rx/i.test(d.type) || /radio|imagem|foto|rx/i.test(d.title);
     const type: HistoryEventType = isImage ? "imagem" : "documento";
@@ -259,6 +268,7 @@ export function buildHistoryEventsFromDb(sources: HistoryDbSources): PatientHist
   }
 
   for (const n of sources.medicalNotes) {
+    if (/^Atestado odontológico/i.test(n.title || "")) continue;
     const { date, time } = splitDateTime(n.createdAt);
     events.push({
       id: `nota-${n.id}`,
@@ -270,6 +280,23 @@ export function buildHistoryEventsFromDb(sources: HistoryDbSources): PatientHist
       time,
       status: "concluida",
       relatedTab: "resumo",
+    });
+  }
+
+  for (const c of sources.medicalCertificates) {
+    const { date, time } = splitDateTime(c.createdAt);
+    events.push({
+      id: `atestado-${c.id}`,
+      type: "atestado",
+      title: `Atestado ${c.documentNumber}`,
+      description:
+        c.certificateText.replace(/<[^>]+>/g, "").slice(0, 140) ||
+        c.certificateType,
+      professional: c.professionalName || "Não informado",
+      date,
+      time,
+      status: "ativo",
+      relatedTab: "receitas",
     });
   }
 
