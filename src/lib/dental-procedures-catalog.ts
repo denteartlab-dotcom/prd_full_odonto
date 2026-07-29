@@ -135,6 +135,56 @@ export const DENTAL_PROCEDURES_CATALOG: DentalProcedureCatalogItem[] = [
   // ATM / DTM
   { id: "proc-095", code: "85400254", name: "Placa oclusal reposicionadora", category: "DTM", price: 1100, estimatedMinutes: 60, aliases: ["dtm", "placa atm"] },
   { id: "proc-096", code: "85300020", name: "Imobilização dentária", category: "DTM", price: 380, estimatedMinutes: 40 },
+
+  // Protocolos protéticos / reabilitação (termos comerciais comuns)
+  {
+    id: "proc-097",
+    code: "85500240",
+    name: "Protocolo cerâmico sobre implantes",
+    category: "Implantodontia",
+    price: 28000,
+    estimatedMinutes: 240,
+    aliases: [
+      "protocolo ceramico",
+      "protocolo de ceramica",
+      "protese protocolo ceramica",
+      "full arch ceramico",
+      "protocolo zirconia",
+    ],
+  },
+  {
+    id: "proc-098",
+    code: "85500259",
+    name: "Protocolo resinoso sobre implantes",
+    category: "Implantodontia",
+    price: 18000,
+    estimatedMinutes: 210,
+    aliases: [
+      "protocolo resinoso",
+      "protocolo de resina",
+      "protese protocolo resina",
+      "full arch resinoso",
+      "protocolo acrilico",
+    ],
+  },
+  {
+    id: "proc-099",
+    code: "85500267",
+    name: "Protocolo provisório (carga imediata)",
+    category: "Implantodontia",
+    price: 12000,
+    estimatedMinutes: 180,
+    aliases: ["protocolo provisório", "carga imediata", "protocolo imediato"],
+  },
+  {
+    id: "proc-100",
+    code: "85500275",
+    name: "Reabilitação All-on-4 / All-on-6",
+    category: "Implantodontia",
+    price: 35000,
+    estimatedMinutes: 300,
+    aliases: ["all on 4", "all-on-4", "all on 6", "all-on-6", "protocolo all on four"],
+  },
 ];
 
 export const POPULAR_PROCEDURE_IDS = [

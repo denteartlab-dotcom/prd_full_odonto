@@ -41,6 +41,8 @@ export type ProcedureCatalogItem = {
   category: string;
   price: number;
   estimatedMinutes: number;
+  /** local = catálogo do sistema; ai = sugerido por IA */
+  source?: "local" | "ai";
 };
 
 export type BudgetProcedure = {

@@ -40,6 +40,7 @@ export function toProcedureCatalogItem(
     category: item.category,
     price: item.price,
     estimatedMinutes: item.estimatedMinutes,
+    source: "local",
   };
 }
 
@@ -65,6 +66,17 @@ export function searchDentalProcedures(
     .sort((a, b) => b.score - a.score || a.item.name.localeCompare(b.item.name, "pt-BR"))
     .slice(0, capped)
     .map((r) => toProcedureCatalogItem(r.item));
+}
+
+/** Melhor score da busca local (0–100). */
+export function bestLocalProcedureScore(query: string): number {
+  const q = normalize(query);
+  if (!q) return 0;
+  let best = 0;
+  for (const item of DENTAL_PROCEDURES_CATALOG) {
+    best = Math.max(best, scoreItem(item, q));
+  }
+  return best;
 }
 
 export function countDentalProcedures() {
