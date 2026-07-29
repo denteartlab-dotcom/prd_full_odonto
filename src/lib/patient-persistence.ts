@@ -184,6 +184,7 @@ export function formStateToPrismaCreate(form: PatientFormState) {
     id: "temp",
     name,
     chartNumber: form.numeroFicha.trim() || undefined,
+    photoUrl: form.photoUrl.trim() || undefined,
     cpf: form.cpf.trim(),
     phone: form.telefonePrincipal.trim(),
     email: form.email.trim(),

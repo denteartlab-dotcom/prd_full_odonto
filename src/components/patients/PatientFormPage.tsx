@@ -12,6 +12,7 @@ import { PatientAddressCard } from "./PatientAddressCard";
 import { PatientPersonalDataCard } from "./PatientPersonalDataCard";
 import { PatientPhotoUploadCard } from "./PatientPhotoUploadCard";
 import { usePatients } from "@/contexts/patients-context";
+import { fileToPatientPhotoDataUrl } from "@/lib/patient-photo";
 import { emptyPatientForm, type PatientFormState } from "./patient-form-types";
 
 function requiredOk(values: PatientFormState) {
@@ -81,8 +82,36 @@ export function PatientFormPage({
   function onSelectPhoto(file: File | null) {
     setPhotoPreview((atual) => {
       if (atual?.startsWith("blob:")) URL.revokeObjectURL(atual);
-      return file ? URL.createObjectURL(file) : null;
+      return null;
     });
+
+    if (!file) {
+      patch({ photoUrl: "" });
+      return;
+    }
+
+    const blobUrl = URL.createObjectURL(file);
+    setPhotoPreview(blobUrl);
+
+    void (async () => {
+      try {
+        const photoUrl = await fileToPatientPhotoDataUrl(file);
+        patch({ photoUrl });
+        setPhotoPreview((atual) => {
+          if (atual?.startsWith("blob:")) URL.revokeObjectURL(atual);
+          return photoUrl;
+        });
+      } catch (err) {
+        setPhotoPreview((atual) => {
+          if (atual?.startsWith("blob:")) URL.revokeObjectURL(atual);
+          return null;
+        });
+        patch({ photoUrl: "" });
+        setMessage(
+          err instanceof Error ? err.message : "Não foi possível processar a foto."
+        );
+      }
+    })();
   }
 
   async function handleSave(mode: "save" | "save_new") {
@@ -187,7 +216,7 @@ export function PatientFormPage({
         </div>
 
         <div className="space-y-5 xl:sticky xl:top-4 xl:self-start">
-          <PatientPhotoUploadCard previewUrl={photoPreview} onSelect={onSelectPhoto} />
+          <PatientPhotoUploadCard previewUrl={photoPreview || values.photoUrl || null} onSelect={onSelectPhoto} />
           <EmergencyContactsCard
             contacts={values.contatosEmergencia}
             onChange={(contatosEmergencia) => patch({ contatosEmergencia })}

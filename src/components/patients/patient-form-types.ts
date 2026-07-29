@@ -10,6 +10,7 @@ export type EmergencyContact = {
 export type PatientFormState = {
   nomeCompleto: string;
   numeroFicha: string;
+  photoUrl: string;
   nomeSocial: string;
   cpf: string;
   rg: string;
@@ -42,6 +43,7 @@ export type PatientFormState = {
 export const emptyPatientForm = (): PatientFormState => ({
   nomeCompleto: "",
   numeroFicha: "",
+  photoUrl: "",
   nomeSocial: "",
   cpf: "",
   rg: "",
@@ -150,6 +152,7 @@ export function profileToPatientForm(patient: PatientProfile): PatientFormState 
     ...emptyPatientForm(),
     nomeCompleto: patient.name || "",
     numeroFicha: patient.chartNumber || "",
+    photoUrl: patient.photoUrl || "",
     nomeSocial: patient.nomeSocial || "",
     cpf: patient.cpf || "",
     rg: patient.rg || "",
@@ -199,6 +202,7 @@ export function applyPatientFormToProfile(
     ...patient,
     name,
     chartNumber: form.numeroFicha.trim() || patient.chartNumber,
+    photoUrl: form.photoUrl.trim() || undefined,
     cpf: form.cpf.trim(),
     phone: form.telefonePrincipal.trim(),
     email: form.email.trim(),

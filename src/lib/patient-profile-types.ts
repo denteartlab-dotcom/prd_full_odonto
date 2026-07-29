@@ -133,6 +133,7 @@ export function profileToList(p: PatientProfile): ListPatient {
     id: p.id,
     name: p.name,
     chartNumber: p.chartNumber,
+    photoUrl: p.photoUrl,
     cpf: p.cpf,
     phone: p.phone,
     email: p.email,

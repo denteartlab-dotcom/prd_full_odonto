@@ -66,14 +66,23 @@ export function PatientInfoCard({
       <section className="mb-5 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-            <div
-              className={cn(
-                "flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-2xl font-bold text-white shadow-md",
-                patient.avatarColor
-              )}
-            >
-              {patient.initials}
-            </div>
+            {patient.photoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={patient.photoUrl}
+                alt={`Foto de ${patient.name}`}
+                className="h-20 w-20 shrink-0 rounded-2xl object-cover shadow-md ring-2 ring-white"
+              />
+            ) : (
+              <div
+                className={cn(
+                  "flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-2xl font-bold text-white shadow-md",
+                  patient.avatarColor
+                )}
+              >
+                {patient.initials}
+              </div>
+            )}
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">{patient.name}</h1>

@@ -4,6 +4,7 @@ export type ListPatient = {
   id: string;
   name: string;
   chartNumber?: string;
+  photoUrl?: string;
   cpf: string;
   phone: string;
   email: string;

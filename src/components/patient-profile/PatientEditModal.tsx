@@ -14,6 +14,7 @@ import {
   profileToPatientForm,
   type PatientFormState,
 } from "@/components/patients/patient-form-types";
+import { fileToPatientPhotoDataUrl } from "@/lib/patient-photo";
 import type { PatientProfile } from "@/lib/patient-profile-types";
 
 function requiredOk(values: PatientFormState) {
@@ -44,8 +45,9 @@ export function PatientEditModal({
 
   useEffect(() => {
     if (!open) return;
-    setValues(profileToPatientForm(patient));
-    setPhotoPreview(null);
+    const form = profileToPatientForm(patient);
+    setValues(form);
+    setPhotoPreview(form.photoUrl || null);
     setMessage("");
     setSaving(false);
   }, [open, patient]);
@@ -68,8 +70,35 @@ export function PatientEditModal({
   function onSelectPhoto(file: File | null) {
     setPhotoPreview((atual) => {
       if (atual?.startsWith("blob:")) URL.revokeObjectURL(atual);
-      return file ? URL.createObjectURL(file) : null;
+      return null;
     });
+
+    if (!file) {
+      patch({ photoUrl: "" });
+      return;
+    }
+
+    const blobUrl = URL.createObjectURL(file);
+    setPhotoPreview(blobUrl);
+
+    void (async () => {
+      try {
+        const photoUrl = await fileToPatientPhotoDataUrl(file);
+        patch({ photoUrl });
+        setPhotoPreview((atual) => {
+          if (atual?.startsWith("blob:")) URL.revokeObjectURL(atual);
+          return photoUrl;
+        });
+      } catch (err) {
+        setPhotoPreview((atual) => {
+          if (atual?.startsWith("blob:")) URL.revokeObjectURL(atual);
+          return values.photoUrl || null;
+        });
+        setMessage(
+          err instanceof Error ? err.message : "Não foi possível processar a foto."
+        );
+      }
+    })();
   }
 
   function handleSave() {
@@ -140,7 +169,7 @@ export function PatientEditModal({
 
             <div className="space-y-5 xl:sticky xl:top-0 xl:self-start">
               <PatientPhotoUploadCard
-                previewUrl={photoPreview}
+                previewUrl={photoPreview || values.photoUrl || null}
                 onSelect={onSelectPhoto}
               />
               <EmergencyContactsCard
