@@ -449,7 +449,12 @@ export function SchedulePage({
       <NewAppointmentModal
         open={modalOpen}
         appointments={appointments}
-        patients={listPatients.map((p) => ({ id: p.id, name: p.name }))}
+        patients={listPatients.map((p) => ({
+          id: p.id,
+          name: p.name,
+          cpf: p.cpf,
+          phone: p.phone,
+        }))}
         professionals={professionals}
         initial={
           editing
