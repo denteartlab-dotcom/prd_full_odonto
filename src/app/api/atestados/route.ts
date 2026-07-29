@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { isSession, jsonError, requireApiSession } from "@/lib/api-helpers";
+import {
+  absoluteAppUrl,
+  buildCertificateValidationUrl,
+} from "@/lib/certificate-share";
 import { allocateNextCertificateNumber } from "@/lib/certificate-number";
 import {
   buildValidationHash,
@@ -210,7 +214,17 @@ export async function POST(req: NextRequest) {
       return created;
     });
 
-    return NextResponse.json({ item: row }, { status: 201 });
+    return NextResponse.json(
+      {
+        item: row,
+        validationUrl: buildCertificateValidationUrl(row.validationHash, req),
+        publicPdfUrl: absoluteAppUrl(
+          `/api/atestados-publicos/${encodeURIComponent(row.validationHash)}/pdf`,
+          req
+        ),
+      },
+      { status: 201 }
+    );
   } catch (err) {
     console.error("[POST /api/atestados]", err);
     return jsonError("Não foi possível salvar o atestado.", 500);

@@ -9,9 +9,7 @@ import {
 import type { CertificateType } from "@/lib/certificate-types";
 import { formatBrasiliaDate, formatBrasiliaDateTime } from "@/lib/date-range";
 import {
-  absoluteAppUrl,
-  certificateValidationPath,
-  createCertificateShareToken,
+  buildCertificateValidationUrl,
 } from "@/lib/certificate-share";
 
 export async function loadCertificatePdfPayload(input: {
@@ -30,12 +28,8 @@ export async function loadCertificatePdfPayload(input: {
   });
   if (!row) return null;
 
-  const token = await createCertificateShareToken({
-    certificateId: row.id,
-    clinicId: row.clinicId,
-  });
-  const validationUrl = absoluteAppUrl(
-    certificateValidationPath(token),
+  const validationUrl = buildCertificateValidationUrl(
+    row.validationHash,
     input.req
   );
   const qrDataUrl = await fetchQrDataUrl(validationUrl);

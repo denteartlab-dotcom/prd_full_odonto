@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsonError } from "@/lib/api-helpers";
-import { verifyCertificateShareToken } from "@/lib/certificate-share";
+import { resolveCertificateByPublicToken } from "@/lib/certificate-share";
 import { loadCertificatePdfPayload } from "@/lib/certificate-pdf-load";
 
 type Params = { params: Promise<{ token: string }> };
@@ -8,12 +8,10 @@ type Params = { params: Promise<{ token: string }> };
 export async function GET(req: Request, { params }: Params) {
   try {
     const { token } = await params;
-    const decoded = decodeURIComponent(token);
-    const { certificateId, clinicId } =
-      await verifyCertificateShareToken(decoded);
+    const row = await resolveCertificateByPublicToken(token);
     const loaded = await loadCertificatePdfPayload({
-      certificateId,
-      clinicId,
+      certificateId: row.id,
+      clinicId: row.clinicId,
       req,
     });
     if (!loaded) return jsonError("Atestado não encontrado.", 404);
@@ -25,7 +23,8 @@ export async function GET(req: Request, { params }: Params) {
         "Cache-Control": "public, max-age=300",
       },
     });
-  } catch {
+  } catch (err) {
+    console.error("[atestados-publicos/pdf]", err);
     return jsonError("Link inválido ou expirado.", 400);
   }
 }

@@ -1,6 +1,11 @@
-import { prisma } from "@/lib/db";
-import { verifyCertificateShareToken } from "@/lib/certificate-share";
-import { CERTIFICATE_TYPE_LABELS, type CertificateType } from "@/lib/certificate-types";
+import {
+  resolveCertificateByPublicToken,
+  certificatePublicPdfPath,
+} from "@/lib/certificate-share";
+import {
+  CERTIFICATE_TYPE_LABELS,
+  type CertificateType,
+} from "@/lib/certificate-types";
 import { formatBrasiliaDate, formatBrasiliaDateTime } from "@/lib/date-range";
 
 type Params = { params: Promise<{ token: string }> };
@@ -17,40 +22,36 @@ export default async function ValidarAtestadoPage({ params }: Params) {
     issuedAt: string;
     attendanceDate: string | null;
     validationHash: string;
+    publicPdfHref: string;
   } | null = null;
 
   try {
-    const decoded = decodeURIComponent(token);
-    const { certificateId, clinicId } =
-      await verifyCertificateShareToken(decoded);
-    const row = await prisma.medicalCertificate.findFirst({
-      where: { id: certificateId, clinicId },
-      include: { patient: true, professional: true, clinic: true },
-    });
-    if (!row) {
-      error = "Atestado não encontrado.";
-    } else {
-      data = {
-        documentNumber: row.documentNumber,
-        typeLabel:
-          CERTIFICATE_TYPE_LABELS[row.certificateType as CertificateType] ||
-          row.certificateType,
-        patientName: row.patient.name,
-        dentistName:
-          row.professional?.name ||
-          row.issuedByName ||
-          row.clinic.responsibleDentist ||
-          "—",
-        clinicName: row.clinic.name,
-        issuedAt: formatBrasiliaDateTime(row.createdAt),
-        attendanceDate: row.attendanceDate
-          ? formatBrasiliaDate(row.attendanceDate)
-          : null,
-        validationHash: row.validationHash.slice(0, 16) + "…",
-      };
-    }
-  } catch {
-    error = "Link de validação inválido ou expirado.";
+    const row = await resolveCertificateByPublicToken(token);
+    data = {
+      documentNumber: row.documentNumber,
+      typeLabel:
+        CERTIFICATE_TYPE_LABELS[row.certificateType as CertificateType] ||
+        row.certificateType,
+      patientName: row.patient.name,
+      dentistName:
+        row.professional?.name ||
+        row.issuedByName ||
+        row.clinic.responsibleDentist ||
+        "—",
+      clinicName: row.clinic.name,
+      issuedAt: formatBrasiliaDateTime(row.createdAt),
+      attendanceDate: row.attendanceDate
+        ? formatBrasiliaDate(row.attendanceDate)
+        : null,
+      validationHash: `${row.validationHash.slice(0, 16)}…`,
+      publicPdfHref: certificatePublicPdfPath(row.validationHash),
+    };
+  } catch (err) {
+    console.error("[validar-atestado]", err);
+    error =
+      err instanceof Error && err.message === "Atestado não encontrado."
+        ? "Atestado não encontrado na base de dados."
+        : "Link de validação inválido ou expirado.";
   }
 
   return (
@@ -81,6 +82,14 @@ export default async function ValidarAtestadoPage({ params }: Params) {
               <Row label="Atendimento" value={data.attendanceDate} />
             ) : null}
             <Row label="Hash" value={data.validationHash} />
+            <a
+              href={data.publicPdfHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-flex rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+            >
+              Abrir PDF do atestado
+            </a>
           </div>
         ) : null}
       </div>

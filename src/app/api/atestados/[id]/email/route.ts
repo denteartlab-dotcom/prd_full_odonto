@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isSession, jsonError, requireApiSession } from "@/lib/api-helpers";
 import { loadCertificatePdfPayload } from "@/lib/certificate-pdf-load";
+import { buildCertificateValidationUrl } from "@/lib/certificate-share";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -22,12 +23,17 @@ export async function POST(req: NextRequest, { params }: Params) {
     return jsonError("Paciente sem e-mail cadastrado.");
   }
 
+  const validationUrl = buildCertificateValidationUrl(
+    loaded.row.validationHash,
+    req
+  );
+
   // Integração SMTP ainda não configurada: retorna mailto com link do PDF autenticado
   const subject = encodeURIComponent(
     `Atestado odontológico ${loaded.row.documentNumber}`
   );
   const body = encodeURIComponent(
-    `Olá ${loaded.patientName.split(" ")[0] || ""},\n\nSegue o atestado odontológico emitido pela clínica.\nDocumento: ${loaded.row.documentNumber}\nValidação: ${loaded.validationUrl}\n\nAtenciosamente.`
+    `Olá ${loaded.patientName.split(" ")[0] || ""},\n\nSegue o atestado odontológico emitido pela clínica.\nDocumento: ${loaded.row.documentNumber}\nValidação: ${validationUrl}\n\nAtenciosamente.`
   );
 
   return NextResponse.json({
@@ -35,6 +41,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     mode: "mailto",
     mailto: `mailto:${email}?subject=${subject}&body=${body}`,
     email,
+    validationUrl,
     message: "Abrindo o cliente de e-mail com o atestado.",
   });
 }

@@ -189,6 +189,7 @@ export function AtestadoOdontologicoModal({
   const [message, setMessage] = useState("");
   const [savedId, setSavedId] = useState<string | null>(null);
   const [documentNumber, setDocumentNumber] = useState("");
+  const [validationUrl, setValidationUrl] = useState("");
   const [modelsOpen, setModelsOpen] = useState(false);
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
   const [newTemplateName, setNewTemplateName] = useState("");
@@ -276,6 +277,7 @@ export function AtestadoOdontologicoModal({
     setMessage("");
     setSavedId(null);
     setDocumentNumber("");
+    setValidationUrl("");
     setSaving(false);
 
     void (async () => {
@@ -357,14 +359,17 @@ export function AtestadoOdontologicoModal({
     cidDescription: cidEnabled ? cidDescription : "",
     observations,
     documentNumber: documentNumber || "ATD-2026-••••••",
-    validationUrl: savedId
-      ? `${typeof window !== "undefined" ? window.location.origin : ""}/validar-atestado/preview`
-      : "URL de validação após salvar",
+    validationUrl:
+      validationUrl ||
+      (savedId
+        ? `${typeof window !== "undefined" ? window.location.origin : ""}/validar-atestado/${savedId}`
+        : "O link de validação aparece após salvar o atestado."),
   };
 
   function selectType(type: CertificateType) {
     setCertificateType(type);
     setSavedId(null);
+    setValidationUrl("");
   }
 
   function applyEditorCommand(command: string) {
@@ -401,7 +406,8 @@ export function AtestadoOdontologicoModal({
       }),
     });
     const data = (await res.json()) as {
-      item?: { id: string; documentNumber: string };
+      item?: { id: string; documentNumber: string; validationHash?: string };
+      validationUrl?: string;
       error?: string;
     };
     if (!res.ok || !data.item) {
@@ -409,6 +415,13 @@ export function AtestadoOdontologicoModal({
     }
     setSavedId(data.item.id);
     setDocumentNumber(data.item.documentNumber);
+    if (data.validationUrl) {
+      setValidationUrl(data.validationUrl);
+    } else if (data.item.validationHash) {
+      setValidationUrl(
+        `${window.location.origin}/validar-atestado/${data.item.validationHash}`
+      );
+    }
     return data.item;
   }
 
@@ -518,6 +531,7 @@ export function AtestadoOdontologicoModal({
   function duplicateForm() {
     setSavedId(null);
     setDocumentNumber("");
+    setValidationUrl("");
     setMessage("Cópia pronta para emitir um novo atestado.");
   }
 

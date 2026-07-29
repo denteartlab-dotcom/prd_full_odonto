@@ -3,8 +3,8 @@ import { isSession, jsonError, requireApiSession } from "@/lib/api-helpers";
 import { loadCertificatePdfPayload } from "@/lib/certificate-pdf-load";
 import {
   absoluteAppUrl,
-  certificateValidationPath,
-  createCertificateShareToken,
+  certificatePublicPdfPath,
+  buildCertificateValidationUrl,
 } from "@/lib/certificate-share";
 import {
   isWhatsAppCloudConfigured,
@@ -38,16 +38,16 @@ export async function POST(req: NextRequest, { params }: Params) {
     return jsonError("Paciente sem telefone válido cadastrado para WhatsApp.");
   }
 
-  const token = await createCertificateShareToken({
-    certificateId: loaded.row.id,
-    clinicId: loaded.row.clinicId,
-  });
   const publicPdfUrl = absoluteAppUrl(
-    `/api/atestados-publicos/${encodeURIComponent(token)}/pdf`,
+    certificatePublicPdfPath(loaded.row.validationHash),
+    req
+  );
+  const validationUrl = buildCertificateValidationUrl(
+    loaded.row.validationHash,
     req
   );
   const firstName = loaded.patientName.split(" ")[0] || "paciente";
-  const caption = `Olá ${firstName}! Segue o link do seu atestado odontológico em PDF:\n${publicPdfUrl}\nValidação: ${absoluteAppUrl(certificateValidationPath(token), req)}`;
+  const caption = `Olá ${firstName}! Segue o link do seu atestado odontológico em PDF:\n${publicPdfUrl}\nValidação: ${validationUrl}`;
 
   if (isWhatsAppCloudConfigured()) {
     try {
@@ -78,6 +78,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     mode: "whatsapp_web_link",
     waUrl: buildWhatsAppWebUrl(phone, caption),
     publicPdfUrl,
+    validationUrl,
     message: "Abrindo WhatsApp Web com o link do PDF.",
   });
 }

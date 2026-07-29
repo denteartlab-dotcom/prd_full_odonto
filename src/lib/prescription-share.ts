@@ -30,16 +30,20 @@ export async function verifyPrescriptionShareToken(token: string) {
 }
 
 export function absoluteAppUrl(path: string, req?: Request) {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+
+  // Preferir o host da requisição atual (QR/link funcionam no mesmo domínio)
+  if (req) {
+    const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
+    const proto = req.headers.get("x-forwarded-proto") || "https";
+    if (host) return `${proto}://${host}${normalized}`;
+  }
+
   const envBase =
     process.env.NEXT_PUBLIC_APP_URL ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
   if (envBase) {
-    return `${envBase.replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
+    return `${envBase.replace(/\/$/, "")}${normalized}`;
   }
-  if (req) {
-    const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
-    const proto = req.headers.get("x-forwarded-proto") || "https";
-    if (host) return `${proto}://${host}${path.startsWith("/") ? path : `/${path}`}`;
-  }
-  return path;
+  return normalized;
 }
