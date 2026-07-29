@@ -136,36 +136,6 @@ function emptyLineField(
   return labelLine(doc, label, "", x, y, w, labelW);
 }
 
-function drawCfoSeal(doc: jsPDF, cx: number, cy: number, r = 7.2) {
-  doc.setDrawColor(0, 0, 0);
-  doc.setFillColor(255, 255, 255);
-  doc.setLineWidth(0.45);
-  doc.circle(cx, cy, r, "S");
-  doc.circle(cx, cy, r - 1.1, "S");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.setTextColor(0, 0, 0);
-  doc.text("CFO", cx, cy - 0.8, { align: "center" });
-  doc.setFontSize(4.2);
-  doc.text("CONSELHO FEDERAL", cx, cy + 2.2, { align: "center" });
-  doc.text("DE ODONTOLOGIA", cx, cy + 4.2, { align: "center" });
-}
-
-function drawBrazilSeal(doc: jsPDF, cx: number, cy: number, r = 7.2) {
-  doc.setDrawColor(0, 0, 0);
-  doc.setFillColor(255, 255, 255);
-  doc.setLineWidth(0.4);
-  doc.circle(cx, cy, r, "S");
-  // simplified arms
-  doc.setLineWidth(0.25);
-  doc.ellipse(cx, cy - 0.5, 3.2, 3.8, "S");
-  doc.line(cx - 4.5, cy + 2.5, cx + 4.5, cy + 2.5);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(3.6);
-  doc.text("REPÚBLICA FEDERATIVA", cx, cy + 4.8, { align: "center" });
-  doc.text("DO BRASIL", cx, cy + 6.2, { align: "center" });
-}
-
 /**
  * Receituário de Controle Especial Odontológico — 2 páginas A4
  * (layout oficial: emitente / paciente / comprador / fornecedor + verso farmácia).
@@ -187,14 +157,10 @@ export function buildControleEspecialPdfBytes(
   // ========== PÁGINA 1 ==========
   let y = 8;
 
-  // Emblemas + título + VIA DIGITAL
-  drawCfoSeal(doc, m + 8, y + 8);
-  drawBrazilSeal(doc, m + 26, y + 8);
-
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12.2);
   doc.setTextColor(0, 0, 0);
-  doc.text("RECEITUÁRIO DE CONTROLE ESPECIAL", pageW / 2 + 4, y + 9.5, {
+  doc.text("RECEITUÁRIO DE CONTROLE ESPECIAL", pageW / 2, y + 9.5, {
     align: "center",
   });
 
