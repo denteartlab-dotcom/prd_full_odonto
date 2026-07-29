@@ -395,3 +395,15 @@ model FavoriteMedication {
   @@unique([userId, medicationId])
   @@index([userId])
 }
+
+/** Catálogo CID-10 (DATASUS / bases públicas) para busca no sistema. */
+model Cid10 {
+  code        String   @id
+  description String
+  source      String   @default("datasus")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([description])
+  @@map("cid10")
+}

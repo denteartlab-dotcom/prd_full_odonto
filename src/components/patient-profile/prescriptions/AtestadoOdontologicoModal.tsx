@@ -28,8 +28,8 @@ import { formatDisplayDate } from "@/lib/patients-list-mock";
 import { PROCEDURE_CATALOG } from "@/lib/budget-mock";
 import {
   DEFAULT_CERTIFICATE_TEXTS,
-  searchDentalCids,
   type CertificateType,
+  type DentalCid,
 } from "@/lib/certificate-types";
 import { certificatePdfViewerUrl } from "@/lib/certificate-pdf";
 import { buildClinicHeaderLines } from "@/lib/prescription-pdf-load";
@@ -171,6 +171,9 @@ export function AtestadoOdontologicoModal({
   const [cidQuery, setCidQuery] = useState("");
   const [cid, setCid] = useState("");
   const [cidDescription, setCidDescription] = useState("");
+  const [cids, setCids] = useState<DentalCid[]>([]);
+  const [cidLoading, setCidLoading] = useState(false);
+  const [cidSource, setCidSource] = useState("");
   const [observations, setObservations] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -193,7 +196,41 @@ export function AtestadoOdontologicoModal({
     ).slice(0, 10);
   }, [procedureQuery]);
 
-  const cids = useMemo(() => searchDentalCids(cidQuery, 8), [cidQuery]);
+  useEffect(() => {
+    if (!cidEnabled) return;
+    const q = cidQuery.trim();
+    // Evita buscar de novo quando o campo já mostra "CÓDIGO — descrição"
+    if (cid && q.startsWith(cid)) return;
+
+    const t = window.setTimeout(() => {
+      setCidLoading(true);
+      void (async () => {
+        try {
+          const res = await fetch(
+            `/api/cid10?q=${encodeURIComponent(q)}&limit=12`,
+            { cache: "no-store" }
+          );
+          const data = (await res.json()) as {
+            items?: DentalCid[];
+            provider?: string;
+            source?: string;
+          };
+          if (res.ok) {
+            setCids(data.items || []);
+            setCidSource(data.provider || data.source || "");
+          } else {
+            setCids([]);
+          }
+        } catch {
+          setCids([]);
+        } finally {
+          setCidLoading(false);
+        }
+      })();
+    }, 280);
+
+    return () => window.clearTimeout(t);
+  }, [cidQuery, cidEnabled, cid]);
 
   useEffect(() => {
     if (!open) return;
@@ -223,6 +260,8 @@ export function AtestadoOdontologicoModal({
     setCid("");
     setCidDescription("");
     setCidQuery("");
+    setCids([]);
+    setCidSource("");
     setObservations("");
     setMessage("");
     setSavedId(null);
@@ -811,14 +850,32 @@ export function AtestadoOdontologicoModal({
                 </label>
                 {cidEnabled ? (
                   <div className="relative mt-3">
-                    <FieldLabel>Pesquisar CID</FieldLabel>
+                    <FieldLabel>Pesquisar CID (banco + API gratuita)</FieldLabel>
                     <input
                       value={cidQuery}
-                      onChange={(e) => setCidQuery(e.target.value)}
-                      placeholder="Ex.: K08.8"
+                      onChange={(e) => {
+                        setCidQuery(e.target.value);
+                        if (cid) {
+                          setCid("");
+                          setCidDescription("");
+                        }
+                      }}
+                      placeholder="Ex.: K08.8, cárie, periodontite..."
                       className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/15"
                     />
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      {cidLoading
+                        ? "Buscando na base CID-10…"
+                        : cidSource
+                          ? `Fonte: ${cidSource}`
+                          : "Digite código ou descrição"}
+                    </p>
                     <ul className="mt-1 max-h-40 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1">
+                      {!cidLoading && cids.length === 0 ? (
+                        <li className="px-3 py-3 text-center text-xs text-slate-400">
+                          Nenhum CID encontrado. Tente outro termo.
+                        </li>
+                      ) : null}
                       {cids.map((item) => (
                         <li key={item.code}>
                           <button
@@ -827,7 +884,9 @@ export function AtestadoOdontologicoModal({
                             onClick={() => {
                               setCid(item.code);
                               setCidDescription(item.description);
-                              setCidQuery(`${item.code} — ${item.description}`);
+                              setCidQuery(
+                                `${item.code} — ${item.description}`
+                              );
                             }}
                           >
                             <span className="font-semibold text-indigo-700">
