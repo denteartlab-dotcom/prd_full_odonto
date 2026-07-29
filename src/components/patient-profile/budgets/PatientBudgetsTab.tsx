@@ -117,7 +117,7 @@ export function PatientBudgetsTab({
         ? patient.dentalBudgets
         : createDefaultDentalBudgets(patientSeedFromId(patient.id));
     setBudgets(data);
-    setSelectedId(data[0]?.id ?? null);
+    setSelectedId(null);
     initialized.current = true;
     setLoading(false);
   }, [patient]);
