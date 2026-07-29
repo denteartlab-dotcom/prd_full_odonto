@@ -7,24 +7,12 @@ import type {
   PaymentMethodType,
   ProcedureCatalogItem,
 } from "./budget-types";
+import { DENTAL_PROCEDURES_CATALOG } from "./dental-procedures-catalog";
+import { toProcedureCatalogItem } from "./dental-procedures-search";
 
-export const PROCEDURE_CATALOG: ProcedureCatalogItem[] = [
-  { id: "proc-001", code: "8010", name: "Consulta inicial", category: "Diagnóstico", price: 150, estimatedMinutes: 30 },
-  { id: "proc-002", code: "8100", name: "Radiografia periapical", category: "Radiologia", price: 80, estimatedMinutes: 15 },
-  { id: "proc-003", code: "8200", name: "Radiografia panorâmica", category: "Radiologia", price: 180, estimatedMinutes: 20 },
-  { id: "proc-004", code: "8300", name: "Limpeza dental (profilaxia)", category: "Preventivo", price: 220, estimatedMinutes: 45 },
-  { id: "proc-005", code: "8400", name: "Restauração em resina", category: "Restaurador", price: 280, estimatedMinutes: 60 },
-  { id: "proc-006", code: "8500", name: "Tratamento de canal", category: "Endodontia", price: 850, estimatedMinutes: 90 },
-  { id: "proc-007", code: "8600", name: "Implante unitário", category: "Implantodontia", price: 3500, estimatedMinutes: 120 },
-  { id: "proc-008", code: "8610", name: "Coroa em porcelana", category: "Prótese", price: 1800, estimatedMinutes: 90 },
-  { id: "proc-009", code: "8700", name: "Clareamento dental", category: "Estética", price: 1200, estimatedMinutes: 60 },
-  { id: "proc-010", code: "8800", name: "Extração simples", category: "Cirurgia", price: 350, estimatedMinutes: 45 },
-  { id: "proc-011", code: "8810", name: "Extração de siso", category: "Cirurgia", price: 650, estimatedMinutes: 60 },
-  { id: "proc-012", code: "8900", name: "Faceta em resina", category: "Estética", price: 950, estimatedMinutes: 75 },
-  { id: "proc-013", code: "8910", name: "Prótese total superior", category: "Prótese", price: 2800, estimatedMinutes: 120 },
-  { id: "proc-014", code: "8920", name: "Prótese parcial removível", category: "Prótese", price: 2200, estimatedMinutes: 90 },
-  { id: "proc-015", code: "9000", name: "Aplicação de flúor", category: "Preventivo", price: 90, estimatedMinutes: 20 },
-];
+/** Catálogo completo (TUSS + valores médios). Preferir `/api/procedimentos` na UI. */
+export const PROCEDURE_CATALOG: ProcedureCatalogItem[] =
+  DENTAL_PROCEDURES_CATALOG.map(toProcedureCatalogItem);
 
 export const DENTISTS = [
   { id: "dent-001", name: "Dra. Ana Silva" },
