@@ -24,13 +24,15 @@ export async function GET(req: NextRequest) {
       totalInDatabase: total,
       provider:
         source === "nih"
-          ? "NIH Clinical Tables (gratuita)"
+          ? "API gratuita NIH Clinical Tables"
           : source === "database"
             ? "Banco local CID-10 (DATASUS)"
-            : "Banco local + API gratuita",
+            : source === "mixed"
+              ? "Banco local e API gratuita"
+              : "Catálogo odontológico local",
     });
   } catch (err) {
     console.error("[GET /api/cid10]", err);
-    return jsonError("Não foi possível buscar CID-10.", 500);
+    return jsonError("Não foi possível buscar o CID-10.", 500);
   }
 }

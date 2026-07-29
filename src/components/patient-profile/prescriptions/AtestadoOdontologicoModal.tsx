@@ -423,7 +423,7 @@ export function AtestadoOdontologicoModal({
       const item = await persistCertificate();
       setMessage(`Atestado ${item.documentNumber} salvo com sucesso.`);
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Erro ao salvar.");
+      setMessage(err instanceof Error ? err.message : "Erro ao salvar o atestado.");
     } finally {
       setSaving(false);
     }
@@ -437,9 +437,9 @@ export function AtestadoOdontologicoModal({
         ? { id: savedId, documentNumber }
         : await persistCertificate();
       window.open(certificatePdfViewerUrl(item.id), "_blank");
-      setMessage("PDF gerado.");
+      setMessage("PDF gerado com sucesso.");
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Erro ao gerar PDF.");
+      setMessage(err instanceof Error ? err.message : "Erro ao gerar o PDF.");
     } finally {
       setSaving(false);
     }
@@ -458,11 +458,11 @@ export function AtestadoOdontologicoModal({
         waUrl?: string;
         message?: string;
       };
-      if (!res.ok) throw new Error(data.error || "Falha no WhatsApp.");
+      if (!res.ok) throw new Error(data.error || "Falha no envio pelo WhatsApp.");
       if (data.waUrl) window.open(data.waUrl, "_blank");
-      setMessage(data.message || "WhatsApp preparado.");
+      setMessage(data.message || "WhatsApp preparado com o PDF.");
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Erro no WhatsApp.");
+      setMessage(err instanceof Error ? err.message : "Erro no envio pelo WhatsApp.");
     }
   }
 
@@ -479,11 +479,11 @@ export function AtestadoOdontologicoModal({
         mailto?: string;
         message?: string;
       };
-      if (!res.ok) throw new Error(data.error || "Falha no e-mail.");
+      if (!res.ok) throw new Error(data.error || "Falha no envio por e-mail.");
       if (data.mailto) window.location.href = data.mailto;
-      setMessage(data.message || "E-mail preparado.");
+      setMessage(data.message || "E-mail preparado com o atestado.");
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Erro no e-mail.");
+      setMessage(err instanceof Error ? err.message : "Erro no envio por e-mail.");
     }
   }
 
@@ -658,7 +658,7 @@ export function AtestadoOdontologicoModal({
                         setProcedureOpen(true);
                       }}
                       onFocus={() => setProcedureOpen(true)}
-                      placeholder="Buscar no cadastro de procedimentos..."
+                      placeholder="Buscar no cadastro de procedimentos…"
                       className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/15"
                     />
                     {procedureOpen ? (
@@ -868,7 +868,7 @@ export function AtestadoOdontologicoModal({
                 </label>
                 {cidEnabled ? (
                   <div className="relative mt-3">
-                    <FieldLabel>Pesquisar CID (banco + API gratuita)</FieldLabel>
+                    <FieldLabel>Pesquisar CID (banco e API gratuita)</FieldLabel>
                     <input
                       value={cidQuery}
                       onChange={(e) => {
@@ -878,15 +878,15 @@ export function AtestadoOdontologicoModal({
                           setCidDescription("");
                         }
                       }}
-                      placeholder="Ex.: K08.8, cárie, periodontite..."
+                      placeholder="Ex.: K08.8, cárie, periodontite…"
                       className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/15"
                     />
                     <p className="mt-1 text-[11px] text-slate-400">
                       {cidLoading
                         ? "Buscando na base CID-10…"
                         : cidSource
-                          ? `Fonte: ${cidSource}`
-                          : "Digite código ou descrição"}
+                          ? `Fonte: ${cidSource}.`
+                          : "Digite o código ou a descrição."}
                     </p>
                     <ul className="mt-1 max-h-40 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1">
                       {!cidLoading && cids.length === 0 ? (

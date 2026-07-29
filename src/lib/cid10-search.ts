@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { searchDentalCids, type DentalCid } from "@/lib/certificate-types";
+import { normalizeCidDescription } from "@/lib/portuguese-text";
 
 const NIH_API =
   "https://clinicaltables.nlm.nih.gov/api/icd10cm/v3/search?sf=code,name&df=code,name";
@@ -10,6 +11,13 @@ function normalize(value: string) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
+}
+
+function toCidItem(code: string, description: string): DentalCid {
+  return {
+    code: code.toUpperCase(),
+    description: normalizeCidDescription(description),
+  };
 }
 
 /** Busca na API gratuita do NIH Clinical Tables (sem chave). */
@@ -30,10 +38,7 @@ export async function searchCidFromNih(
   const rows = data[3] as Array<[string, string]> | undefined;
   if (!Array.isArray(rows)) return [];
   return rows
-    .map(([code, name]) => ({
-      code: String(code || "").toUpperCase(),
-      description: String(name || "").trim(),
-    }))
+    .map(([code, name]) => toCidItem(String(code || ""), String(name || "")))
     .filter((r) => r.code && r.description);
 }
 
@@ -43,7 +48,7 @@ export async function cacheCidResults(items: DentalCid[], source: string) {
   await prisma.cid10.createMany({
     data: items.map((item) => ({
       code: item.code.toUpperCase(),
-      description: item.description,
+      description: normalizeCidDescription(item.description),
       source,
     })),
     skipDuplicates: true,
@@ -61,7 +66,7 @@ export async function searchCidInDatabase(
       take: limit,
       orderBy: { code: "asc" },
     });
-    return rows.map((r) => ({ code: r.code, description: r.description }));
+    return rows.map((r) => toCidItem(r.code, r.description));
   }
 
   const compact = q.replace(/\s+/g, "").toUpperCase();
@@ -79,8 +84,9 @@ export async function searchCidInDatabase(
   const nq = normalize(q);
   const ranked = rows
     .map((r) => {
-      const code = r.code.toUpperCase();
-      const desc = normalize(r.description);
+      const item = toCidItem(r.code, r.description);
+      const code = item.code;
+      const desc = normalize(item.description);
       let score = 0;
       if (code === compact) score += 100;
       else if (code.startsWith(compact)) score += 80;
@@ -88,7 +94,7 @@ export async function searchCidInDatabase(
       if (desc.startsWith(nq)) score += 40;
       else if (desc.includes(nq)) score += 20;
       if (r.source === "odonto") score += 10;
-      return { code: r.code, description: r.description, score };
+      return { ...item, score };
     })
     .sort((a, b) => b.score - a.score || a.code.localeCompare(b.code))
     .slice(0, limit)
@@ -110,7 +116,9 @@ export async function searchCidCodes(
     return { items: local, source: "database" };
   }
 
-  const dental = searchDentalCids(query, limit);
+  const dental = searchDentalCids(query, limit).map((item) =>
+    toCidItem(item.code, item.description)
+  );
   const merged = new Map<string, DentalCid>();
   for (const item of [...local, ...dental]) {
     merged.set(item.code.toUpperCase(), item);

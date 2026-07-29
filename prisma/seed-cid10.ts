@@ -3,6 +3,7 @@ import { createInterface } from "readline";
 import path from "path";
 import { prisma } from "../src/lib/db";
 import { DENTAL_CID_CATALOG } from "../src/lib/certificate-types";
+import { normalizeCidDescription } from "../src/lib/portuguese-text";
 
 const GIST_URL =
   "https://gist.githubusercontent.com/manuholiveira/9441735/raw";
@@ -16,10 +17,9 @@ function parseInsertLine(line: string): CidRow | null {
   );
   if (!m) return null;
   const code = m[1].trim().toUpperCase();
-  const description = m[2]
-    .replace(/\\'/g, "'")
-    .replace(/\s+/g, " ")
-    .trim();
+  const description = normalizeCidDescription(
+    m[2].replace(/\\'/g, "'").replace(/\s+/g, " ").trim()
+  );
   if (!code || !description) return null;
   return { code, description, source: "datasus" };
 }
@@ -28,7 +28,7 @@ async function loadFromLocalSql(): Promise<CidRow[]> {
   if (!existsSync(LOCAL_SQL)) return [];
   const rows: CidRow[] = [];
   const rl = createInterface({
-    input: createReadStream(LOCAL_SQL, { encoding: "latin1" }),
+    input: createReadStream(LOCAL_SQL, { encoding: "utf8" }),
     crlfDelay: Infinity,
   });
   for await (const line of rl) {
@@ -42,8 +42,11 @@ async function loadFromRemote(): Promise<CidRow[]> {
   const res = await fetch(GIST_URL);
   if (!res.ok) throw new Error(`Falha ao baixar CID-10 (${res.status}).`);
   const buf = Buffer.from(await res.arrayBuffer());
-  const text = buf.toString("latin1");
-  writeFileSync(LOCAL_SQL, text, { encoding: "latin1" });
+  let text = buf.toString("utf8");
+  if (text.includes("\uFFFD") || /CÃ³lera|DiarrÃ©ia/.test(text)) {
+    text = buf.toString("latin1");
+  }
+  writeFileSync(LOCAL_SQL, text, { encoding: "utf8" });
   const rows: CidRow[] = [];
   for (const line of text.split(/\r?\n/)) {
     const parsed = parseInsertLine(line);
@@ -54,10 +57,10 @@ async function loadFromRemote(): Promise<CidRow[]> {
 
 async function main() {
   console.log("Carregando base CID-10…");
-  let rows = await loadFromLocalSql();
+  console.log("Baixando base pública CID-10 (DATASUS/gist)…");
+  let rows = await loadFromRemote();
   if (rows.length < 1000) {
-    console.log("Baixando base pública CID-10 (DATASUS/gist)…");
-    rows = await loadFromRemote();
+    rows = await loadFromLocalSql();
   }
 
   const byCode = new Map<string, CidRow>();
@@ -65,13 +68,13 @@ async function main() {
   for (const d of DENTAL_CID_CATALOG) {
     byCode.set(d.code.toUpperCase(), {
       code: d.code.toUpperCase(),
-      description: d.description,
+      description: normalizeCidDescription(d.description),
       source: "odonto",
     });
   }
   const unique = Array.from(byCode.values());
 
-  console.log(`Limpando e importando ${unique.length} códigos (createMany)…`);
+  console.log(`Limpando e importando ${unique.length} códigos…`);
   await prisma.cid10.deleteMany({});
 
   const chunk = 1000;
@@ -86,6 +89,8 @@ async function main() {
     );
   }
   console.log("\nCID-10 importado com sucesso.");
+  const sample = await prisma.cid10.findUnique({ where: { code: "A09" } });
+  console.log("Amostra A09:", sample?.description);
   console.log(`Total no banco: ${await prisma.cid10.count()}`);
 }
 
