@@ -62,28 +62,6 @@ function parseCro(cro?: string) {
   };
 }
 
-function onlyDigits(v?: string) {
-  return (v || "").replace(/\D/g, "");
-}
-
-/** Dados: 2023.07.17 15:44:45 -03'00' (estilo verificador ITI/gov). */
-function formatIcpTimestamp(value?: Date | string) {
-  const d = value ? new Date(value) : new Date();
-  if (Number.isNaN(d.getTime())) return "";
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Sao_Paulo",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  }).formatToParts(d);
-  const get = (t: string) => parts.find((p) => p.type === t)?.value || "00";
-  return `${get("year")}.${get("month")}.${get("day")} ${get("hour")}:${get("minute")}:${get("second")} -03'00'`;
-}
-
 function drawHeaderBar(
   doc: jsPDF,
   title: string,
@@ -277,108 +255,23 @@ function drawLogoPlaceholder(
   doc.setTextColor(0, 0, 0);
 }
 
-/** Marca d’água rosa do carimbo digital (estilo verificador). */
-function drawSignatureWatermark(
-  doc: jsPDF,
-  x: number,
-  y: number,
-  w: number,
-  h: number
-) {
-  doc.setDrawColor(220, 150, 165);
-  doc.setLineWidth(0.55);
-  const x0 = x + w * 0.15;
-  const y0 = y + h * 0.55;
-  doc.line(x0, y0, x0 + w * 0.2, y0 - h * 0.25);
-  doc.line(x0 + w * 0.2, y0 - h * 0.25, x0 + w * 0.35, y0 + h * 0.15);
-  doc.line(x0 + w * 0.35, y0 + h * 0.15, x0 + w * 0.55, y0 - h * 0.2);
-  doc.line(x0 + w * 0.55, y0 - h * 0.2, x0 + w * 0.7, y0 + h * 0.05);
-  doc.setLineWidth(0.35);
-  doc.line(x0 + 2, y0 + 2, x0 + w * 0.4, y0 - 1);
-}
-
 /**
- * Carimbo digital estilo gov (foto 4) — ou espaço reservado se ainda não assinado.
+ * Espaço abaixo do logo — em branco até assinatura ICP real.
+ * Mantém apenas o rótulo oficial no rodapé da coluna.
  */
 function drawDigitalSignatureBlock(
   doc: jsPDF,
   x: number,
   y: number,
   w: number,
-  h: number,
-  input: {
-    dentistName: string;
-    dentistCpf?: string;
-    signedAt?: Date | string;
-    digitallySigned?: boolean;
-  }
+  h: number
 ) {
-  const label =
-    "ASSINATURA DA(O) CIRURGIÃ(O) DENTISTA";
-  const labelY = y + h - 2.8;
-
-  if (!input.digitallySigned) {
-    // Espaço reservado para quando validar digitalmente
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(5.2);
-    doc.setTextColor(160, 160, 160);
-    doc.text(
-      "(espaço para assinatura digital)",
-      x + w / 2,
-      y + h * 0.4,
-      { align: "center" }
-    );
-    doc.setTextColor(0, 0, 0);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(5.4);
-    doc.text(label, x + w / 2, labelY, { align: "center" });
-    return;
-  }
-
-  const cpf = onlyDigits(input.dentistCpf);
-  const fullId = cpf || "";
-  const nameUpper = (input.dentistName || "").trim().toUpperCase();
-  const identity = fullId ? `${nameUpper}:${fullId}` : nameUpper;
-  const stampTime = formatIcpTimestamp(input.signedAt);
-
-  // Marca d’água à direita
-  drawSignatureWatermark(doc, x + w * 0.35, y + 1, w * 0.6, h * 0.55);
-
-  // Nome:CPF à esquerda (grande)
-  const leftW = w * 0.48;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.2);
-  doc.setTextColor(0, 0, 0);
-  const idLines = doc.splitTextToSize(identity, leftW - 1) as string[];
-  let ty = y + 5;
-  for (const line of idLines.slice(0, 3)) {
-    doc.text(line, x + 1.5, ty);
-    ty += 3.4;
-  }
-
-  // Texto “Assinado de forma digital…” à direita
-  const rightX = x + w * 0.48;
-  const rightW = w * 0.5;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(4.6);
-  doc.setTextColor(40, 40, 40);
-  const meta = [
-    `Assinado de forma digital por ${nameUpper}${fullId ? `:${fullId}` : ""}`,
-    `Dados: ${stampTime}`,
-  ];
-  // Quebra a 1ª linha se necessário
-  const metaLines = doc.splitTextToSize(meta[0], rightW) as string[];
-  let my = y + 4.5;
-  for (const line of metaLines.slice(0, 2)) {
-    doc.text(line, rightX, my);
-    my += 2.8;
-  }
-  doc.text(meta[1], rightX, my);
-
-  doc.setTextColor(0, 0, 0);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(5.4);
-  doc.text(label, x + w / 2, labelY, { align: "center" });
+  doc.setTextColor(0, 0, 0);
+  doc.text("ASSINATURA DA(O) CIRURGIÃ(O) DENTISTA", x + w / 2, y + h - 2.8, {
+    align: "center",
+  });
 }
 
 /**
@@ -397,7 +290,6 @@ export function buildControleEspecialPdfBytes(
   const dateOnly =
     input.issuedDateOnly ||
     (input.issuedAt.match(/\d{2}\/\d{2}\/\d{4}/)?.[0] ?? "");
-  const digitallySigned = input.digitallySigned !== false;
 
   // ========== PÁGINA 1 ==========
   let y = 7;
@@ -578,15 +470,10 @@ export function buildControleEspecialPdfBytes(
   doc.line(m + leftColW, emitTop, m + leftColW, emitBottom);
   doc.line(m, emitBottom, m + contentW, emitBottom);
 
-  // Área de assinatura digital (espaço reservado / carimbo)
+  // Área abaixo do logo: em branco (assinatura ICP futura)
   const sigTop = logoY + logoH + 1;
   const sigH = emitBottom - sigTop - 1;
-  drawDigitalSignatureBlock(doc, logoBoxX, sigTop, logoBoxW, Math.max(18, sigH), {
-    dentistName: input.dentistName,
-    dentistCpf: input.dentistCpf,
-    signedAt: input.signedAt || input.issuedAt,
-    digitallySigned,
-  });
+  drawDigitalSignatureBlock(doc, logoBoxX, sigTop, logoBoxW, Math.max(18, sigH));
 
   // —— Paciente ——
   y = emitBottom + 4;
