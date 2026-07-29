@@ -4,7 +4,7 @@ import { loadPrescriptionPdfPayload } from "@/lib/prescription-pdf-load";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_req: Request, { params }: Params) {
+export async function GET(req: Request, { params }: Params) {
   const session = await requireApiSession();
   if (!isSession(session)) return session;
 
@@ -13,6 +13,7 @@ export async function GET(_req: Request, { params }: Params) {
     prescriptionId: id,
     clinicId: session.clinicId,
     fallbackDentistName: session.name,
+    req,
   });
   if (!loaded) return jsonError("Prescrição não encontrada.", 404);
 

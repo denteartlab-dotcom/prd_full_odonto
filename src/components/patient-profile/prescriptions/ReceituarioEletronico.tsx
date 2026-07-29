@@ -210,20 +210,22 @@ export function ReceituarioEletronico({
     setSaving(true);
     setMessage("");
     try {
+      const hasControlled = lines.some((l) => l.controlled);
       const res = await fetch("/api/prescricoes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           patientId: patient.id,
           professionalId: prescriber.id || null,
-          kind: "receituario_simples",
+          kind: hasControlled ? "controle_especial" : "receituario_simples",
           observations: generalNotes,
           medications: lines.map((l) => ({
             medicationName: l.name,
             dose: l.quantity,
             frequency: l.posology,
             duration: l.duration,
-            instructions: [l.route, l.notes].filter(Boolean).join(" · ") || undefined,
+            instructions:
+              [l.route, l.notes].filter(Boolean).join(" · ") || undefined,
           })),
         }),
       });
@@ -248,7 +250,11 @@ export function ReceituarioEletronico({
       });
       clearDraft();
       await loadHistory();
-      setMessage("Receita emitida com sucesso.");
+      setMessage(
+        hasControlled
+          ? "Receituário de Controle Especial emitido com sucesso."
+          : "Receita emitida com sucesso."
+      );
       if (data.item?.id) {
         window.open(prescriptionPdfViewerUrl(data.item.id), "_blank");
       }
@@ -328,6 +334,11 @@ export function ReceituarioEletronico({
           {dentist.cro ? ` · ${dentist.cro}` : ""}
         </span>
         <span className="text-[11px] text-slate-400">(usuário logado)</span>
+        {lines.some((l) => l.controlled) ? (
+          <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-800">
+            Controle especial — PDF oficial ao emitir
+          </span>
+        ) : null}
         {autosaveHint ? (
           <span className="text-[11px] text-emerald-600">{autosaveHint}</span>
         ) : null}

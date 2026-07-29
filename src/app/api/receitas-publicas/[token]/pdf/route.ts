@@ -5,13 +5,14 @@ import { verifyPrescriptionShareToken } from "@/lib/prescription-share";
 
 type Params = { params: Promise<{ token: string }> };
 
-export async function GET(_req: Request, { params }: Params) {
+export async function GET(req: Request, { params }: Params) {
   try {
     const { token } = await params;
     const decoded = await verifyPrescriptionShareToken(decodeURIComponent(token));
     const loaded = await loadPrescriptionPdfPayload({
       prescriptionId: decoded.prescriptionId,
       clinicId: decoded.clinicId,
+      req,
     });
     if (!loaded) return jsonError("Receita não encontrada ou link expirado.", 404);
 

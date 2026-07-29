@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import type { PrescriptionItem, PrescriptionKind } from "@/lib/prescription-types";
+import { buildControleEspecialPdfBytes } from "@/lib/prescription-controle-especial-pdf";
 
 const KIND_LABELS: Record<PrescriptionKind, string> = {
   receituario_simples: "Receituário",
@@ -13,15 +14,23 @@ export type PrescriptionPdfInput = {
   /** Linhas do cabeçalho (endereço, cidade, telefone, CNPJ…) — uma por linha. */
   clinicHeaderLines?: string[];
   clinicLogoUrl?: string | null;
+  clinicAddress?: string;
+  clinicCity?: string;
+  clinicState?: string;
+  clinicPhone?: string;
   dentistName: string;
   dentistCro?: string;
+  dentistCroUf?: string;
   patientName: string;
   patientCpf?: string;
   patientBirthDate?: string;
+  patientAddress?: string;
   kind: PrescriptionKind;
   medications: PrescriptionItem[];
   issuedAt: string;
+  issuedDateOnly?: string;
   validUntil?: string;
+  digitalValidationUrl?: string;
 };
 
 function detectImageFormat(dataUrl: string): "PNG" | "JPEG" | null {
@@ -48,6 +57,26 @@ function wrap(
 }
 
 export function buildPrescriptionPdfBytes(input: PrescriptionPdfInput): Uint8Array {
+  if (input.kind === "controle_especial") {
+    return buildControleEspecialPdfBytes({
+      clinicName: input.clinicName,
+      clinicAddress: input.clinicAddress,
+      clinicCity: input.clinicCity,
+      clinicState: input.clinicState,
+      clinicPhone: input.clinicPhone,
+      clinicLogoUrl: input.clinicLogoUrl,
+      dentistName: input.dentistName,
+      dentistCro: input.dentistCro,
+      dentistCroUf: input.dentistCroUf || input.clinicState,
+      patientName: input.patientName,
+      patientAddress: input.patientAddress,
+      medications: input.medications,
+      issuedAt: input.issuedAt,
+      issuedDateOnly: input.issuedDateOnly,
+      digitalValidationUrl: input.digitalValidationUrl,
+    });
+  }
+
   // A4: 210 × 297 mm
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
   const pageW = doc.internal.pageSize.getWidth(); // 210
