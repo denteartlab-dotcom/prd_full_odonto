@@ -32,16 +32,39 @@ function SectionBlock({
   title,
   html,
   onChange,
+  minHeight = 72,
 }: {
   title: string;
   html: string;
   onChange: (v: string) => void;
+  minHeight?: number;
 }) {
   return (
     <div className="rounded-xl border border-slate-100 bg-slate-50/40 p-3.5">
-      <RichTextField label={title} value={html} onChange={onChange} minHeight={72} />
+      <RichTextField
+        label={title}
+        value={html}
+        onChange={onChange}
+        minHeight={minHeight}
+        placeholder="Descreva o atendimento do paciente..."
+      />
     </div>
   );
+}
+
+function atendimentoHtml(evolucao: EvolucaoClinica) {
+  if (evolucao.evolucaoClinica?.trim()) return evolucao.evolucaoClinica;
+  const parts = [
+    evolucao.queixaPrincipal,
+    evolucao.historiaClinica,
+    evolucao.diagnostico,
+    evolucao.procedimentoExecutado,
+    evolucao.planoTratamento,
+    evolucao.conduta,
+    evolucao.recomendacoes,
+    evolucao.observacoes,
+  ].filter((p) => p && p.replace(/<[^>]+>/g, "").trim());
+  return parts.join("<br/><br/>");
 }
 
 export function ProntuarioDetail({
@@ -123,49 +146,27 @@ export function ProntuarioDetail({
 
       <div className="space-y-3 p-5">
         <SectionBlock
-          title="Queixa Principal"
-          html={evolucao.queixaPrincipal}
-          onChange={(queixaPrincipal) => onPatch({ queixaPrincipal })}
-        />
-        <SectionBlock
-          title="História Clínica"
-          html={evolucao.historiaClinica}
-          onChange={(historiaClinica) => onPatch({ historiaClinica })}
-        />
-        <SectionBlock
-          title="Diagnóstico"
-          html={evolucao.diagnostico}
-          onChange={(diagnostico) => onPatch({ diagnostico })}
-        />
-        <SectionBlock
-          title="Procedimento Executado"
-          html={evolucao.procedimentoExecutado}
-          onChange={(procedimentoExecutado) => onPatch({ procedimentoExecutado })}
-        />
-        <SectionBlock
-          title="Evolução Clínica"
-          html={evolucao.evolucaoClinica}
-          onChange={(evolucaoClinica) => onPatch({ evolucaoClinica })}
-        />
-        <SectionBlock
-          title="Plano de Tratamento"
-          html={evolucao.planoTratamento}
-          onChange={(planoTratamento) => onPatch({ planoTratamento })}
-        />
-        <SectionBlock
-          title="Conduta"
-          html={evolucao.conduta}
-          onChange={(conduta) => onPatch({ conduta })}
-        />
-        <SectionBlock
-          title="Recomendações ao Paciente"
-          html={evolucao.recomendacoes}
-          onChange={(recomendacoes) => onPatch({ recomendacoes })}
-        />
-        <SectionBlock
-          title="Observações"
-          html={evolucao.observacoes}
-          onChange={(observacoes) => onPatch({ observacoes })}
+          title="Atendimento"
+          html={atendimentoHtml(evolucao)}
+          minHeight={320}
+          onChange={(evolucaoClinica) =>
+            onPatch({
+              evolucaoClinica,
+              queixaPrincipal: "",
+              historiaClinica: "",
+              diagnostico: "",
+              procedimentoExecutado: "",
+              planoTratamento: "",
+              conduta: "",
+              recomendacoes: "",
+              observacoes: "",
+              resumo: evolucaoClinica
+                .replace(/<[^>]+>/g, " ")
+                .replace(/\s+/g, " ")
+                .trim()
+                .slice(0, 140),
+            })
+          }
         />
 
         <div className="rounded-xl border border-slate-100 p-4">
