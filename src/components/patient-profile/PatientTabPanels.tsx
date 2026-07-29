@@ -47,6 +47,7 @@ export function PatientSummaryTab({ patient }: { patient: PatientProfile }) {
       <ProfileCard title="Informações pessoais" action={<ProfileLinkButton>Ver todos os dados</ProfileLinkButton>}>
         <div className="grid gap-3 sm:grid-cols-2">
           <ProfileField label="Nome completo" value={patient.name} />
+          <ProfileField label="Nº da Ficha" value={patient.chartNumber} />
           <ProfileField label="Nome social" value={patient.nomeSocial} />
           <ProfileField label="CPF" value={patient.cpf} />
           <ProfileField label="RG" value={patient.rg} />

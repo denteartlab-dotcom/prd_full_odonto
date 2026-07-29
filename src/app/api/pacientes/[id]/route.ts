@@ -6,6 +6,7 @@ import {
   prismaPatientToProfile,
   profileToPrismaData,
 } from "@/lib/patient-persistence";
+import { allocateNextChartNumber } from "@/lib/patient-chart-number";
 import type { PatientProfile } from "@/lib/patient-profile-types";
 
 type Params = { params: Promise<{ id: string }> };
@@ -15,10 +16,23 @@ export async function GET(_req: Request, { params }: Params) {
   if (!isSession(session)) return session;
   const { id } = await params;
 
-  const row = await prisma.patient.findFirst({
+  let row = await prisma.patient.findFirst({
     where: { id, clinicId: session.clinicId },
   });
   if (!row) return jsonError("Paciente não encontrado.", 404);
+
+  // Pacientes antigos: atribui ficha na primeira visualização
+  if (!row.chartNumber) {
+    const chartNumber = await allocateNextChartNumber(session.clinicId);
+    const profile = {
+      ...prismaPatientToProfile(row),
+      chartNumber,
+    };
+    row = await prisma.patient.update({
+      where: { id },
+      data: profileToPrismaData(profile),
+    });
+  }
 
   return NextResponse.json({ patient: prismaPatientToProfile(row) });
 }

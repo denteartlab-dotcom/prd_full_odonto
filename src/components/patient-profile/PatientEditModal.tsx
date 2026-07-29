@@ -54,6 +54,15 @@ export function PatientEditModal({
           </button>
         </div>
         <div className="space-y-3">
+          <label className="block">
+            <span className="text-xs font-semibold text-slate-500">Nº da Ficha</span>
+            <input
+              value={patient.chartNumber || "—"}
+              readOnly
+              className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium tracking-wide text-slate-700"
+              title="Gerado automaticamente"
+            />
+          </label>
           {(
             [
               ["name", "Nome completo"],

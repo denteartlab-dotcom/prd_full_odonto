@@ -77,6 +77,11 @@ export function PatientInfoCard({
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">{patient.name}</h1>
+                {patient.chartNumber ? (
+                  <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-indigo-700">
+                    {patient.chartNumber}
+                  </span>
+                ) : null}
                 <span
                   className={cn(
                     "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
@@ -89,6 +94,7 @@ export function PatientInfoCard({
                 </span>
               </div>
               <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2 xl:grid-cols-3">
+                <InfoItem label="Nº da Ficha" value={patient.chartNumber || "—"} />
                 <InfoItem label="CPF" value={patient.cpf} />
                 <InfoItem
                   label="Telefone"
