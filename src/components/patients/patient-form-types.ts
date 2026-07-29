@@ -7,6 +7,7 @@ export type EmergencyContact = {
 
 export type PatientFormState = {
   nomeCompleto: string;
+  numeroFicha: string;
   nomeSocial: string;
   cpf: string;
   rg: string;
@@ -38,6 +39,7 @@ export type PatientFormState = {
 
 export const emptyPatientForm = (): PatientFormState => ({
   nomeCompleto: "",
+  numeroFicha: "",
   nomeSocial: "",
   cpf: "",
   rg: "",

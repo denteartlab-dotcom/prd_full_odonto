@@ -6,8 +6,14 @@ import {
   prismaPatientToProfile,
   profileToPrismaData,
 } from "@/lib/patient-persistence";
+import { allocateNextChartNumber } from "@/lib/patient-chart-number";
 import type { PatientFormState } from "@/components/patients/patient-form-types";
 import type { PatientProfile } from "@/lib/patient-profile-types";
+
+function isUniqueChartError(err: unknown) {
+  const message = err instanceof Error ? err.message : String(err);
+  return /Unique constraint|chartNumber/i.test(message);
+}
 
 export async function GET() {
   const session = await requireApiSession();
@@ -71,12 +77,32 @@ export async function POST(req: Request) {
       );
     }
 
-    const row = await prisma.patient.create({
-      data: {
-        clinicId: clinic.id,
-        ...data,
-      },
-    });
+    let chartNumber =
+      (typeof data.chartNumber === "string" && data.chartNumber.trim()) ||
+      (await allocateNextChartNumber(clinic.id));
+
+    let row = null;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      profile = { ...profile, chartNumber };
+      data = profileToPrismaData(profile);
+
+      try {
+        row = await prisma.patient.create({
+          data: {
+            clinicId: clinic.id,
+            ...data,
+          },
+        });
+        break;
+      } catch (err) {
+        if (!isUniqueChartError(err) || attempt === 4) throw err;
+        chartNumber = await allocateNextChartNumber(clinic.id);
+      }
+    }
+
+    if (!row) {
+      return jsonError("Não foi possível gerar o número da ficha.", 500);
+    }
 
     const finalProfile: PatientProfile = { ...profile, id: row.id };
     const updated = await prisma.patient.update({
@@ -90,6 +116,9 @@ export async function POST(req: Request) {
     );
   } catch (err) {
     console.error("[POST /api/pacientes]", err);
+    if (isUniqueChartError(err)) {
+      return jsonError("Número de ficha já utilizado. Tente novamente.", 409);
+    }
     const message =
       err instanceof Error && err.message
         ? err.message

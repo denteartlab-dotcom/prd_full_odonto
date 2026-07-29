@@ -90,6 +90,7 @@ export function profileToPrismaData(profile: PatientProfile) {
 
   return {
     name: profile.name.trim(),
+    chartNumber: profile.chartNumber?.trim() || null,
     cpf: profile.cpf?.trim() || null,
     birthDate: profile.birthDate
       ? new Date(`${profile.birthDate.slice(0, 10)}T12:00:00`)
@@ -113,6 +114,10 @@ export function prismaPatientToProfile(row: Patient): PatientProfile {
       ...stored.profile,
       id: row.id,
       name: row.name,
+      chartNumber:
+        row.chartNumber ||
+        stored.profile.chartNumber ||
+        undefined,
       cpf: row.cpf || stored.profile.cpf || "",
       phone: row.phone || stored.profile.phone || "",
       email: row.email || stored.profile.email || "",
@@ -130,6 +135,7 @@ export function prismaPatientToProfile(row: Patient): PatientProfile {
   const base: ListPatient = {
     id: row.id,
     name: row.name,
+    chartNumber: row.chartNumber || undefined,
     cpf: row.cpf || "",
     phone: row.phone || "",
     email: row.email || "",
@@ -177,6 +183,7 @@ export function formStateToPrismaCreate(form: PatientFormState) {
   const profile: PatientProfile = {
     id: "temp",
     name,
+    chartNumber: form.numeroFicha.trim() || undefined,
     cpf: form.cpf.trim(),
     phone: form.telefonePrincipal.trim(),
     email: form.email.trim(),

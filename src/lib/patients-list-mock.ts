@@ -3,6 +3,7 @@ export type PatientStatus = "ativo" | "inativo";
 export type ListPatient = {
   id: string;
   name: string;
+  chartNumber?: string;
   cpf: string;
   phone: string;
   email: string;

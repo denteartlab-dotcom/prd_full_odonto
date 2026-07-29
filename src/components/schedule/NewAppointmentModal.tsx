@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 export type AppointmentPatientOption = {
   id: string;
   name: string;
+  chartNumber?: string | null;
   cpf?: string | null;
   phone?: string | null;
 };
@@ -67,9 +68,9 @@ function hasConflict(
   return Boolean(getConflictMessage(appointments, form, editingId));
 }
 
-function fichaNumber(patientId: string) {
-  const compact = patientId.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
-  return compact.slice(-6) || "------";
+function fichaLabel(p: { id: string; chartNumber?: string | null }) {
+  if (p.chartNumber?.trim()) return p.chartNumber.trim();
+  return "—";
 }
 
 function formatMoney(value: number) {
@@ -201,10 +202,11 @@ export function NewAppointmentModal({
       : patients.filter((p) => {
           const name = p.name.toLowerCase();
           const cpf = onlyDigits(p.cpf || "");
+          const ficha = (p.chartNumber || "").toUpperCase();
           return (
             name.includes(q) ||
             (digits.length >= 3 && cpf.includes(digits)) ||
-            fichaNumber(p.id).includes(q.toUpperCase())
+            (ficha && ficha.includes(q.toUpperCase()))
           );
         });
     return list.slice(0, 20);
@@ -353,7 +355,7 @@ export function NewAppointmentModal({
                             {p.name}
                           </p>
                           <p className="mt-0.5 text-[11px] text-slate-500">
-                            Ficha {fichaNumber(p.id)}
+                            Ficha {fichaLabel(p)}
                             {p.cpf ? ` · CPF ${maskCpf(p.cpf)}` : ""}
                             {owing
                               ? ` · Débito ${formatMoney(debt!.amount)}`
@@ -378,7 +380,7 @@ export function NewAppointmentModal({
               >
                 <p className="font-semibold">{selectedPatient.name}</p>
                 <p className="mt-1 opacity-90">
-                  Ficha {fichaNumber(selectedPatient.id)}
+                  Ficha {fichaLabel(selectedPatient)}
                   {selectedPatient.cpf
                     ? ` · CPF ${maskCpf(selectedPatient.cpf)}`
                     : " · CPF não informado"}

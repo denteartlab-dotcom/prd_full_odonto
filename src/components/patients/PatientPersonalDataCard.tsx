@@ -15,7 +15,7 @@ export function PatientPersonalDataCard({
   return (
     <FormSectionCard title="Dados pessoais">
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="md:col-span-2">
+        <div className="md:col-span-2 grid gap-4 sm:grid-cols-[minmax(0,1fr)_160px]">
           <FormInput
             label="Nome completo"
             name="nomeCompleto"
@@ -23,6 +23,16 @@ export function PatientPersonalDataCard({
             value={values.nomeCompleto}
             onChange={(e) => onChange({ nomeCompleto: e.target.value })}
             placeholder="Nome completo do paciente"
+          />
+          <FormInput
+            label="Nº da Ficha"
+            name="numeroFicha"
+            value={values.numeroFicha}
+            readOnly
+            onChange={() => undefined}
+            placeholder="FCH-001"
+            className="bg-slate-50 font-medium tracking-wide text-slate-700"
+            title="Gerado automaticamente"
           />
         </div>
         <FormInput

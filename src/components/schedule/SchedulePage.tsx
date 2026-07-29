@@ -452,6 +452,7 @@ export function SchedulePage({
         patients={listPatients.map((p) => ({
           id: p.id,
           name: p.name,
+          chartNumber: p.chartNumber,
           cpf: p.cpf,
           phone: p.phone,
         }))}

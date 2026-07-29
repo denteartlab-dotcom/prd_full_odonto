@@ -83,6 +83,7 @@ model Patient {
   id          String    @id @default(cuid())
   clinicId    String
   name        String
+  chartNumber String?
   cpf         String?
   birthDate   DateTime?
   phone       String?
@@ -102,6 +103,9 @@ model Patient {
   receivables   Receivable[]
   prescriptions Prescription[]
   documents     Document[]
+
+  @@unique([clinicId, chartNumber])
+  @@index([clinicId])
 }
 
 model Anamnesis {

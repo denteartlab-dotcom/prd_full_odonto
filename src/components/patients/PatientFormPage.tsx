@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, CircleHelp, Search } from "lucide-react";
 import { EmergencyContactsCard } from "./EmergencyContactsCard";
@@ -24,6 +24,13 @@ function requiredOk(values: PatientFormState) {
   );
 }
 
+async function fetchNextFicha() {
+  const res = await fetch("/api/pacientes/next-ficha");
+  if (!res.ok) return "";
+  const data = (await res.json()) as { chartNumber?: string };
+  return data.chartNumber || "";
+}
+
 export function PatientFormPage({
   userName,
   role,
@@ -37,6 +44,21 @@ export function PatientFormPage({
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const chartNumber = await fetchNextFicha();
+      if (!cancelled && chartNumber) {
+        setValues((atual) =>
+          atual.numeroFicha ? atual : { ...atual, numeroFicha: chartNumber }
+        );
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const initials = useMemo(
     () =>
@@ -77,7 +99,9 @@ export function PatientFormPage({
       setSaving(false);
 
       if (mode === "save_new") {
-        setValues(emptyPatientForm());
+        const next = emptyPatientForm();
+        const chartNumber = await fetchNextFicha();
+        setValues({ ...next, numeroFicha: chartNumber });
         onSelectPhoto(null);
         setMessage("Paciente salvo. Formulário pronto para um novo cadastro.");
         return;

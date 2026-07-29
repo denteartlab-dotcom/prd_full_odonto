@@ -87,6 +87,7 @@ export type OdontogramTooth = {
 };
 
 export type PatientProfile = ListPatient & {
+  chartNumber?: string;
   nomeSocial?: string;
   rg?: string;
   orgaoExpedidor?: string;
@@ -125,6 +126,7 @@ export function profileToList(p: PatientProfile): ListPatient {
   return {
     id: p.id,
     name: p.name,
+    chartNumber: p.chartNumber,
     cpf: p.cpf,
     phone: p.phone,
     email: p.email,
