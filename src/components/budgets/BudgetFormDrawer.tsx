@@ -12,7 +12,7 @@ import { BudgetSignature } from "./BudgetSignature";
 import { BudgetTotals } from "./BudgetTotals";
 import { InstallmentCalculator } from "./InstallmentCalculator";
 import { PaymentMethodsCard } from "./PaymentMethodsCard";
-import { ProcedureCatalogList } from "./ProcedureSearch";
+import { BudgetProcedureBuilder } from "./BudgetProcedureBuilder";
 import { BUDGET_STATUS_LABELS, budgetStatusBadge, FieldLabel, SelectInput, TextInput } from "./shared";
 import { BudgetHistoryTimeline, TreatmentTimeline } from "./TreatmentTimeline";
 
@@ -148,7 +148,12 @@ export function BudgetFormDrawer({
             </div>
           </section>
 
-          {editable && <ProcedureCatalogList onSelect={onAddProcedure} />}
+          {editable && (
+            <BudgetProcedureBuilder
+              onAdd={onAddProcedure}
+              existingProcedures={budget.procedures}
+            />
+          )}
 
           <BudgetProceduresTable
             procedures={budget.procedures}

@@ -137,9 +137,11 @@ export function ProcedureSearch({
 
 export function ProcedureCatalogList({
   onSelect,
+  selectedCode,
   className,
 }: {
   onSelect: (procedure: BudgetProcedure) => void;
+  selectedCode?: string | null;
   className?: string;
 }) {
   const [query, setQuery] = useState("");
@@ -169,20 +171,28 @@ export function ProcedureCatalogList({
             Nenhum procedimento encontrado.
           </p>
         ) : (
-          items.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => onSelect(catalogToProcedure(item))}
-              className="rounded-xl border border-slate-100 bg-slate-50/50 p-3 text-left transition hover:border-indigo-200 hover:bg-indigo-50/50"
-            >
-              <p className="text-sm font-semibold text-slate-800">{item.name}</p>
-              <p className="mt-0.5 text-[11px] text-slate-500">
-                {item.code} · {item.category} · {item.estimatedMinutes} min
-              </p>
-              <p className="mt-1 text-sm font-bold text-indigo-600">{money(item.price)}</p>
-            </button>
-          ))
+          items.map((item) => {
+            const active = selectedCode === item.code;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onSelect(catalogToProcedure(item))}
+                className={cn(
+                  "rounded-xl border p-3 text-left transition",
+                  active
+                    ? "border-indigo-400 bg-indigo-50 ring-2 ring-indigo-500/20"
+                    : "border-slate-100 bg-slate-50/50 hover:border-indigo-200 hover:bg-indigo-50/50"
+                )}
+              >
+                <p className="text-sm font-semibold text-slate-800">{item.name}</p>
+                <p className="mt-0.5 text-[11px] text-slate-500">
+                  {item.code} · {item.category} · {item.estimatedMinutes} min
+                </p>
+                <p className="mt-1 text-sm font-bold text-indigo-600">{money(item.price)}</p>
+              </button>
+            );
+          })
         )}
       </div>
     </div>
