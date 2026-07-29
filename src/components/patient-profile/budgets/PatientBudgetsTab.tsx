@@ -188,11 +188,11 @@ export function PatientBudgetsTab({
   };
 
   const openView = (id: string) => {
-    const b = budgets.find((x) => x.id === id);
-    if (b) {
-      setDrawerBudget(structuredClone(b));
-      setDrawerMode("view");
-    }
+    setSelectedId((prev) => (prev === id ? null : id));
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedId((prev) => (prev === id ? null : id));
   };
 
   const closeDrawer = () => {
@@ -297,7 +297,7 @@ export function PatientBudgetsTab({
             selectedId={selectedId}
             page={page}
             onPageChange={setPage}
-            onSelect={setSelectedId}
+            onSelect={toggleSelect}
             onView={openView}
             onEdit={openEdit}
             onDuplicate={handleDuplicate}
