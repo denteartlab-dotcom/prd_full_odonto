@@ -215,6 +215,7 @@ export function formStateToPrismaCreate(form: PatientFormState) {
     bairro: form.bairro.trim() || undefined,
     comoConheceu: form.comoConheceu.trim() || undefined,
     observacoesInternas: form.observacoesInternas.trim() || undefined,
+    contatosEmergencia: form.contatosEmergencia,
     anamnesis: {
       updatedAt: new Date().toISOString(),
       answers: [],

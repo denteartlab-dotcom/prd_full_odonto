@@ -104,6 +104,12 @@ export type PatientProfile = ListPatient & {
   bairro?: string;
   comoConheceu?: string;
   observacoesInternas?: string;
+  contatosEmergencia?: {
+    id: string;
+    nome: string;
+    parentesco: string;
+    telefone: string;
+  }[];
   anamnesis: PatientAnamnesis;
   dentalAnamnesis?: DentalAnamnesis;
   lastAppointment?: PatientAppointment;
