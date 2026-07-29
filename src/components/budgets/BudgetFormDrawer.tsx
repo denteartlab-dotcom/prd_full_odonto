@@ -1,6 +1,6 @@
 "use client";
 
-import { X } from "lucide-react";
+import { Save, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DentalBudget, InstallmentPlanType, PaymentMethodType } from "@/lib/budget-types";
 import type { BudgetProcedure } from "@/lib/budget-types";
@@ -51,44 +51,48 @@ export function BudgetFormDrawer({
   if (!open || !budget) return null;
 
   const editable = mode !== "view";
+  const title =
+    mode === "create"
+      ? `Novo orçamento ${budget.number}`
+      : mode === "edit"
+        ? `Editar orçamento ${budget.number}`
+        : `Visualizar orçamento ${budget.number}`;
 
   return (
-    <>
-      <div
-        className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-[1px]"
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6">
+      <button
+        type="button"
+        className="absolute inset-0 bg-slate-900/50 backdrop-blur-[2px]"
         onClick={onClose}
-        aria-hidden
+        aria-label="Fechar"
       />
-      <aside className="fixed inset-y-0 right-0 z-[110] flex w-full max-w-3xl flex-col border-l border-slate-200 bg-white shadow-2xl">
-        <header className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
-          <div>
-            <p className="text-xs font-medium text-slate-400">
-              {mode === "create" ? "Novo orçamento" : mode === "edit" ? "Editar orçamento" : "Visualizar orçamento"}
-            </p>
-            <h2 className="text-lg font-bold text-slate-900">{budget.number}</h2>
+
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="budget-modal-title"
+        className="relative z-[110] flex max-h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+      >
+        <header className="relative shrink-0 border-b border-slate-200 bg-slate-50/80 px-5 py-3.5">
+          <h2
+            id="budget-modal-title"
+            className="pr-10 text-center text-base font-semibold text-slate-800 sm:text-lg"
+          >
+            {title}
+          </h2>
+          <div className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-2">
             <span
               className={cn(
-                "mt-1 inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold",
+                "hidden rounded-full px-2.5 py-0.5 text-[10px] font-semibold sm:inline-flex",
                 budgetStatusBadge(budget.status)
               )}
             >
               {BUDGET_STATUS_LABELS[budget.status]}
             </span>
-          </div>
-          <div className="flex items-center gap-2">
-            {editable && (
-              <button
-                type="button"
-                onClick={onSave}
-                className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
-              >
-                Salvar
-              </button>
-            )}
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"
+              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200/70 hover:text-slate-700"
               aria-label="Fechar"
             >
               <X className="h-5 w-5" />
@@ -96,8 +100,8 @@ export function BudgetFormDrawer({
           </div>
         </header>
 
-        <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5">
-          <section className="grid gap-4 sm:grid-cols-2">
+        <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
+          <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <FieldLabel>Número</FieldLabel>
               <TextInput value={budget.number} disabled />
@@ -132,7 +136,7 @@ export function BudgetFormDrawer({
                 onChange={(v) => onChange({ validityDate: v })}
               />
             </div>
-            <div className="sm:col-span-2">
+            <div className="sm:col-span-2 lg:col-span-4">
               <FieldLabel>Observações</FieldLabel>
               <textarea
                 value={budget.notes}
@@ -144,9 +148,7 @@ export function BudgetFormDrawer({
             </div>
           </section>
 
-          {editable && (
-            <ProcedureCatalogList onSelect={onAddProcedure} />
-          )}
+          {editable && <ProcedureCatalogList onSelect={onAddProcedure} />}
 
           <BudgetProceduresTable
             procedures={budget.procedures}
@@ -174,7 +176,11 @@ export function BudgetFormDrawer({
 
           <TreatmentTimeline steps={budget.treatmentPlan} />
 
-          <BudgetDocuments documents={budget.documents} editable={editable} onAdd={onAddDocument} />
+          <BudgetDocuments
+            documents={budget.documents}
+            editable={editable}
+            onAdd={onAddDocument}
+          />
 
           <BudgetSignature
             signature={budget.signature}
@@ -182,16 +188,38 @@ export function BudgetFormDrawer({
             onChange={onSignatureChange}
           />
 
-          {mode === "view" && <BudgetHistoryTimeline events={budget.history} />}
+          {mode === "view" && (
+            <BudgetHistoryTimeline events={budget.history} />
+          )}
         </div>
 
-        {!editable && (
-          <footer className="shrink-0 border-t border-slate-100 px-5 py-3 text-xs text-slate-400">
-            Forma de pagamento: {PAYMENT_METHOD_LABELS[budget.paymentMethod]} · Validade:{" "}
-            {formatDisplayDate(budget.validityDate)} · v{budget.version}
-          </footer>
-        )}
-      </aside>
-    </>
+        <footer className="flex shrink-0 flex-col-reverse gap-2 border-t border-slate-200 bg-slate-50/60 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-[11px] text-slate-400">
+            {!editable
+              ? `Forma de pagamento: ${PAYMENT_METHOD_LABELS[budget.paymentMethod]} · Validade: ${formatDisplayDate(budget.validityDate)} · v${budget.version}`
+              : `Total: ${budget.total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`}
+          </div>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl border border-rose-300 bg-white px-4 py-2.5 text-sm font-semibold text-rose-600 hover:bg-rose-50"
+            >
+              Fechar / Cancelar
+            </button>
+            {editable ? (
+              <button
+                type="button"
+                onClick={onSave}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
+              >
+                <Save className="h-4 w-4" />
+                {mode === "create" ? "Gravar orçamento" : "Gravar alterações"}
+              </button>
+            ) : null}
+          </div>
+        </footer>
+      </div>
+    </div>
   );
 }
