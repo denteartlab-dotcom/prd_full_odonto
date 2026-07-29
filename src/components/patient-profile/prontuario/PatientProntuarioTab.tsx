@@ -280,6 +280,7 @@ export function PatientProntuarioTab({
           onNova={() => setDrawerOpen(true)}
         />
         <ProntuarioDetail
+          patientId={patient.id}
           evolucao={selected}
           autosaveHint={autosaveHint}
           onPatch={patchSelected}
