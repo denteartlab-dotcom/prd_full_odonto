@@ -57,7 +57,7 @@ function atendimentoText(evolucao: EvolucaoClinica) {
 }
 
 const atendimentoTextareaClass =
-  "w-full min-h-[220px] resize-y rounded-lg border border-slate-200 bg-white px-3.5 py-3 text-sm leading-relaxed text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15";
+  "w-full min-h-[88px] max-h-[220px] resize-y rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm leading-relaxed text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15";
 
 export function ProntuarioDetail({
   patientId,
@@ -164,7 +164,7 @@ export function ProntuarioDetail({
             }}
             placeholder="Descreva o atendimento do paciente, procedimentos realizados, conduta e orientações..."
             className={atendimentoTextareaClass}
-            rows={12}
+            rows={3}
           />
         </div>
 
