@@ -196,20 +196,20 @@ export function NewAppointmentModal({
 
   const filteredPatients = useMemo(() => {
     const q = patientQuery.trim().toLowerCase();
+    if (!q) return [];
     const digits = onlyDigits(patientQuery);
-    const list = !q
-      ? patients.slice(0, 12)
-      : patients.filter((p) => {
-          const name = p.name.toLowerCase();
-          const cpf = onlyDigits(p.cpf || "");
-          const ficha = (p.chartNumber || "").toUpperCase();
-          return (
-            name.includes(q) ||
-            (digits.length >= 3 && cpf.includes(digits)) ||
-            (ficha && ficha.includes(q.toUpperCase()))
-          );
-        });
-    return list.slice(0, 20);
+    return patients
+      .filter((p) => {
+        const name = p.name.toLowerCase();
+        const cpf = onlyDigits(p.cpf || "");
+        const ficha = (p.chartNumber || "").toUpperCase();
+        return (
+          name.includes(q) ||
+          (digits.length >= 3 && cpf.includes(digits)) ||
+          (ficha && ficha.includes(q.toUpperCase()))
+        );
+      })
+      .slice(0, 20);
   }, [patientQuery, patients]);
 
   const selectedPatient =
@@ -238,7 +238,7 @@ export function NewAppointmentModal({
   function clearPatient() {
     patch({ patientId: "", patient: "" });
     setPatientQuery("");
-    setPatientOpen(true);
+    setPatientOpen(false);
   }
 
   function validate() {
@@ -304,13 +304,16 @@ export function NewAppointmentModal({
                 <input
                   value={patientQuery}
                   onChange={(e) => {
-                    setPatientQuery(e.target.value);
-                    setPatientOpen(true);
+                    const value = e.target.value;
+                    setPatientQuery(value);
+                    setPatientOpen(value.trim().length > 0);
                     if (form.patientId) {
                       patch({ patientId: "", patient: "" });
                     }
                   }}
-                  onFocus={() => setPatientOpen(true)}
+                  onFocus={() => {
+                    if (patientQuery.trim()) setPatientOpen(true);
+                  }}
                   placeholder="Digite o nome ou CPF do paciente..."
                   className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-9 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/15"
                   autoComplete="off"
@@ -326,7 +329,7 @@ export function NewAppointmentModal({
                   </button>
                 ) : null}
 
-                {patientOpen ? (
+                {patientOpen && patientQuery.trim() ? (
                   <div className="absolute left-0 right-0 z-40 mt-2 max-h-64 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl shadow-slate-900/10">
                     {patients.length === 0 ? (
                       <p className="px-3 py-3 text-xs text-slate-500">
@@ -347,18 +350,29 @@ export function NewAppointmentModal({
                           type="button"
                           onClick={() => selectPatient(p)}
                           className={cn(
-                            "mb-1 w-full rounded-xl px-3 py-2.5 text-left last:mb-0 hover:bg-indigo-50/70",
-                            form.patientId === p.id && "bg-indigo-50"
+                            "mb-1 w-full rounded-xl px-3 py-2.5 text-left last:mb-0",
+                            owing
+                              ? "bg-rose-100 hover:bg-rose-200/80"
+                              : "bg-emerald-100 hover:bg-emerald-200/80",
+                            form.patientId === p.id &&
+                              (owing
+                                ? "ring-2 ring-rose-300"
+                                : "ring-2 ring-emerald-300")
                           )}
                         >
                           <p className="truncate text-sm font-semibold text-slate-900">
                             {p.name}
                           </p>
-                          <p className="mt-0.5 text-[11px] text-slate-500">
+                          <p
+                            className={cn(
+                              "mt-0.5 text-[11px]",
+                              owing ? "text-rose-700" : "text-emerald-700"
+                            )}
+                          >
                             Ficha {fichaLabel(p)}
                             {p.cpf ? ` · CPF ${maskCpf(p.cpf)}` : ""}
                             {owing
-                              ? ` · Débito ${formatMoney(debt!.amount)}`
+                              ? ` · Atrasado · ${formatMoney(debt!.amount)}`
                               : " · Em dia"}
                           </p>
                         </button>
