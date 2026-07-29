@@ -32,7 +32,9 @@ import { ModelosReceitaModal } from "./ModelosReceitaModal";
 import { ReceituarioEditor } from "./ReceituarioEditor";
 import { ReceituarioPatientPanel } from "./ReceituarioPatientPanel";
 import { ReceituarioSearchPanel } from "./ReceituarioSearchPanel";
+import { TipoReceitaControladoModal } from "./TipoReceitaControladoModal";
 import { VisualizarPdfModal } from "./VisualizarPdfModal";
+import type { PrescriptionKind } from "@/lib/prescription-types";
 
 type ProfessionalOption = {
   id: string | null;
@@ -68,6 +70,7 @@ export function ReceituarioEletronico({
   const [historyOpen, setHistoryOpen] = useState(false);
   const [pdfOpen, setPdfOpen] = useState(false);
   const [atestadoOpen, setAtestadoOpen] = useState(false);
+  const [tipoReceitaOpen, setTipoReceitaOpen] = useState(false);
 
   const loadHistory = useCallback(async () => {
     const res = await fetch(`/api/prescricoes?patientId=${patient.id}`, { cache: "no-store" });
@@ -202,22 +205,24 @@ export function ReceituarioEletronico({
     setMessage("Receita duplicada no editor.");
   }
 
-  async function emitPrescription() {
+  async function emitPrescription(
+    kind: Extract<PrescriptionKind, "controle_especial" | "receituario_simples"> = "receituario_simples"
+  ) {
     if (!lines.length) {
       setMessage("Adicione ao menos um medicamento.");
       return;
     }
     setSaving(true);
     setMessage("");
+    setTipoReceitaOpen(false);
     try {
-      const hasControlled = lines.some((l) => l.controlled);
       const res = await fetch("/api/prescricoes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           patientId: patient.id,
           professionalId: prescriber.id || null,
-          kind: hasControlled ? "controle_especial" : "receituario_simples",
+          kind,
           observations: generalNotes,
           medications: lines.map((l) => ({
             medicationName: l.name,
@@ -251,7 +256,7 @@ export function ReceituarioEletronico({
       clearDraft();
       await loadHistory();
       setMessage(
-        hasControlled
+        kind === "controle_especial"
           ? "Receituário de Controle Especial emitido com sucesso."
           : "Receita emitida com sucesso."
       );
@@ -265,7 +270,23 @@ export function ReceituarioEletronico({
     }
   }
 
+  function requestEmit() {
+    if (!lines.length) {
+      setMessage("Adicione ao menos um medicamento.");
+      return;
+    }
+    if (lines.some((l) => l.controlled)) {
+      setTipoReceitaOpen(true);
+      return;
+    }
+    void emitPrescription("receituario_simples");
+  }
+
   const lastId = history[0]?.id;
+  const controlledNames = useMemo(
+    () => lines.filter((l) => l.controlled).map((l) => l.name),
+    [lines]
+  );
 
   return (
     <div className="space-y-4">
@@ -276,7 +297,7 @@ export function ReceituarioEletronico({
           label="Emitir Receita"
           primary
           spinning={saving}
-          onClick={() => void emitPrescription()}
+          onClick={requestEmit}
         />
         <ToolbarBtn
           icon={FileText}
@@ -419,6 +440,12 @@ export function ReceituarioEletronico({
           cro: dentist.cro,
           specialty: dentist.specialty,
         }}
+      />
+      <TipoReceitaControladoModal
+        open={tipoReceitaOpen}
+        onClose={() => setTipoReceitaOpen(false)}
+        controlledNames={controlledNames}
+        onSelect={(kind) => void emitPrescription(kind)}
       />
     </div>
   );
