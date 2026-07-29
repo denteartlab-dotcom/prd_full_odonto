@@ -1,16 +1,49 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Check, Loader2, X } from "lucide-react";
+import { EVOLUCAO_TEMPLATES } from "@/lib/prontuario-mock";
 import {
   emptyNovaEvolucaoForm,
+  EVOLUCAO_TIPO_LABEL,
   type EvolucaoClinica,
+  type EvolucaoTipo,
   type NovaEvolucaoForm,
 } from "@/lib/prontuario-types";
 
+const TIPOS = Object.keys(EVOLUCAO_TIPO_LABEL) as EvolucaoTipo[];
+
+const fieldClass =
+  "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15";
+
 const atendimentoTextareaClass =
   "w-full min-h-[220px] resize-y rounded-lg border border-slate-200 bg-white px-3.5 py-3 text-sm leading-relaxed text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15";
+
+function FieldLabel({
+  children,
+  required,
+}: {
+  children: ReactNode;
+  required?: boolean;
+}) {
+  return (
+    <label className="mb-1.5 block text-[13px] font-medium text-slate-700">
+      {children}
+      {required ? <span className="ml-0.5 text-rose-500">*</span> : null}
+    </label>
+  );
+}
+
+function stripHtml(value: string) {
+  return value
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\u00a0/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 
 export function NovaEvolucaoDrawer({
   open,
@@ -49,6 +82,39 @@ export function NovaEvolucaoDrawer({
     };
   }, [open]);
 
+  function patch(p: Partial<NovaEvolucaoForm>) {
+    setForm((f) => ({ ...f, ...p }));
+  }
+
+  function applyTemplate(id: string) {
+    const tpl = EVOLUCAO_TEMPLATES.find((t) => t.id === id);
+    if (!tpl) {
+      patch({ templateId: "" });
+      return;
+    }
+    const texto = [
+      stripHtml(tpl.queixaPrincipal),
+      stripHtml(tpl.diagnostico),
+      tpl.procedimento ? `Procedimento: ${tpl.procedimento}` : "",
+      stripHtml(tpl.evolucaoClinica),
+      stripHtml(tpl.conduta),
+      stripHtml(tpl.planoTratamento),
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+
+    patch({
+      templateId: id,
+      tipo: tpl.tipo,
+      procedimento: tpl.procedimento,
+      descricaoCompleta: texto,
+      queixaPrincipal: "",
+      diagnostico: "",
+      conduta: "",
+      planoTratamento: "",
+    });
+  }
+
   async function submit(finalize: boolean) {
     setSaving(true);
     await new Promise((r) => window.setTimeout(r, 350));
@@ -66,7 +132,7 @@ export function NovaEvolucaoDrawer({
         role="dialog"
         aria-modal="true"
         aria-labelledby="nova-evolucao-title"
-        className="relative z-[85] flex h-[100dvh] w-full max-w-[900px] flex-col overflow-hidden bg-white shadow-2xl sm:h-[min(88vh,720px)] sm:rounded-2xl"
+        className="relative z-[85] flex h-[100dvh] w-full max-w-[1100px] flex-col overflow-hidden bg-white shadow-2xl sm:h-[min(92vh,900px)] sm:rounded-2xl"
       >
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 px-4 py-4 sm:px-6">
           <div>
@@ -91,23 +157,127 @@ export function NovaEvolucaoDrawer({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
-          <div>
-            <label
-              htmlFor="nova-evolucao-atendimento"
-              className="mb-2 block text-sm font-semibold text-slate-800"
-            >
-              Atendimento
-            </label>
-            <textarea
-              id="nova-evolucao-atendimento"
-              value={form.descricaoCompleta}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, descricaoCompleta: e.target.value }))
-              }
-              placeholder="Descreva o atendimento do paciente, procedimentos realizados, conduta e orientações..."
-              className={atendimentoTextareaClass}
-              rows={12}
-            />
+          <div className="space-y-5">
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+              <h3 className="mb-4 text-sm font-semibold text-slate-900">
+                Dados do atendimento
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <FieldLabel>Modelo pronto</FieldLabel>
+                  <select
+                    value={form.templateId}
+                    onChange={(e) => applyTemplate(e.target.value)}
+                    className={fieldClass}
+                  >
+                    <option value="">Sem modelo</option>
+                    {EVOLUCAO_TEMPLATES.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <FieldLabel required>Tipo</FieldLabel>
+                    <select
+                      value={form.tipo}
+                      onChange={(e) =>
+                        patch({ tipo: e.target.value as EvolucaoTipo })
+                      }
+                      className={fieldClass}
+                    >
+                      {TIPOS.map((t) => (
+                        <option key={t} value={t}>
+                          {EVOLUCAO_TIPO_LABEL[t]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <FieldLabel>Especialidade</FieldLabel>
+                    <input
+                      value={form.especialidade}
+                      onChange={(e) => patch({ especialidade: e.target.value })}
+                      className={fieldClass}
+                    />
+                  </div>
+                  <div>
+                    <FieldLabel required>Data</FieldLabel>
+                    <input
+                      type="date"
+                      value={form.date}
+                      onChange={(e) => patch({ date: e.target.value })}
+                      className={fieldClass}
+                    />
+                  </div>
+                  <div>
+                    <FieldLabel required>Hora</FieldLabel>
+                    <input
+                      type="time"
+                      value={form.time}
+                      onChange={(e) => patch({ time: e.target.value })}
+                      className={fieldClass}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <FieldLabel required>Profissional</FieldLabel>
+                  <input
+                    value={form.profissional}
+                    onChange={(e) => patch({ profissional: e.target.value })}
+                    className={fieldClass}
+                  />
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+              <div>
+                <label
+                  htmlFor="nova-evolucao-atendimento"
+                  className="mb-2 block text-sm font-semibold text-slate-800"
+                >
+                  Atendimento
+                </label>
+                <textarea
+                  id="nova-evolucao-atendimento"
+                  value={form.descricaoCompleta}
+                  onChange={(e) => patch({ descricaoCompleta: e.target.value })}
+                  placeholder="Descreva o atendimento do paciente, procedimentos realizados, conduta e orientações..."
+                  className={atendimentoTextareaClass}
+                  rows={10}
+                />
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+              <h3 className="mb-4 text-sm font-semibold text-slate-900">
+                Retorno e anexos
+              </h3>
+              <div className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <FieldLabel>Retorno</FieldLabel>
+                    <input
+                      type="date"
+                      value={form.retorno}
+                      onChange={(e) => patch({ retorno: e.target.value })}
+                      className={fieldClass}
+                    />
+                  </div>
+                </div>
+                <div className="rounded-xl border border-dashed border-slate-200 px-4 py-6 text-center text-xs text-slate-400">
+                  Anexos (fotos, PDF, exames) — preparado para upload via API
+                </div>
+                <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 px-4 py-3 text-xs text-indigo-800">
+                  Assinatura digital poderá ser solicitada ao finalizar o atendimento.
+                </div>
+              </div>
+            </section>
           </div>
         </div>
 
@@ -166,18 +336,18 @@ export function formToEvolucao(
     id: `ev-${patientId}-${Date.now()}`,
     patientId,
     tipo: form.tipo || "evolucao",
-    titulo: "Atendimento",
+    titulo: `${EVOLUCAO_TIPO_LABEL[form.tipo]} — ${form.procedimento || "Atendimento"}`,
     resumo: resumo.slice(0, 140),
     date: form.date,
     time: form.time,
     profissional: form.profissional,
     especialidade: form.especialidade,
     status: finalize ? "finalizado" : "rascunho",
-    procedimento: "",
+    procedimento: form.procedimento || "",
     queixaPrincipal: "",
     historiaClinica: "",
     diagnostico: "",
-    procedimentoExecutado: "",
+    procedimentoExecutado: form.procedimento || "",
     evolucaoClinica: texto,
     planoTratamento: "",
     conduta: "",
