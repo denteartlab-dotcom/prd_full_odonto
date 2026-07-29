@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/db";
 import type { PrescriptionItem, PrescriptionKind } from "@/lib/prescription-types";
-import { buildPrescriptionPdfBytes, pdfFilename, type PrescriptionPdfInput } from "@/lib/prescription-pdf";
+import {
+  buildPrescriptionPdfBytes,
+  pdfFilename,
+  type PrescriptionPdfInput,
+} from "@/lib/prescription-pdf";
 
 export function parsePrescriptionEnvelope(raw: string | null) {
   if (!raw) {
@@ -42,6 +46,30 @@ export function parsePrescriptionEnvelope(raw: string | null) {
   }
 }
 
+/** Monta o cabeçalho a partir dos dados cadastrados da clínica no sistema. */
+export function buildClinicHeaderLines(clinic: {
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  cnpj?: string | null;
+}) {
+  const lines: string[] = [];
+  if (clinic.address?.trim()) lines.push(clinic.address.trim());
+
+  const cityState = [clinic.city?.trim(), clinic.state?.trim()]
+    .filter(Boolean)
+    .join(" — ");
+  if (cityState) lines.push(cityState);
+
+  if (clinic.phone?.trim()) lines.push(`Tel.: ${clinic.phone.trim()}`);
+  if (clinic.email?.trim()) lines.push(clinic.email.trim());
+  if (clinic.cnpj?.trim()) lines.push(`CNPJ ${clinic.cnpj.trim()}`);
+
+  return lines;
+}
+
 export async function loadPrescriptionPdfPayload(input: {
   prescriptionId: string;
   clinicId: string;
@@ -62,13 +90,10 @@ export async function loadPrescriptionPdfPayload(input: {
   const birthDate = row.patient.birthDate
     ? row.patient.birthDate.toLocaleDateString("pt-BR")
     : undefined;
+
   const payload: PrescriptionPdfInput = {
     clinicName: row.clinic.name,
-    clinicAddress: [row.clinic.address, row.clinic.city, row.clinic.state]
-      .filter(Boolean)
-      .join(" — "),
-    clinicPhone: row.clinic.phone || undefined,
-    clinicCnpj: row.clinic.cnpj || undefined,
+    clinicHeaderLines: buildClinicHeaderLines(row.clinic),
     clinicLogoUrl: row.clinic.logoUrl || null,
     dentistName:
       row.professional?.name ||

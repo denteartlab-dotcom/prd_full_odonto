@@ -248,8 +248,8 @@ export function ClinicDataPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clinic: {
-            name: data.gerais.nomeClinica,
-            phone: data.contatos.telefonePrincipal || null,
+            name: data.gerais.nomeFantasia || data.gerais.nomeClinica,
+            phone: data.contatos.telefonePrincipal || data.contatos.whatsapp || null,
             email: data.contatos.email || null,
             address: addressLine || null,
             city: data.endereco.cidade || null,

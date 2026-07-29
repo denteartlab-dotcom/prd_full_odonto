@@ -10,9 +10,8 @@ const KIND_LABELS: Record<PrescriptionKind, string> = {
 
 export type PrescriptionPdfInput = {
   clinicName: string;
-  clinicAddress?: string;
-  clinicPhone?: string;
-  clinicCnpj?: string;
+  /** Linhas do cabeçalho (endereço, cidade, telefone, CNPJ…) — uma por linha. */
+  clinicHeaderLines?: string[];
   clinicLogoUrl?: string | null;
   dentistName: string;
   dentistCro?: string;
@@ -117,18 +116,14 @@ export function buildPrescriptionPdfBytes(input: PrescriptionPdfInput): Uint8Arr
     lineH: 6,
   });
 
-  const contact = [
-    input.clinicAddress?.trim(),
-    input.clinicPhone?.trim(),
-    input.clinicCnpj ? `CNPJ ${input.clinicCnpj}` : "",
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const headerLines = (input.clinicHeaderLines || [])
+    .map((l) => l.trim())
+    .filter(Boolean);
 
-  if (contact) {
-    textCursor += 1.5;
-    const contactRows = wrap(doc, contact, textW, 8.5);
-    textCursor += drawText(contactRows, textX, textCursor, {
+  for (const headerLine of headerLines) {
+    textCursor += 1.2;
+    const rows = wrap(doc, headerLine, textW, 8.5);
+    textCursor += drawText(rows, textX, textCursor, {
       size: 8.5,
       color: [100, 116, 139],
       lineH: 3.8,

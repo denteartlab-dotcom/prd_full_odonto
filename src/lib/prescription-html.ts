@@ -9,9 +9,7 @@ const KIND_LABELS: Record<PrescriptionKind, string> = {
 
 export function buildPrescriptionHtml(input: {
   clinicName: string;
-  clinicAddress?: string;
-  clinicPhone?: string;
-  clinicCnpj?: string;
+  clinicHeaderLines?: string[];
   clinicLogoUrl?: string | null;
   dentistName: string;
   dentistCro: string;
@@ -40,14 +38,14 @@ export function buildPrescriptionHtml(input: {
     .join("");
 
   const logo = (input.clinicLogoUrl || "").trim();
-  const contact = [
-    input.clinicAddress || "",
-    input.clinicPhone || "",
-    input.clinicCnpj ? `CNPJ ${input.clinicCnpj}` : "",
-  ]
+  const headerLines = (input.clinicHeaderLines || [])
+    .map((l) => l.trim())
     .filter(Boolean)
-    .map(escapeHtml)
-    .join(" · ");
+    .map(
+      (line) =>
+        `<div class="muted" style="line-height:1.45;">${escapeHtml(line)}</div>`
+    )
+    .join("");
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -61,7 +59,7 @@ export function buildPrescriptionHtml(input: {
     .actions { position: sticky; top: 0; background: #0f172a; color: #fff; padding: 10px 16px; display: flex; gap: 8px; justify-content: flex-end; }
     .actions button, .actions a { background: #fff; color: #0f172a; border: 0; border-radius: 8px; padding: 8px 12px; font-weight: 600; text-decoration: none; cursor: pointer; font-size: 13px; }
     .header { display: flex; gap: 14px; align-items: flex-start; border-bottom: 2px solid #1d4ed8; padding-bottom: 14px; margin-bottom: 18px; }
-    .header img { width: 64px; height: 64px; object-fit: contain; border-radius: 10px; border: 1px solid #e2e8f0; background: #fff; }
+    .header img { width: 96px; height: 96px; object-fit: contain; border-radius: 10px; border: 1px solid #e2e8f0; background: #fff; }
     @media print { .actions { display: none !important; } .sheet { padding: 0; } }
   </style>
 </head>
@@ -77,8 +75,8 @@ export function buildPrescriptionHtml(input: {
           : ""
       }
       <div>
-        <h1 style="margin:0 0 6px;font-size:22px;">${escapeHtml(input.clinicName)}</h1>
-        <div class="muted">${contact}</div>
+        <h1 style="margin:0 0 8px;font-size:22px;">${escapeHtml(input.clinicName)}</h1>
+        ${headerLines}
       </div>
     </header>
 

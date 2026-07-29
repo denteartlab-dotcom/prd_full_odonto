@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireApiSession, isSession, jsonError } from "@/lib/api-helpers";
 import { buildPrescriptionHtml } from "@/lib/prescription-html";
+import { buildClinicHeaderLines } from "@/lib/prescription-pdf-load";
 import type { PrescriptionItem, PrescriptionKind } from "@/lib/prescription-types";
 
 type Params = { params: Promise<{ id: string }> };
@@ -69,11 +70,7 @@ export async function GET(_req: Request, { params }: Params) {
 
   const html = buildPrescriptionHtml({
     clinicName: row.clinic.name,
-    clinicAddress: [row.clinic.address, row.clinic.city, row.clinic.state]
-      .filter(Boolean)
-      .join(" — "),
-    clinicPhone: row.clinic.phone || undefined,
-    clinicCnpj: row.clinic.cnpj || undefined,
+    clinicHeaderLines: buildClinicHeaderLines(row.clinic),
     clinicLogoUrl: row.clinic.logoUrl || null,
     dentistName:
       row.professional?.name ||
