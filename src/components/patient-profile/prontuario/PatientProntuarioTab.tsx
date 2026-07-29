@@ -40,27 +40,9 @@ function clinicHeaderLines(clinic: {
 }
 
 const STORAGE_PREFIX = "odonto-prontuario:";
-const CLEARED_FLAG = "odonto-prontuario-cleared-v1";
-
-function clearAllProntuarioStorage() {
-  if (typeof window === "undefined") return;
-  try {
-    if (window.localStorage.getItem(CLEARED_FLAG) === "1") return;
-    const keys: string[] = [];
-    for (let i = 0; i < window.localStorage.length; i++) {
-      const key = window.localStorage.key(i);
-      if (key?.startsWith(STORAGE_PREFIX)) keys.push(key);
-    }
-    keys.forEach((key) => window.localStorage.removeItem(key));
-    window.localStorage.setItem(CLEARED_FLAG, "1");
-  } catch {
-    /* ignore */
-  }
-}
 
 function loadEvolucoes(patientId: string): EvolucaoClinica[] {
   if (typeof window === "undefined") return [];
-  clearAllProntuarioStorage();
   try {
     const raw = window.localStorage.getItem(`${STORAGE_PREFIX}${patientId}`);
     if (raw) {
