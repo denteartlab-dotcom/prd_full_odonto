@@ -21,6 +21,7 @@ export type PrescriptionPdfInput = {
   dentistName: string;
   dentistCro?: string;
   dentistCroUf?: string;
+  dentistCpf?: string;
   patientName: string;
   patientCpf?: string;
   patientBirthDate?: string;
@@ -29,6 +30,8 @@ export type PrescriptionPdfInput = {
   medications: PrescriptionItem[];
   issuedAt: string;
   issuedDateOnly?: string;
+  signedAt?: Date | string;
+  digitallySigned?: boolean;
   validUntil?: string;
   digitalValidationUrl?: string;
 };
@@ -68,11 +71,14 @@ export function buildPrescriptionPdfBytes(input: PrescriptionPdfInput): Uint8Arr
       dentistName: input.dentistName,
       dentistCro: input.dentistCro,
       dentistCroUf: input.dentistCroUf || input.clinicState,
+      dentistCpf: input.dentistCpf,
       patientName: input.patientName,
       patientAddress: input.patientAddress,
       medications: input.medications,
       issuedAt: input.issuedAt,
       issuedDateOnly: input.issuedDateOnly,
+      signedAt: input.signedAt,
+      digitallySigned: input.digitallySigned !== false,
       digitalValidationUrl: input.digitalValidationUrl,
     });
   }

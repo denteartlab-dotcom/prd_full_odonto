@@ -157,6 +157,7 @@ export async function loadPrescriptionPdfPayload(input: {
       "Cirurgião-Dentista",
     dentistCro: row.professional?.cro || row.clinic.cro || undefined,
     dentistCroUf: row.clinic.state || undefined,
+    dentistCpf: row.professional?.cpf || undefined,
     patientName: row.patient.name,
     patientCpf: row.patient.cpf || undefined,
     patientBirthDate: birthDate,
@@ -178,6 +179,8 @@ export async function loadPrescriptionPdfPayload(input: {
         ],
     issuedAt,
     issuedDateOnly,
+    signedAt: row.createdAt,
+    digitallySigned: true,
     validUntil: envelope.validUntil
       ? formatBrasiliaDate(new Date(`${envelope.validUntil}T12:00:00`))
       : undefined,

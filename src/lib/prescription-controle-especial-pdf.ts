@@ -11,17 +11,28 @@ export type ControleEspecialPdfInput = {
   dentistName: string;
   dentistCro?: string;
   dentistCroUf?: string;
+  /** CPF do prescritor (só dígitos ou formatado) — carimbo digital. */
+  dentistCpf?: string;
   patientName: string;
   patientAddress?: string;
   medications: PrescriptionItem[];
   issuedAt: string;
   issuedDateOnly?: string;
+  /** Timestamp ISO ou Date para carimbo ICP-style. */
+  signedAt?: Date | string;
+  /**
+   * Quando true, desenha o carimbo “Assinado de forma digital…” (foto 4).
+   * Receita emitida digitalmente no sistema = true.
+   */
+  digitallySigned?: boolean;
+  /** URL pública do PDF no sistema (validação interna). */
   digitalValidationUrl?: string;
 };
 
 const HDR_FILL: [number, number, number] = [196, 196, 196];
 const FIELD_FILL: [number, number, number] = [238, 238, 238];
 const LINE = 0.35;
+const ITI_VALIDATE_URL = "https://assinaturadigital.iti.gov.br";
 
 function detectImageFormat(dataUrl: string): "PNG" | "JPEG" | null {
   if (dataUrl.startsWith("data:image/png")) return "PNG";
@@ -51,6 +62,28 @@ function parseCro(cro?: string) {
   };
 }
 
+function onlyDigits(v?: string) {
+  return (v || "").replace(/\D/g, "");
+}
+
+/** Dados: 2023.07.17 15:44:45 -03'00' (estilo verificador ITI/gov). */
+function formatIcpTimestamp(value?: Date | string) {
+  const d = value ? new Date(value) : new Date();
+  if (Number.isNaN(d.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value || "00";
+  return `${get("year")}.${get("month")}.${get("day")} ${get("hour")}:${get("minute")}:${get("second")} -03'00'`;
+}
+
 function drawHeaderBar(
   doc: jsPDF,
   title: string,
@@ -70,25 +103,40 @@ function drawHeaderBar(
   return y + h;
 }
 
-/** Título da seção emitente — caixa com borda, fundo branco (como no modelo). */
 function drawEmitenteTitle(doc: jsPDF, x: number, y: number, w: number) {
-  const h = 7.2;
+  const h = 6.8;
   doc.setFillColor(255, 255, 255);
   doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(0.45);
-  doc.rect(x, y, w, h, "FD");
+  doc.setLineWidth(0.4);
+  doc.rect(x, y, w, h, "S");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
+  doc.setFontSize(8.5);
   doc.setTextColor(0, 0, 0);
-  doc.text("IDENTIFICAÇÃO DO EMITENTE", x + w / 2, y + 4.9, {
+  doc.text("IDENTIFICAÇÃO DO EMITENTE", x + w / 2, y + 4.6, {
     align: "center",
   });
   return y + h;
 }
 
+/** Caixa VIA DIGITAL idêntica ao modelo gov (foto 3). */
+function drawViaDigitalBox(doc: jsPDF, x: number, y: number, w: number, h: number) {
+  doc.setDrawColor(0, 0, 0);
+  doc.setFillColor(255, 255, 255);
+  doc.setLineWidth(0.4);
+  doc.rect(x, y, w, h, "S");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(0, 0, 0);
+  doc.text("VIA DIGITAL", x + w / 2, y + 5.2, { align: "center" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.2);
+  doc.text("VALIDAR EM:", x + w / 2, y + 9.2, { align: "center" });
+  doc.setFontSize(5.4);
+  doc.text(ITI_VALIDATE_URL, x + w / 2, y + 12.8, { align: "center" });
+}
+
 /**
- * Campo no estilo oficial: rótulo + faixa cinza com valor na mesma linha.
- * Retorna a altura usada.
+ * Campo: rótulo + faixa cinza (tamanhos do modelo).
  */
 function grayValueField(
   doc: jsPDF,
@@ -98,51 +146,48 @@ function grayValueField(
   y: number,
   totalW: number,
   labelW: number,
-  rowH = 5.6
+  rowH = 5
 ) {
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.2);
+  doc.setFontSize(6.8);
   doc.setTextColor(0, 0, 0);
   doc.text(label, x, y + rowH * 0.72);
 
   const boxX = x + labelW;
   const boxW = Math.max(4, totalW - labelW);
   doc.setFillColor(...FIELD_FILL);
-  doc.setDrawColor(...FIELD_FILL);
   doc.rect(boxX, y, boxW, rowH, "F");
 
   if (value?.trim()) {
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.2);
+    doc.setFontSize(7.8);
     doc.setTextColor(0, 0, 0);
-    const lines = doc.splitTextToSize(value, boxW - 2) as string[];
-    doc.text(lines[0] || "", boxX + 1.2, y + rowH * 0.72);
+    const lines = doc.splitTextToSize(value, boxW - 1.8) as string[];
+    doc.text(lines[0] || "", boxX + 1, y + rowH * 0.72);
   }
   return rowH;
 }
 
-/** Faixa cinza sem rótulo (continuação de endereço). */
 function grayBarOnly(
   doc: jsPDF,
   value: string,
   x: number,
   y: number,
   w: number,
-  rowH = 5.6
+  rowH = 5
 ) {
   doc.setFillColor(...FIELD_FILL);
   doc.rect(x, y, w, rowH, "F");
   if (value?.trim()) {
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.2);
+    doc.setFontSize(7.8);
     doc.setTextColor(0, 0, 0);
-    const lines = doc.splitTextToSize(value, w - 2) as string[];
-    doc.text(lines[0] || "", x + 1.2, y + rowH * 0.72);
+    const lines = doc.splitTextToSize(value, w - 1.8) as string[];
+    doc.text(lines[0] || "", x + 1, y + rowH * 0.72);
   }
   return rowH;
 }
 
-/** Rótulo + linha de preenchimento (comprador / fornecedor). */
 function labelLine(
   doc: jsPDF,
   label: string,
@@ -168,7 +213,6 @@ function labelLine(
   return 5.8;
 }
 
-/** Rótulo acima + faixa cinza (página 2 farmácia). */
 function shadedInput(
   doc: jsPDF,
   label: string,
@@ -215,29 +259,130 @@ function drawLogoPlaceholder(
   w: number,
   h: number
 ) {
-  // ícone genérico de imagem
   const ix = x + w / 2;
-  const iy = y + h / 2 - 4;
-  doc.setDrawColor(160, 160, 160);
-  doc.setLineWidth(0.35);
-  doc.roundedRect(ix - 6, iy - 4.5, 12, 9, 0.8, 0.8, "S");
-  doc.circle(ix - 2.5, iy - 1.5, 1.1, "S");
+  const iy = y + h / 2 - 5;
+  doc.setDrawColor(150, 150, 150);
   doc.setLineWidth(0.3);
-  doc.line(ix - 5, iy + 3, ix - 1, iy + 0.5);
-  doc.line(ix - 1, iy + 0.5, ix + 1.5, iy + 2);
-  doc.line(ix + 1.5, iy + 2, ix + 5, iy - 0.5);
+  doc.rect(ix - 7, iy - 5, 14, 10.5, "S");
+  doc.circle(ix - 3, iy - 1.8, 1.2, "S");
+  doc.line(ix - 6, iy + 3.5, ix - 1.5, iy + 0.2);
+  doc.line(ix - 1.5, iy + 0.2, ix + 1.2, iy + 2.2);
+  doc.line(ix + 1.2, iy + 2.2, ix + 6, iy - 1);
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(5.8);
+  doc.setFontSize(5.5);
   doc.setTextColor(90, 90, 90);
-  doc.text("Logo do local de", ix, y + h / 2 + 6, { align: "center" });
-  doc.text("atendimento (imagem)", ix, y + h / 2 + 9, { align: "center" });
+  doc.text("Logo do local de", ix, y + h / 2 + 5.5, { align: "center" });
+  doc.text("atendimento (imagem)", ix, y + h / 2 + 8.5, { align: "center" });
   doc.setTextColor(0, 0, 0);
 }
 
+/** Marca d’água rosa do carimbo digital (estilo verificador). */
+function drawSignatureWatermark(
+  doc: jsPDF,
+  x: number,
+  y: number,
+  w: number,
+  h: number
+) {
+  doc.setDrawColor(220, 150, 165);
+  doc.setLineWidth(0.55);
+  const x0 = x + w * 0.15;
+  const y0 = y + h * 0.55;
+  doc.line(x0, y0, x0 + w * 0.2, y0 - h * 0.25);
+  doc.line(x0 + w * 0.2, y0 - h * 0.25, x0 + w * 0.35, y0 + h * 0.15);
+  doc.line(x0 + w * 0.35, y0 + h * 0.15, x0 + w * 0.55, y0 - h * 0.2);
+  doc.line(x0 + w * 0.55, y0 - h * 0.2, x0 + w * 0.7, y0 + h * 0.05);
+  doc.setLineWidth(0.35);
+  doc.line(x0 + 2, y0 + 2, x0 + w * 0.4, y0 - 1);
+}
+
 /**
- * Receituário de Controle Especial Odontológico — 2 páginas A4
- * (layout oficial: emitente / paciente / comprador / fornecedor + verso farmácia).
+ * Carimbo digital estilo gov (foto 4) — ou espaço reservado se ainda não assinado.
+ */
+function drawDigitalSignatureBlock(
+  doc: jsPDF,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  input: {
+    dentistName: string;
+    dentistCpf?: string;
+    signedAt?: Date | string;
+    digitallySigned?: boolean;
+  }
+) {
+  const label =
+    "ASSINATURA DA(O) CIRURGIÃ(O) DENTISTA";
+  const labelY = y + h - 2.8;
+
+  if (!input.digitallySigned) {
+    // Espaço reservado para quando validar digitalmente
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(5.2);
+    doc.setTextColor(160, 160, 160);
+    doc.text(
+      "(espaço para assinatura digital)",
+      x + w / 2,
+      y + h * 0.4,
+      { align: "center" }
+    );
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(5.4);
+    doc.text(label, x + w / 2, labelY, { align: "center" });
+    return;
+  }
+
+  const cpf = onlyDigits(input.dentistCpf);
+  const fullId = cpf || "";
+  const nameUpper = (input.dentistName || "").trim().toUpperCase();
+  const identity = fullId ? `${nameUpper}:${fullId}` : nameUpper;
+  const stampTime = formatIcpTimestamp(input.signedAt);
+
+  // Marca d’água à direita
+  drawSignatureWatermark(doc, x + w * 0.35, y + 1, w * 0.6, h * 0.55);
+
+  // Nome:CPF à esquerda (grande)
+  const leftW = w * 0.48;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.2);
+  doc.setTextColor(0, 0, 0);
+  const idLines = doc.splitTextToSize(identity, leftW - 1) as string[];
+  let ty = y + 5;
+  for (const line of idLines.slice(0, 3)) {
+    doc.text(line, x + 1.5, ty);
+    ty += 3.4;
+  }
+
+  // Texto “Assinado de forma digital…” à direita
+  const rightX = x + w * 0.48;
+  const rightW = w * 0.5;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(4.6);
+  doc.setTextColor(40, 40, 40);
+  const meta = [
+    `Assinado de forma digital por ${nameUpper}${fullId ? `:${fullId}` : ""}`,
+    `Dados: ${stampTime}`,
+  ];
+  // Quebra a 1ª linha se necessário
+  const metaLines = doc.splitTextToSize(meta[0], rightW) as string[];
+  let my = y + 4.5;
+  for (const line of metaLines.slice(0, 2)) {
+    doc.text(line, rightX, my);
+    my += 2.8;
+  }
+  doc.text(meta[1], rightX, my);
+
+  doc.setTextColor(0, 0, 0);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(5.4);
+  doc.text(label, x + w / 2, labelY, { align: "center" });
+}
+
+/**
+ * Receituário de Controle Especial Odontológico — 2 páginas A4.
  */
 export function buildControleEspecialPdfBytes(
   input: ControleEspecialPdfInput
@@ -252,52 +397,40 @@ export function buildControleEspecialPdfBytes(
   const dateOnly =
     input.issuedDateOnly ||
     (input.issuedAt.match(/\d{2}\/\d{2}\/\d{4}/)?.[0] ?? "");
+  const digitallySigned = input.digitallySigned !== false;
 
   // ========== PÁGINA 1 ==========
-  let y = 8;
+  let y = 7;
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(12.2);
+  doc.setFontSize(11.5);
   doc.setTextColor(0, 0, 0);
-  doc.text("RECEITUÁRIO DE CONTROLE ESPECIAL", pageW / 2, y + 9.5, {
+  doc.text("RECEITUÁRIO DE CONTROLE ESPECIAL", pageW / 2 - 8, y + 9, {
     align: "center",
   });
 
-  const viaW = 46;
+  // Caixa VIA DIGITAL (foto 3) — validação gov/ITI
+  const viaW = 48;
+  const viaH = 16;
   const viaX = pageW - m - viaW;
-  doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(0.45);
-  doc.rect(viaX, y + 1, viaW, 15, "S");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.text("VIA DIGITAL", viaX + viaW / 2, y + 5.2, { align: "center" });
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(5);
-  const viaUrl =
-    input.digitalValidationUrl || "https://assinaturadigital.iti.gov.br";
-  const viaLines = doc.splitTextToSize(viaUrl, viaW - 3) as string[];
-  doc.text(viaLines.slice(0, 3), viaX + viaW / 2, y + 8.8, {
-    align: "center",
-  });
+  drawViaDigitalBox(doc, viaX, y, viaW, viaH);
 
   const frameTop = 26;
   const frameBottom = pageH - 8;
-  const frameH = frameBottom - frameTop;
-  doc.setLineWidth(0.55);
-  doc.rect(m, frameTop, contentW, frameH, "S");
+  doc.setLineWidth(0.5);
+  doc.rect(m, frameTop, contentW, frameBottom - frameTop, "S");
 
-  // —— IDENTIFICAÇÃO DO EMITENTE (idêntico ao modelo) ——
   y = drawEmitenteTitle(doc, m, frameTop, contentW);
 
   const emitTop = y;
-  const leftColW = contentW * 0.66;
+  const leftColW = contentW * 0.65;
   const rightColW = contentW - leftColW;
-  const pad = 2.5;
+  const pad = 2.2;
   const lx = m + pad;
   const lw = leftColW - pad * 2;
-  const rowH = 5.8;
-  const gap = 1.6;
-  let ly = y + 3.2;
+  const rowH = 5;
+  const gap = 1.35;
+  let ly = y + 2.8;
 
   // NOME COMPLETO
   ly +=
@@ -308,72 +441,70 @@ export function buildControleEspecialPdfBytes(
       lx,
       ly,
       lw,
-      32,
+      30,
       rowH
     ) + gap;
 
-  // INSCRIÇÃO + UF (mesma linha)
+  // INSCRIÇÃO + UF (UF alinhado à direita)
   {
-    const half = lw * 0.62;
-    grayValueField(
-      doc,
-      "INSCRIÇÃO:",
-      cro.inscricao || "",
-      lx,
-      ly,
-      half,
-      22,
-      rowH
-    );
+    const ufColW = 28;
+    const leftW = lw - ufColW - 3;
+    grayValueField(doc, "INSCRIÇÃO:", cro.inscricao || "", lx, ly, leftW, 20, rowH);
     grayValueField(
       doc,
       "UF:",
       croUf || "",
-      lx + half + 2,
+      lx + leftW + 3,
       ly,
-      lw - half - 2,
+      ufColW,
       8,
       rowH
     );
     ly += rowH + gap;
   }
 
-  // ENDEREÇO COMPLETO (2 faixas cinza)
+  // ENDEREÇO COMPLETO (2 faixas)
   {
+    const labelW = 38;
     const addr = (input.clinicAddress || "").trim();
-    const addrLines = doc.splitTextToSize(addr || " ", lw - 40) as string[];
-    const line1 = addrLines[0] || "";
-    const line2 = addrLines.slice(1).join(" ").trim();
-
+    const addrLines = doc.splitTextToSize(addr || " ", lw - labelW) as string[];
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(7.2);
+    doc.setFontSize(6.8);
     doc.text("ENDEREÇO COMPLETO:", lx, ly + rowH * 0.72);
-    grayBarOnly(doc, line1, lx + 40, ly, lw - 40, rowH);
-    ly += rowH + 0.8;
-    grayBarOnly(doc, line2, lx + 40, ly, lw - 40, rowH);
+    grayBarOnly(doc, addrLines[0] || "", lx + labelW, ly, lw - labelW, rowH);
+    ly += rowH + 0.7;
+    grayBarOnly(
+      doc,
+      addrLines.slice(1).join(" ").trim(),
+      lx + labelW,
+      ly,
+      lw - labelW,
+      rowH
+    );
     ly += rowH + gap;
   }
 
   // CIDADE + UF
   {
-    const half = lw * 0.7;
+    const ufColW = 28;
+    const leftW = lw - ufColW - 3;
     grayValueField(
       doc,
       "CIDADE:",
       input.clinicCity || "",
       lx,
       ly,
-      half,
-      16,
+      leftW,
+      15,
       rowH
     );
     grayValueField(
       doc,
       "UF:",
       input.clinicState || "",
-      lx + half + 2,
+      lx + leftW + 3,
       ly,
-      lw - half - 2,
+      ufColW,
       8,
       rowH
     );
@@ -382,38 +513,43 @@ export function buildControleEspecialPdfBytes(
 
   // TELEFONE + DATA
   {
-    const half = lw * 0.62;
+    const ufColW = 36;
+    const leftW = lw - ufColW - 3;
     grayValueField(
       doc,
       "TELEFONE:",
       input.clinicPhone || "",
       lx,
       ly,
-      half,
-      22,
+      leftW,
+      20,
       rowH
     );
     grayValueField(
       doc,
       "DATA:",
       dateOnly || "",
-      lx + half + 2,
+      lx + leftW + 3,
       ly,
-      lw - half - 2,
+      ufColW,
       12,
       rowH
     );
-    ly += rowH + 3;
+    ly += rowH + 2.5;
   }
 
-  // Coluna direita: logo + assinatura
-  const rx = m + leftColW + 2;
-  const rw = rightColW - 4;
-  const logoY = emitTop + 3.5;
-  const logoH = 32;
+  // —— Coluna direita: logo (cima) + assinatura digital (baixo) ——
+  const rx = m + leftColW;
+  const rw = rightColW;
+  const logoPad = 2;
+  const logoBoxX = rx + logoPad;
+  const logoBoxW = rw - logoPad * 2;
+  const logoY = emitTop + 2.5;
+  const logoH = 30;
+
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.35);
-  doc.rect(rx, logoY, rw, logoH, "S");
+  doc.rect(logoBoxX, logoY, logoBoxW, logoH, "S");
 
   const logoUrl = (input.clinicLogoUrl || "").trim();
   const logoFormat = logoUrl ? detectImageFormat(logoUrl) : null;
@@ -423,9 +559,9 @@ export function buildControleEspecialPdfBytes(
       doc.addImage(
         logoUrl,
         logoFormat,
-        rx + 2.5,
+        logoBoxX + 2,
         logoY + 2,
-        rw - 5,
+        logoBoxW - 4,
         logoH - 4
       );
       logoDrawn = true;
@@ -434,39 +570,26 @@ export function buildControleEspecialPdfBytes(
     }
   }
   if (!logoDrawn) {
-    drawLogoPlaceholder(doc, rx, logoY, rw, logoH);
+    drawLogoPlaceholder(doc, logoBoxX, logoY, logoBoxW, logoH);
   }
 
-  const emitBottom = Math.max(ly + 2, logoY + logoH + 28);
+  const emitBottom = Math.max(ly + 2, logoY + logoH + 26);
   doc.setLineWidth(0.4);
   doc.line(m + leftColW, emitTop, m + leftColW, emitBottom);
   doc.line(m, emitBottom, m + contentW, emitBottom);
 
-  // Assinatura (metade inferior da coluna direita)
-  const sigAreaTop = logoY + logoH;
-  const sigAreaH = emitBottom - sigAreaTop;
-  const sigCy = sigAreaTop + sigAreaH * 0.42;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.setTextColor(0, 0, 0);
-  const nameLines = doc.splitTextToSize(
-    input.dentistName.toUpperCase(),
-    rw - 4
-  ) as string[];
-  doc.text(nameLines.slice(0, 2), rx + rw / 2, sigCy, { align: "center" });
+  // Área de assinatura digital (espaço reservado / carimbo)
+  const sigTop = logoY + logoH + 1;
+  const sigH = emitBottom - sigTop - 1;
+  drawDigitalSignatureBlock(doc, logoBoxX, sigTop, logoBoxW, Math.max(18, sigH), {
+    dentistName: input.dentistName,
+    dentistCpf: input.dentistCpf,
+    signedAt: input.signedAt || input.issuedAt,
+    digitallySigned,
+  });
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(5.6);
-  doc.text(
-    "ASSINATURA DA(O) CIRURGIÃ(O) DENTISTA",
-    rx + rw / 2,
-    emitBottom - 3.2,
-    { align: "center" }
-  );
-
-  // —— Paciente (fora da caixa do emitente, com faixas cinza) ——
-  y = emitBottom + 4.5;
-  const patientLabelW = 34;
+  // —— Paciente ——
+  y = emitBottom + 4;
   y +=
     grayValueField(
       doc,
@@ -475,9 +598,9 @@ export function buildControleEspecialPdfBytes(
       m + 3,
       y,
       contentW - 6,
-      patientLabelW,
-      6.2
-    ) + 2.2;
+      32,
+      5.2
+    ) + 2;
   y +=
     grayValueField(
       doc,
@@ -486,19 +609,18 @@ export function buildControleEspecialPdfBytes(
       m + 3,
       y,
       contentW - 6,
-      40,
-      6.2
-    ) + 3.5;
+      38,
+      5.2
+    ) + 3;
 
-  // Prescrição
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
+  doc.setFontSize(7.2);
   doc.setTextColor(0, 0, 0);
   doc.text("PRESCRIÇÃO:", m + 3, y);
-  y += 2;
+  y += 1.8;
   const prescTop = y;
   const buyerH = 82;
-  const prescH = Math.max(50, frameBottom - buyerH - prescTop);
+  const prescH = Math.max(48, frameBottom - buyerH - prescTop);
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(LINE);
   doc.rect(m + 2.5, prescTop, contentW - 5, prescH, "S");
@@ -530,7 +652,6 @@ export function buildControleEspecialPdfBytes(
   doc.line(m, y, m + contentW, y);
   doc.line(m + half, y, m + half, frameBottom);
 
-  // —— Comprador ——
   let by = drawHeaderBar(doc, "IDENTIFICAÇÃO DO COMPRADOR", m, y, half);
   by += 5;
   const bx = m + 3;
@@ -556,7 +677,6 @@ export function buildControleEspecialPdfBytes(
 
   by += emptyLineField(doc, "TELEFONE:", bx, by, bw, 22);
 
-  // —— Fornecedor ——
   let fy = drawHeaderBar(
     doc,
     "IDENTIFICAÇÃO DO FORNECEDOR",
