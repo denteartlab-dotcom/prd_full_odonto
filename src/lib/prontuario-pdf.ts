@@ -213,7 +213,7 @@ export function buildProntuarioPdfBytes(input: {
       y += 6;
     }
 
-    y += drawText([`Atendimento ${index + 1}`], margin, y, {
+    y += drawText(["Atendimento"], margin, y, {
       size: 11,
       bold: true,
       lineH: 5,
@@ -232,13 +232,6 @@ export function buildProntuarioPdfBytes(input: {
       lineH: 4.2,
     });
     y += 4;
-
-    y += drawText(["O que foi feito"], margin, y, {
-      size: 10,
-      bold: true,
-      lineH: 4.5,
-    });
-    y += 2;
 
     const text = atendimentoText(e);
     const bodyRows = wrap(doc, text, contentW - 4, 10);

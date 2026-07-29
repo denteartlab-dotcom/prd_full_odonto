@@ -3,10 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PatientProfile } from "@/lib/patient-profile-types";
 import { filterEvolucoes } from "@/lib/prontuario-mock";
-import {
-  buildProntuarioPdfBytes,
-  prontuarioPdfFilename,
-} from "@/lib/prontuario-pdf";
+import { buildProntuarioPdfBytes } from "@/lib/prontuario-pdf";
 import type {
   EvolucaoClinica,
   NovaEvolucaoForm,
@@ -15,7 +12,6 @@ import type {
 } from "@/lib/prontuario-types";
 import { formToEvolucao, NovaEvolucaoDrawer } from "./NovaEvolucaoDrawer";
 import { ProntuarioDetail } from "./ProntuarioDetail";
-import { ProntuarioPdfViewerModal } from "./ProntuarioPdfViewerModal";
 import { ProntuarioSidebar } from "./ProntuarioSidebar";
 import { ProntuarioTimeline } from "./ProntuarioTimeline";
 
@@ -80,12 +76,8 @@ export function PatientProntuarioTab({
   const [autosaveHint, setAutosaveHint] = useState("");
   const [toast, setToast] = useState("");
   const [printIds, setPrintIds] = useState<string[]>([]);
-  const [pdfOpen, setPdfOpen] = useState(false);
-  const [pdfLoading, setPdfLoading] = useState(false);
-  const [pdfError, setPdfError] = useState("");
-  const [pdfUrl, setPdfUrl] = useState("");
-  const [pdfName, setPdfName] = useState("prontuario.pdf");
-  const pdfUrlRef = useRef("");
+  const [printing, setPrinting] = useState(false);
+  const pdfUrlsRef = useRef<string[]>([]);
 
   useEffect(() => {
     const loaded = loadEvolucoes(patient.id);
@@ -101,7 +93,8 @@ export function PatientProntuarioTab({
 
   useEffect(() => {
     return () => {
-      if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
+      pdfUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      pdfUrlsRef.current = [];
     };
   }, []);
 
@@ -170,7 +163,6 @@ export function PatientProntuarioTab({
       .map((id) => items.find((e) => e.id === id))
       .filter((e): e is EvolucaoClinica => Boolean(e));
 
-    // Mantém ordem da timeline (já filtrada/ordenada)
     const ordered = filtered.filter((e) => evolucoes.some((x) => x.id === e.id));
     const toPrint = ordered.length ? ordered : evolucoes;
 
@@ -179,10 +171,8 @@ export function PatientProntuarioTab({
       return;
     }
 
-    setPdfOpen(true);
-    setPdfLoading(true);
-    setPdfError("");
-    setToast("");
+    setPrinting(true);
+    setToast("Gerando PDF...");
 
     try {
       const res = await fetch("/api/clinic-settings", { cache: "no-store" });
@@ -221,19 +211,26 @@ export function PatientProntuarioTab({
 
       const blob = new Blob([Uint8Array.from(bytes)], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
-      const previous = pdfUrlRef.current;
-      pdfUrlRef.current = url;
-      setPdfUrl(url);
-      setPdfName(
-        prontuarioPdfFilename(patient.name, toPrint[0]?.date || "atendimentos")
-      );
-      if (previous) URL.revokeObjectURL(previous);
+      pdfUrlsRef.current.push(url);
+
+      const opened = window.open(url, "_blank", "noopener,noreferrer");
+      if (!opened) {
+        setToast("Permita pop-ups para abrir o PDF em nova aba.");
+      } else {
+        setToast("PDF aberto em nova aba.");
+      }
+
+      window.setTimeout(() => {
+        const idx = pdfUrlsRef.current.indexOf(url);
+        if (idx >= 0) pdfUrlsRef.current.splice(idx, 1);
+        URL.revokeObjectURL(url);
+      }, 120_000);
     } catch (err) {
-      setPdfError(
+      setToast(
         err instanceof Error ? err.message : "Não foi possível gerar o PDF do prontuário."
       );
     } finally {
-      setPdfLoading(false);
+      setPrinting(false);
     }
   }
 
@@ -241,16 +238,6 @@ export function PatientProntuarioTab({
     setPrintIds((list) =>
       list.includes(id) ? list.filter((x) => x !== id) : [...list, id]
     );
-  }
-
-  function closePdf() {
-    setPdfOpen(false);
-    setPdfError("");
-    if (pdfUrlRef.current) {
-      URL.revokeObjectURL(pdfUrlRef.current);
-      pdfUrlRef.current = "";
-    }
-    setPdfUrl("");
   }
 
   if (!hydrated) {
@@ -314,15 +301,6 @@ export function PatientProntuarioTab({
         onClose={() => setDrawerOpen(false)}
         profissionalDefault={userName || "Dr(a). Responsável"}
         onSave={handleSaveNova}
-      />
-
-      <ProntuarioPdfViewerModal
-        open={pdfOpen}
-        onClose={closePdf}
-        pdfUrl={pdfUrl}
-        fileName={pdfName}
-        loading={pdfLoading}
-        error={pdfError}
       />
     </div>
   );
