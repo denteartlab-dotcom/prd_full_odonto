@@ -12,6 +12,11 @@ import {
   type ClinicUserRole,
 } from "@/lib/clinic-user-permissions";
 import { cn } from "@/lib/utils";
+import {
+  formatDecimalBr,
+  maskDecimalBr,
+  parseDecimalBr,
+} from "@/lib/masks";
 import { Field, SectionCard, TextInput, TextSelect } from "./clinic-data-ui";
 import {
   COMMISSION_BASES,
@@ -44,9 +49,17 @@ const emptyForm = (): FormState => ({
   permissions: [...ROLE_DEFAULT_PERMISSIONS.recepcao],
   commissionEnabled: false,
   commissionMode: "percent",
-  commissionValue: "0",
+  commissionValue: "0,00",
   commissionBase: "procedimento",
 });
+
+function commissionValueMax(mode: CommissionMode) {
+  return mode === "percent" ? 100 : undefined;
+}
+
+function maskCommissionValue(raw: string, mode: CommissionMode) {
+  return maskDecimalBr(raw, commissionValueMax(mode));
+}
 
 function ensureBaseModule(
   permissions: string[],
@@ -125,7 +138,7 @@ export function ClinicUsersTab() {
             [],
       commissionEnabled: Boolean(user.commissionEnabled),
       commissionMode: parseCommissionMode(user.commissionMode),
-      commissionValue: String(user.commissionValue ?? 0),
+      commissionValue: formatDecimalBr(Number(user.commissionValue) || 0),
       commissionBase: parseCommissionBase(user.commissionBase),
     });
     setFormOpen(true);
@@ -162,7 +175,7 @@ export function ClinicUsersTab() {
         permissions: form.permissions,
         commissionEnabled: form.commissionEnabled,
         commissionMode: form.commissionMode,
-        commissionValue: Number(form.commissionValue) || 0,
+        commissionValue: parseDecimalBr(form.commissionValue),
         commissionBase: form.commissionBase,
         ...(form.password ? { password: form.password } : {}),
       };
@@ -267,8 +280,8 @@ export function ClinicUsersTab() {
                       {user.commissionEnabled
                         ? `${
                             parseCommissionMode(user.commissionMode) === "fixed"
-                              ? `R$ ${Number(user.commissionValue || 0).toFixed(2)}`
-                              : `${user.commissionValue}%`
+                              ? `R$ ${formatDecimalBr(Number(user.commissionValue || 0))}`
+                              : `${formatDecimalBr(Number(user.commissionValue || 0))}%`
                           } · ${
                             COMMISSION_BASES.find(
                               (b) => b.value === parseCommissionBase(user.commissionBase)
@@ -415,12 +428,17 @@ export function ClinicUsersTab() {
                   <Field label="Tipo de cálculo" required>
                     <TextSelect
                       value={form.commissionMode}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const commissionMode = parseCommissionMode(e.target.value);
                         setForm((f) => ({
                           ...f,
-                          commissionMode: parseCommissionMode(e.target.value),
-                        }))
-                      }
+                          commissionMode,
+                          commissionValue: maskCommissionValue(
+                            f.commissionValue,
+                            commissionMode
+                          ),
+                        }));
+                      }}
                     >
                       {COMMISSION_MODES.map((m) => (
                         <option key={m.value} value={m.value}>
@@ -437,20 +455,22 @@ export function ClinicUsersTab() {
                     }
                     hint={
                       form.commissionMode === "fixed"
-                        ? "Valor creditado a cada evento (procedimento ou fechamento)."
-                        : "Ex.: 30 = 30% sobre a base escolhida abaixo."
+                        ? "Ex.: digite 15000 → R$ 150,00 por evento."
+                        : "Ex.: digite 3000 → 30,00% sobre a base escolhida."
                     }
                   >
                     <TextInput
-                      type="number"
-                      min={0}
-                      max={form.commissionMode === "percent" ? 100 : undefined}
-                      step="0.01"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="0,00"
                       value={form.commissionValue}
                       onChange={(e) =>
                         setForm((f) => ({
                           ...f,
-                          commissionValue: e.target.value,
+                          commissionValue: maskCommissionValue(
+                            e.target.value,
+                            f.commissionMode
+                          ),
                         }))
                       }
                     />

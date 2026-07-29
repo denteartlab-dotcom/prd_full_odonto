@@ -54,3 +54,30 @@ export function maskDateBr(value: string) {
     .replace(/^(\d{2})(\d)/, "$1/$2")
     .replace(/^(\d{2})\/(\d{2})(\d)/, "$1/$2/$3");
 }
+
+/** Máscara automática estilo dinheiro/porcentagem: 0,00 */
+export function maskDecimalBr(value: string, max?: number) {
+  const digits = onlyDigits(value).replace(/^0+/, "") || "0";
+  let cents = Number(digits);
+  if (!Number.isFinite(cents)) cents = 0;
+  let amount = cents / 100;
+  if (max != null && amount > max) amount = max;
+  return amount.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+export function formatDecimalBr(value: number) {
+  const n = Number.isFinite(value) ? value : 0;
+  return n.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+export function parseDecimalBr(value: string) {
+  const cleaned = value.trim().replace(/\./g, "").replace(",", ".");
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : 0;
+}
