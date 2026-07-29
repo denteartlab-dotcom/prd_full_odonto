@@ -20,7 +20,7 @@ export type ControleEspecialPdfInput = {
 };
 
 const HDR_FILL: [number, number, number] = [196, 196, 196];
-const FIELD_FILL: [number, number, number] = [230, 230, 230];
+const FIELD_FILL: [number, number, number] = [238, 238, 238];
 const LINE = 0.35;
 
 function detectImageFormat(dataUrl: string): "PNG" | "JPEG" | null {
@@ -70,7 +70,79 @@ function drawHeaderBar(
   return y + h;
 }
 
-/** Rótulo + linha de preenchimento (formulário clássico). */
+/** Título da seção emitente — caixa com borda, fundo branco (como no modelo). */
+function drawEmitenteTitle(doc: jsPDF, x: number, y: number, w: number) {
+  const h = 7.2;
+  doc.setFillColor(255, 255, 255);
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.45);
+  doc.rect(x, y, w, h, "FD");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(0, 0, 0);
+  doc.text("IDENTIFICAÇÃO DO EMITENTE", x + w / 2, y + 4.9, {
+    align: "center",
+  });
+  return y + h;
+}
+
+/**
+ * Campo no estilo oficial: rótulo + faixa cinza com valor na mesma linha.
+ * Retorna a altura usada.
+ */
+function grayValueField(
+  doc: jsPDF,
+  label: string,
+  value: string,
+  x: number,
+  y: number,
+  totalW: number,
+  labelW: number,
+  rowH = 5.6
+) {
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.2);
+  doc.setTextColor(0, 0, 0);
+  doc.text(label, x, y + rowH * 0.72);
+
+  const boxX = x + labelW;
+  const boxW = Math.max(4, totalW - labelW);
+  doc.setFillColor(...FIELD_FILL);
+  doc.setDrawColor(...FIELD_FILL);
+  doc.rect(boxX, y, boxW, rowH, "F");
+
+  if (value?.trim()) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.2);
+    doc.setTextColor(0, 0, 0);
+    const lines = doc.splitTextToSize(value, boxW - 2) as string[];
+    doc.text(lines[0] || "", boxX + 1.2, y + rowH * 0.72);
+  }
+  return rowH;
+}
+
+/** Faixa cinza sem rótulo (continuação de endereço). */
+function grayBarOnly(
+  doc: jsPDF,
+  value: string,
+  x: number,
+  y: number,
+  w: number,
+  rowH = 5.6
+) {
+  doc.setFillColor(...FIELD_FILL);
+  doc.rect(x, y, w, rowH, "F");
+  if (value?.trim()) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.2);
+    doc.setTextColor(0, 0, 0);
+    const lines = doc.splitTextToSize(value, w - 2) as string[];
+    doc.text(lines[0] || "", x + 1.2, y + rowH * 0.72);
+  }
+  return rowH;
+}
+
+/** Rótulo + linha de preenchimento (comprador / fornecedor). */
 function labelLine(
   doc: jsPDF,
   label: string,
@@ -96,7 +168,7 @@ function labelLine(
   return 5.8;
 }
 
-/** Rótulo acima + faixa cinza (paciente / farmácia). */
+/** Rótulo acima + faixa cinza (página 2 farmácia). */
 function shadedInput(
   doc: jsPDF,
   label: string,
@@ -134,6 +206,33 @@ function emptyLineField(
   labelW: number
 ) {
   return labelLine(doc, label, "", x, y, w, labelW);
+}
+
+function drawLogoPlaceholder(
+  doc: jsPDF,
+  x: number,
+  y: number,
+  w: number,
+  h: number
+) {
+  // ícone genérico de imagem
+  const ix = x + w / 2;
+  const iy = y + h / 2 - 4;
+  doc.setDrawColor(160, 160, 160);
+  doc.setLineWidth(0.35);
+  doc.roundedRect(ix - 6, iy - 4.5, 12, 9, 0.8, 0.8, "S");
+  doc.circle(ix - 2.5, iy - 1.5, 1.1, "S");
+  doc.setLineWidth(0.3);
+  doc.line(ix - 5, iy + 3, ix - 1, iy + 0.5);
+  doc.line(ix - 1, iy + 0.5, ix + 1.5, iy + 2);
+  doc.line(ix + 1.5, iy + 2, ix + 5, iy - 0.5);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(5.8);
+  doc.setTextColor(90, 90, 90);
+  doc.text("Logo do local de", ix, y + h / 2 + 6, { align: "center" });
+  doc.text("atendimento (imagem)", ix, y + h / 2 + 9, { align: "center" });
+  doc.setTextColor(0, 0, 0);
 }
 
 /**
@@ -181,98 +280,139 @@ export function buildControleEspecialPdfBytes(
     align: "center",
   });
 
-  // Moldura externa da página
   const frameTop = 26;
   const frameBottom = pageH - 8;
   const frameH = frameBottom - frameTop;
   doc.setLineWidth(0.55);
   doc.rect(m, frameTop, contentW, frameH, "S");
 
-  y = drawHeaderBar(
-    doc,
-    "IDENTIFICAÇÃO DO EMITENTE",
-    m,
-    frameTop,
-    contentW
-  );
+  // —— IDENTIFICAÇÃO DO EMITENTE (idêntico ao modelo) ——
+  y = drawEmitenteTitle(doc, m, frameTop, contentW);
 
   const emitTop = y;
-  const leftColW = contentW * 0.63;
+  const leftColW = contentW * 0.66;
   const rightColW = contentW - leftColW;
-  const lx = m + 3;
-  const lw = leftColW - 6;
-  let ly = y + 6;
+  const pad = 2.5;
+  const lx = m + pad;
+  const lw = leftColW - pad * 2;
+  const rowH = 5.8;
+  const gap = 1.6;
+  let ly = y + 3.2;
 
-  ly += labelLine(doc, "NOME COMPLETO:", input.dentistName, lx, ly, lw, 30);
-  ly += 1.8;
+  // NOME COMPLETO
+  ly +=
+    grayValueField(
+      doc,
+      "NOME COMPLETO:",
+      input.dentistName,
+      lx,
+      ly,
+      lw,
+      32,
+      rowH
+    ) + gap;
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7);
-  doc.text("INSCRIÇÃO:", lx, ly);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
-  doc.text(cro.inscricao || "—", lx + 22, ly);
-  doc.setLineWidth(0.25);
-  doc.line(lx + 22, ly + 1.15, lx + 58, ly + 1.15);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7);
-  doc.text("UF:", lx + 62, ly);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
-  doc.text(croUf || "—", lx + 70, ly);
-  doc.line(lx + 70, ly + 1.15, lx + lw, ly + 1.15);
-  ly += 7.2;
+  // INSCRIÇÃO + UF (mesma linha)
+  {
+    const half = lw * 0.62;
+    grayValueField(
+      doc,
+      "INSCRIÇÃO:",
+      cro.inscricao || "",
+      lx,
+      ly,
+      half,
+      22,
+      rowH
+    );
+    grayValueField(
+      doc,
+      "UF:",
+      croUf || "",
+      lx + half + 2,
+      ly,
+      lw - half - 2,
+      8,
+      rowH
+    );
+    ly += rowH + gap;
+  }
 
-  ly += labelLine(
-    doc,
-    "ENDEREÇO COMPLETO:",
-    input.clinicAddress || "",
-    lx,
-    ly,
-    lw,
-    38
-  );
-  ly += 1.8;
+  // ENDEREÇO COMPLETO (2 faixas cinza)
+  {
+    const addr = (input.clinicAddress || "").trim();
+    const addrLines = doc.splitTextToSize(addr || " ", lw - 40) as string[];
+    const line1 = addrLines[0] || "";
+    const line2 = addrLines.slice(1).join(" ").trim();
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7);
-  doc.text("CIDADE:", lx, ly);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
-  doc.text(input.clinicCity || "", lx + 16, ly);
-  doc.line(lx + 16, ly + 1.15, lx + 78, ly + 1.15);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7);
-  doc.text("UF:", lx + 82, ly);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
-  doc.text(input.clinicState || "", lx + 90, ly);
-  doc.line(lx + 90, ly + 1.15, lx + lw, ly + 1.15);
-  ly += 7.2;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.2);
+    doc.text("ENDEREÇO COMPLETO:", lx, ly + rowH * 0.72);
+    grayBarOnly(doc, line1, lx + 40, ly, lw - 40, rowH);
+    ly += rowH + 0.8;
+    grayBarOnly(doc, line2, lx + 40, ly, lw - 40, rowH);
+    ly += rowH + gap;
+  }
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7);
-  doc.text("TELEFONE:", lx, ly);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
-  doc.text(input.clinicPhone || "", lx + 20, ly);
-  doc.line(lx + 20, ly + 1.15, lx + 78, ly + 1.15);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7);
-  doc.text("DATA:", lx + 82, ly);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
-  doc.text(dateOnly || "", lx + 94, ly);
-  doc.line(lx + 94, ly + 1.15, lx + lw, ly + 1.15);
-  ly += 5;
+  // CIDADE + UF
+  {
+    const half = lw * 0.7;
+    grayValueField(
+      doc,
+      "CIDADE:",
+      input.clinicCity || "",
+      lx,
+      ly,
+      half,
+      16,
+      rowH
+    );
+    grayValueField(
+      doc,
+      "UF:",
+      input.clinicState || "",
+      lx + half + 2,
+      ly,
+      lw - half - 2,
+      8,
+      rowH
+    );
+    ly += rowH + gap;
+  }
+
+  // TELEFONE + DATA
+  {
+    const half = lw * 0.62;
+    grayValueField(
+      doc,
+      "TELEFONE:",
+      input.clinicPhone || "",
+      lx,
+      ly,
+      half,
+      22,
+      rowH
+    );
+    grayValueField(
+      doc,
+      "DATA:",
+      dateOnly || "",
+      lx + half + 2,
+      ly,
+      lw - half - 2,
+      12,
+      rowH
+    );
+    ly += rowH + 3;
+  }
 
   // Coluna direita: logo + assinatura
   const rx = m + leftColW + 2;
-  const rw = rightColW - 5;
-  const logoY = emitTop + 3;
-  const logoH = 28;
+  const rw = rightColW - 4;
+  const logoY = emitTop + 3.5;
+  const logoH = 32;
   doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(0.3);
+  doc.setLineWidth(0.35);
   doc.rect(rx, logoY, rw, logoH, "S");
 
   const logoUrl = (input.clinicLogoUrl || "").trim();
@@ -280,75 +420,82 @@ export function buildControleEspecialPdfBytes(
   let logoDrawn = false;
   if (logoFormat && logoUrl) {
     try {
-      doc.addImage(logoUrl, logoFormat, rx + 3, logoY + 2.5, rw - 6, logoH - 5);
+      doc.addImage(
+        logoUrl,
+        logoFormat,
+        rx + 2.5,
+        logoY + 2,
+        rw - 5,
+        logoH - 4
+      );
       logoDrawn = true;
     } catch {
       logoDrawn = false;
     }
   }
   if (!logoDrawn) {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(6);
-    doc.setTextColor(100, 100, 100);
-    doc.text("Logo do local de", rx + rw / 2, logoY + 12, { align: "center" });
-    doc.text("atendimento (imagem)", rx + rw / 2, logoY + 15.5, {
-      align: "center",
-    });
-    doc.setTextColor(0, 0, 0);
+    drawLogoPlaceholder(doc, rx, logoY, rw, logoH);
   }
 
-  const sigLineY = logoY + logoH + 14;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(6.8);
-  doc.setTextColor(0, 0, 0);
-  const nameLines = doc.splitTextToSize(input.dentistName, rw - 2) as string[];
-  doc.text(nameLines.slice(0, 2), rx + rw / 2, sigLineY - 3.5, {
-    align: "center",
-  });
-  doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(0.3);
-  doc.line(rx + 1, sigLineY, rx + rw - 1, sigLineY);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(5.4);
-  doc.text(
-    "ASSINATURA DO(A) CIRURGIÃO(Ã) DENTISTA",
-    rx + rw / 2,
-    sigLineY + 3.8,
-    { align: "center" }
-  );
-
-  const emitBottom = Math.max(ly + 4, sigLineY + 8);
-  doc.setLineWidth(LINE);
+  const emitBottom = Math.max(ly + 2, logoY + logoH + 28);
+  doc.setLineWidth(0.4);
   doc.line(m + leftColW, emitTop, m + leftColW, emitBottom);
   doc.line(m, emitBottom, m + contentW, emitBottom);
 
-  // Paciente
-  y = emitBottom + 5;
-  y = shadedInput(
-    doc,
-    "NOME PACIENTE:",
-    input.patientName,
-    m + 3,
-    y,
-    contentW - 6,
-    7
+  // Assinatura (metade inferior da coluna direita)
+  const sigAreaTop = logoY + logoH;
+  const sigAreaH = emitBottom - sigAreaTop;
+  const sigCy = sigAreaTop + sigAreaH * 0.42;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  doc.setTextColor(0, 0, 0);
+  const nameLines = doc.splitTextToSize(
+    input.dentistName.toUpperCase(),
+    rw - 4
+  ) as string[];
+  doc.text(nameLines.slice(0, 2), rx + rw / 2, sigCy, { align: "center" });
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(5.6);
+  doc.text(
+    "ASSINATURA DA(O) CIRURGIÃ(O) DENTISTA",
+    rx + rw / 2,
+    emitBottom - 3.2,
+    { align: "center" }
   );
-  y = shadedInput(
-    doc,
-    "ENDEREÇO COMPLETO:",
-    input.patientAddress || "",
-    m + 3,
-    y,
-    contentW - 6,
-    7
-  );
-  y += 1;
+
+  // —— Paciente (fora da caixa do emitente, com faixas cinza) ——
+  y = emitBottom + 4.5;
+  const patientLabelW = 34;
+  y +=
+    grayValueField(
+      doc,
+      "NOME PACIENTE:",
+      input.patientName,
+      m + 3,
+      y,
+      contentW - 6,
+      patientLabelW,
+      6.2
+    ) + 2.2;
+  y +=
+    grayValueField(
+      doc,
+      "ENDEREÇO COMPLETO:",
+      input.patientAddress || "",
+      m + 3,
+      y,
+      contentW - 6,
+      40,
+      6.2
+    ) + 3.5;
 
   // Prescrição
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
+  doc.setTextColor(0, 0, 0);
   doc.text("PRESCRIÇÃO:", m + 3, y);
-  y += 1.5;
+  y += 2;
   const prescTop = y;
   const buyerH = 82;
   const prescH = Math.max(50, frameBottom - buyerH - prescTop);
