@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Check, Loader2, X } from "lucide-react";
 import { EVOLUCAO_TEMPLATES } from "@/lib/prontuario-mock";
 import {
@@ -47,6 +48,11 @@ export function NovaEvolucaoDrawer({
     emptyNovaEvolucaoForm(profissionalDefault)
   );
   const [saving, setSaving] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -94,16 +100,16 @@ export function NovaEvolucaoDrawer({
     onClose();
   }
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
-    <div className="fixed inset-0 z-[90] flex items-stretch justify-center bg-slate-900/55 p-0 sm:items-center sm:p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[80] flex items-stretch justify-center bg-slate-900/55 p-0 sm:items-center sm:p-4">
       <div className="absolute inset-0" onClick={onClose} aria-hidden />
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="nova-evolucao-title"
-        className="relative z-[95] flex h-[100dvh] w-full max-w-[1100px] flex-col overflow-hidden bg-white shadow-2xl sm:h-[min(92vh,900px)] sm:rounded-2xl"
+        className="relative z-[85] flex h-[100dvh] w-full max-w-[1400px] flex-col overflow-hidden bg-white shadow-2xl sm:h-[min(92vh,960px)] sm:rounded-2xl"
       >
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 px-4 py-4 sm:px-6">
           <div>
@@ -116,9 +122,6 @@ export function NovaEvolucaoDrawer({
             >
               Nova Evolução
             </h2>
-            <p className="mt-0.5 text-sm text-slate-500">
-              Registro clínico vinculado ao paciente
-            </p>
           </div>
           <button
             type="button"
@@ -319,7 +322,8 @@ export function NovaEvolucaoDrawer({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
