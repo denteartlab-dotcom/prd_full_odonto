@@ -3,8 +3,53 @@
 import { Plus, Search, Trash2 } from "lucide-react";
 import { money } from "@/lib/utils";
 import type { BudgetProcedure } from "@/lib/budget-types";
+import { parseToothNumbers } from "@/lib/budget-tooth-utils";
 import { FieldLabel, SectionCard, TextInput } from "./shared";
 import { ProcedureSearch } from "./ProcedureSearch";
+
+function ToothField({
+  value,
+  editable,
+  onChange,
+}: {
+  value?: string;
+  editable?: boolean;
+  onChange?: (v: string) => void;
+}) {
+  const teeth = parseToothNumbers(value);
+  const rows = Math.min(
+    4,
+    Math.max(1, Math.ceil(Math.max(teeth.length, (value || "").length) / 8))
+  );
+
+  return (
+    <div className="min-w-[7rem] max-w-[11rem]">
+      {teeth.length > 0 ? (
+        <div className="mb-1 flex flex-wrap gap-1">
+          {teeth.map((n) => (
+            <span
+              key={n}
+              className="inline-flex rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-slate-700"
+            >
+              {n}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {editable && onChange ? (
+        <textarea
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          rows={rows}
+          placeholder="—"
+          className="w-full resize-y rounded-lg border border-slate-200 px-2 py-1.5 text-xs leading-relaxed text-slate-700 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/15"
+        />
+      ) : !teeth.length ? (
+        <span className="text-slate-400">—</span>
+      ) : null}
+    </div>
+  );
+}
 
 export function BudgetProceduresTable({
   procedures,
@@ -54,29 +99,29 @@ export function BudgetProceduresTable({
           <tbody>
             {procedures.length === 0 ? (
               <tr>
-                <td colSpan={editable ? 9 : 8} className="py-6 text-center text-slate-400">
+                <td
+                  colSpan={editable ? 9 : 8}
+                  className="py-6 text-center text-slate-400"
+                >
                   Nenhum procedimento adicionado.
                 </td>
               </tr>
             ) : (
               procedures.map((p) => (
-                <tr key={p.id} className="border-b border-slate-50">
-                  <td className="py-2.5 pr-3 font-mono text-xs text-slate-500">{p.code}</td>
+                <tr key={p.id} className="border-b border-slate-50 align-top">
+                  <td className="py-2.5 pr-3 font-mono text-xs text-slate-500">
+                    {p.code}
+                  </td>
                   <td className="py-2.5 pr-3">
                     <p className="font-medium text-slate-800">{p.name}</p>
                     <p className="text-[10px] text-slate-400">{p.category}</p>
                   </td>
                   <td className="py-2.5 pr-3">
-                    {editable && onChange ? (
-                      <TextInput
-                        value={p.tooth ?? ""}
-                        onChange={(v) => onChange(p.id, { tooth: v })}
-                        className="!py-1.5 !text-xs w-16"
-                        placeholder="—"
-                      />
-                    ) : (
-                      <span className="text-slate-600">{p.tooth || "—"}</span>
-                    )}
+                    <ToothField
+                      value={p.tooth}
+                      editable={Boolean(editable && onChange)}
+                      onChange={(v) => onChange?.(p.id, { tooth: v })}
+                    />
                   </td>
                   <td className="py-2.5 pr-3">
                     {editable && onChange ? (
@@ -95,7 +140,11 @@ export function BudgetProceduresTable({
                       <TextInput
                         type="number"
                         value={p.quantity}
-                        onChange={(v) => onChange(p.id, { quantity: Math.max(1, parseInt(v) || 1) })}
+                        onChange={(v) =>
+                          onChange(p.id, {
+                            quantity: Math.max(1, parseInt(v) || 1),
+                          })
+                        }
                         className="!py-1.5 !text-xs w-16"
                       />
                     ) : (
@@ -110,7 +159,11 @@ export function BudgetProceduresTable({
                       <TextInput
                         type="number"
                         value={p.discount}
-                        onChange={(v) => onChange(p.id, { discount: Math.max(0, parseFloat(v) || 0) })}
+                        onChange={(v) =>
+                          onChange(p.id, {
+                            discount: Math.max(0, parseFloat(v) || 0),
+                          })
+                        }
                         className="!py-1.5 !text-xs w-20"
                       />
                     ) : (

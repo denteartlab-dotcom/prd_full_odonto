@@ -151,6 +151,8 @@ export function BudgetFormDrawer({
           {editable && (
             <BudgetProcedureBuilder
               onAdd={onAddProcedure}
+              onUpdate={onUpdateProcedure}
+              onRemove={onRemoveProcedure}
               existingProcedures={budget.procedures}
             />
           )}

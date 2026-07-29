@@ -4,7 +4,12 @@ import { useMemo, useState } from "react";
 import { Check, X } from "lucide-react";
 import { cn, money } from "@/lib/utils";
 import type { BudgetProcedure, ProcedureCatalogItem } from "@/lib/budget-types";
-import { catalogToProcedure } from "@/lib/budget-mock";
+import { catalogToProcedure, calcProcedureFinal } from "@/lib/budget-mock";
+import {
+  formatToothNumbers,
+  isSameUngroupedProcedure,
+  parseToothNumbers,
+} from "@/lib/budget-tooth-utils";
 import { OdontogramChart } from "@/components/odontogram";
 import { ProcedureCatalogList } from "./ProcedureSearch";
 
@@ -19,23 +24,24 @@ const FACE_OPTIONS = [
 
 export function BudgetProcedureBuilder({
   onAdd,
+  onUpdate,
+  onRemove,
   existingProcedures = [],
   className,
 }: {
   onAdd: (procedure: BudgetProcedure) => void;
+  onUpdate: (id: string, patch: Partial<BudgetProcedure>) => void;
+  onRemove?: (id: string) => void;
   existingProcedures?: BudgetProcedure[];
   className?: string;
 }) {
   const [pending, setPending] = useState<ProcedureCatalogItem | null>(null);
   const [faces, setFaces] = useState<string[]>([]);
-  const [sessionTeeth, setSessionTeeth] = useState<number[]>([]);
 
   const selectedTeeth = useMemo(() => {
-    const fromBudget = existingProcedures
-      .map((p) => Number(p.tooth))
-      .filter((n) => Number.isFinite(n) && n > 0);
-    return [...new Set([...fromBudget, ...sessionTeeth])];
-  }, [existingProcedures, sessionTeeth]);
+    const fromBudget = existingProcedures.flatMap((p) => parseToothNumbers(p.tooth));
+    return [...new Set(fromBudget)].sort((a, b) => a - b);
+  }, [existingProcedures]);
 
   const statusByTooth = useMemo(() => new Map(), []);
 
@@ -48,7 +54,7 @@ export function BudgetProcedureBuilder({
       price: procedure.unitPrice,
       estimatedMinutes: procedure.estimatedMinutes ?? 30,
     });
-    setSessionTeeth([]);
+    setFaces([]);
   }
 
   function toggleFace(face: string) {
@@ -57,26 +63,111 @@ export function BudgetProcedureBuilder({
     );
   }
 
+  function findGroupLine() {
+    if (!pending) return undefined;
+    return existingProcedures.find((p) =>
+      isSameUngroupedProcedure(p, pending.code, pending.name)
+    );
+  }
+
+  function removeToothFromGroup(group: BudgetProcedure, tooth: number) {
+    const nextTeeth = parseToothNumbers(group.tooth).filter((n) => n !== tooth);
+    if (nextTeeth.length === 0) {
+      onRemove?.(group.id);
+      return;
+    }
+    const quantity = nextTeeth.length;
+    const patch: Partial<BudgetProcedure> = {
+      tooth: formatToothNumbers(nextTeeth),
+      quantity,
+    };
+    patch.finalValue = calcProcedureFinal({
+      unitPrice: group.unitPrice,
+      quantity,
+      discount: group.discount,
+    });
+    onUpdate(group.id, patch);
+  }
+
   function addWithTooth(tooth: number) {
     if (!pending) return;
+    const faceStr = faces.length ? faces.join("") : "";
+
+    // Com faces → sempre linha separada; limpa faces para o próximo dente
+    if (faceStr) {
+      const group = findGroupLine();
+      if (group && parseToothNumbers(group.tooth).includes(tooth)) {
+        removeToothFromGroup(group, tooth);
+      }
+
+      const alreadyFaced = existingProcedures.find(
+        (p) =>
+          p.code === pending.code &&
+          p.name === pending.name &&
+          parseToothNumbers(p.tooth).includes(tooth) &&
+          (p.face || "") === faceStr
+      );
+      if (alreadyFaced) {
+        setFaces([]);
+        return;
+      }
+
+      const row = catalogToProcedure(pending);
+      row.tooth = String(tooth);
+      row.face = faceStr;
+      row.quantity = 1;
+      row.finalValue = calcProcedureFinal(row);
+      onAdd(row);
+      setFaces([]);
+      return;
+    }
+
+    // Sem faces → uma linha só, somando dentes/quantidade
+    const group = findGroupLine();
+    if (group) {
+      const teeth = parseToothNumbers(group.tooth);
+      if (teeth.includes(tooth)) {
+        setFaces([]);
+        return;
+      }
+      const nextTeeth = [...teeth, tooth];
+      const quantity = nextTeeth.length;
+      onUpdate(group.id, {
+        tooth: formatToothNumbers(nextTeeth),
+        quantity,
+        finalValue: calcProcedureFinal({
+          unitPrice: group.unitPrice,
+          quantity,
+          discount: group.discount,
+        }),
+      });
+      setFaces([]);
+      return;
+    }
+
     const row = catalogToProcedure(pending);
     row.tooth = String(tooth);
-    row.face = faces.length ? faces.join("") : undefined;
+    row.quantity = 1;
+    row.face = undefined;
+    row.finalValue = calcProcedureFinal(row);
     onAdd(row);
-    setSessionTeeth((prev) => (prev.includes(tooth) ? prev : [...prev, tooth]));
+    setFaces([]);
   }
 
   function addWithoutTooth() {
     if (!pending) return;
+    const faceStr = faces.length ? faces.join("") : "";
     const row = catalogToProcedure(pending);
-    row.face = faces.length ? faces.join("") : undefined;
+    row.face = faceStr || undefined;
+    row.quantity = 1;
+    row.finalValue = calcProcedureFinal(row);
     onAdd(row);
+    setFaces([]);
   }
 
   function clearPending() {
     setPending(null);
     setFaces([]);
-    setSessionTeeth([]);
   }
 
   return (
@@ -93,7 +184,7 @@ export function BudgetProcedureBuilder({
               Odontograma — selecione os dentes
             </h3>
             <p className="mt-0.5 text-[11px] text-slate-500">
-              Escolha o procedimento acima e clique nos dentes para incluir no orçamento.
+              Sem face: vários dentes na mesma linha. Com face: cada dente em linha separada.
             </p>
           </div>
           {pending ? (
@@ -117,6 +208,7 @@ export function BudgetProcedureBuilder({
               </p>
               <p className="text-[11px] text-indigo-700/80">
                 {pending.code} · {money(pending.price)}
+                {faces.length ? ` · Faces ${faces.join("")}` : ""}
               </p>
             </div>
             <button
@@ -135,7 +227,7 @@ export function BudgetProcedureBuilder({
 
         <div className="mb-3">
           <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-400">
-            Faces (opcional)
+            Faces (opcional) — limpam ao escolher o próximo dente
           </p>
           <div className="flex flex-wrap gap-1.5">
             {FACE_OPTIONS.map((face) => {
