@@ -23,6 +23,7 @@ type OdontogramChartProps = {
   title?: string;
   interactive?: boolean;
   showLegend?: boolean;
+  showSelectedLabel?: boolean;
   compact?: boolean;
   className?: string;
 };
@@ -35,6 +36,7 @@ export function OdontogramChart({
   title = "Selecione os dentes do trabalho",
   interactive = true,
   showLegend = true,
+  showSelectedLabel = true,
   compact = false,
   className,
 }: OdontogramChartProps) {
@@ -125,7 +127,7 @@ export function OdontogramChart({
         </div>
       </div>
 
-      {interactive && (
+      {interactive && showSelectedLabel && (
         <p className={cn("text-center text-slate-500", compact ? "mt-2 text-[10px]" : "mt-3 text-xs")}>
           Dentes selecionados: <span className="font-medium text-slate-700">{selectedLabel}</span>
         </p>

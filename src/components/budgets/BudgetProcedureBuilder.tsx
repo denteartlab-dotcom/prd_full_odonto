@@ -263,6 +263,7 @@ export function BudgetProcedureBuilder({
           }}
           interactive={Boolean(pending)}
           showLegend={false}
+          showSelectedLabel={false}
           compact
         />
       </div>

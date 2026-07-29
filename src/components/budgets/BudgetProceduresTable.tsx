@@ -3,50 +3,44 @@
 import { Plus, Search, Trash2 } from "lucide-react";
 import { money } from "@/lib/utils";
 import type { BudgetProcedure } from "@/lib/budget-types";
-import { parseToothNumbers } from "@/lib/budget-tooth-utils";
+import { parseToothNumbers, summarizeTeethForDisplay } from "@/lib/budget-tooth-utils";
 import { FieldLabel, SectionCard, TextInput } from "./shared";
 import { ProcedureSearch } from "./ProcedureSearch";
 
-function ToothField({
-  value,
-  editable,
-  onChange,
-}: {
-  value?: string;
-  editable?: boolean;
-  onChange?: (v: string) => void;
-}) {
+function ToothField({ value }: { value?: string }) {
   const teeth = parseToothNumbers(value);
-  const rows = Math.min(
-    4,
-    Math.max(1, Math.ceil(Math.max(teeth.length, (value || "").length) / 8))
-  );
+  const { badges, compact } = summarizeTeethForDisplay(teeth);
+
+  if (!badges.length) {
+    return <span className="text-slate-400">—</span>;
+  }
 
   return (
-    <div className="min-w-[7rem] max-w-[11rem]">
-      {teeth.length > 0 ? (
-        <div className="mb-1 flex flex-wrap gap-1">
-          {teeth.map((n) => (
+    <div
+      className={
+        compact
+          ? "min-w-[5.5rem]"
+          : "min-w-[10rem] max-w-[16rem] sm:min-w-[12rem] sm:max-w-[20rem]"
+      }
+    >
+      <div className="flex flex-wrap content-start gap-1.5">
+        {badges.map((badge) => {
+          const isArch = /^(Todos|Sup|Inf|Sup dec\.|Inf dec\.)$/.test(badge);
+          return (
             <span
-              key={n}
-              className="inline-flex rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-slate-700"
+              key={badge}
+              title={isArch ? undefined : `Dente ${badge}`}
+              className={
+                isArch
+                  ? "inline-flex items-center rounded-lg bg-indigo-100 px-2.5 py-1 text-[11px] font-bold tracking-wide text-indigo-800"
+                  : "inline-flex min-w-[1.75rem] items-center justify-center rounded-md bg-slate-100 px-1.5 py-1 text-[11px] font-semibold tabular-nums text-slate-700"
+              }
             >
-              {n}
+              {badge}
             </span>
-          ))}
-        </div>
-      ) : null}
-      {editable && onChange ? (
-        <textarea
-          value={value ?? ""}
-          onChange={(e) => onChange(e.target.value)}
-          rows={rows}
-          placeholder="—"
-          className="w-full resize-y rounded-lg border border-slate-200 px-2 py-1.5 text-xs leading-relaxed text-slate-700 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/15"
-        />
-      ) : !teeth.length ? (
-        <span className="text-slate-400">—</span>
-      ) : null}
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -117,11 +111,7 @@ export function BudgetProceduresTable({
                     <p className="text-[10px] text-slate-400">{p.category}</p>
                   </td>
                   <td className="py-2.5 pr-3">
-                    <ToothField
-                      value={p.tooth}
-                      editable={Boolean(editable && onChange)}
-                      onChange={(v) => onChange?.(p.id, { tooth: v })}
-                    />
+                    <ToothField value={p.tooth} />
                   </td>
                   <td className="py-2.5 pr-3">
                     {editable && onChange ? (
