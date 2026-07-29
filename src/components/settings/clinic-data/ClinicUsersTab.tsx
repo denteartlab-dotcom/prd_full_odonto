@@ -21,6 +21,8 @@ type FormState = {
   role: ClinicUserRole;
   active: boolean;
   permissions: string[];
+  commissionEnabled: boolean;
+  commissionPercent: string;
 };
 
 const emptyForm = (): FormState => ({
@@ -30,6 +32,8 @@ const emptyForm = (): FormState => ({
   role: "recepcao",
   active: true,
   permissions: [...ROLE_DEFAULT_PERMISSIONS.recepcao],
+  commissionEnabled: false,
+  commissionPercent: "0",
 });
 
 export function ClinicUsersTab() {
@@ -98,6 +102,8 @@ export function ClinicUsersTab() {
           ? user.permissions
           : ROLE_DEFAULT_PERMISSIONS[(user.role as ClinicUserRole) || "recepcao"] ||
             [],
+      commissionEnabled: Boolean(user.commissionEnabled),
+      commissionPercent: String(user.commissionPercent ?? 0),
     });
     setFormOpen(true);
   }
@@ -131,6 +137,8 @@ export function ClinicUsersTab() {
         role: form.role,
         active: form.active,
         permissions: form.permissions,
+        commissionEnabled: form.commissionEnabled,
+        commissionPercent: Number(form.commissionPercent) || 0,
         ...(form.password ? { password: form.password } : {}),
       };
 
@@ -213,6 +221,7 @@ export function ClinicUsersTab() {
                   <th className="px-2 py-3">Nome</th>
                   <th className="px-2 py-3">E-mail</th>
                   <th className="px-2 py-3">Perfil</th>
+                  <th className="px-2 py-3">Comissão</th>
                   <th className="px-2 py-3">Módulos</th>
                   <th className="px-2 py-3">Status</th>
                   <th className="px-2 py-3">Ações</th>
@@ -229,6 +238,11 @@ export function ClinicUsersTab() {
                     </td>
                     <td className="px-2 py-3 text-slate-600">{user.email}</td>
                     <td className="px-2 py-3 text-slate-700">{roleLabel(user.role)}</td>
+                    <td className="px-2 py-3 text-slate-600">
+                      {user.commissionEnabled
+                        ? `${user.commissionPercent}%`
+                        : "—"}
+                    </td>
                     <td className="px-2 py-3 text-slate-500">
                       {user.permissions.length || "—"} módulos
                     </td>
@@ -331,6 +345,54 @@ export function ClinicUsersTab() {
               />
               Usuário ativo
             </label>
+
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4">
+              <label className="flex items-start gap-2 text-sm text-slate-800">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600"
+                  checked={form.commissionEnabled}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      commissionEnabled: e.target.checked,
+                      ...(e.target.checked && f.role === "recepcao"
+                        ? { role: "dentista" as ClinicUserRole }
+                        : {}),
+                    }))
+                  }
+                />
+                <span>
+                  <span className="font-semibold">Recebe comissão da produção</span>
+                  <span className="mt-0.5 block text-xs text-slate-500">
+                    Quando um orçamento do dentista for aprovado, a comissão é
+                    gerada automaticamente com base no percentual abaixo.
+                  </span>
+                </span>
+              </label>
+              {form.commissionEnabled ? (
+                <div className="mt-3 max-w-xs">
+                  <Field
+                    label="Percentual da produção (%)"
+                    hint="Ex.: 30 = dentista recebe 30% do valor do orçamento aprovado"
+                  >
+                    <TextInput
+                      type="number"
+                      min={0}
+                      max={100}
+                      step="0.1"
+                      value={form.commissionPercent}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          commissionPercent: e.target.value,
+                        }))
+                      }
+                    />
+                  </Field>
+                </div>
+              ) : null}
+            </div>
 
             <div>
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">

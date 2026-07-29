@@ -10,6 +10,7 @@ import {
   type ClinicUserDTO,
   type ClinicUserRole,
 } from "@/lib/clinic-user-permissions";
+import { syncProfessionalCommissionFromUser } from "@/lib/commission-from-production";
 
 function toDto(user: {
   id: string;
@@ -18,6 +19,8 @@ function toDto(user: {
   role: string;
   active: boolean;
   permissions: string;
+  commissionEnabled: boolean;
+  commissionPercent: number;
   createdAt: Date;
 }): ClinicUserDTO {
   return {
@@ -27,9 +30,23 @@ function toDto(user: {
     role: user.role,
     active: user.active,
     permissions: parsePermissions(user.permissions),
+    commissionEnabled: user.commissionEnabled,
+    commissionPercent: user.commissionPercent,
     createdAt: user.createdAt.toISOString(),
   };
 }
+
+const userSelect = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  active: true,
+  permissions: true,
+  commissionEnabled: true,
+  commissionPercent: true,
+  createdAt: true,
+} as const;
 
 export async function GET() {
   const session = await requireApiSession();
@@ -38,15 +55,7 @@ export async function GET() {
   const users = await prisma.user.findMany({
     where: { clinicId: session.clinicId },
     orderBy: { name: "asc" },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      active: true,
-      permissions: true,
-      createdAt: true,
-    },
+    select: userSelect,
   });
 
   return NextResponse.json({
@@ -70,12 +79,19 @@ export async function POST(req: Request) {
     role?: string;
     permissions?: string[];
     active?: boolean;
+    commissionEnabled?: boolean;
+    commissionPercent?: number;
   };
 
   const name = (body.name || "").trim();
   const email = (body.email || "").trim().toLowerCase();
   const password = body.password || "";
   const role = (body.role || "recepcao") as ClinicUserRole;
+  const commissionEnabled = Boolean(body.commissionEnabled);
+  const commissionPercent = Math.max(
+    0,
+    Math.min(100, Number(body.commissionPercent) || 0)
+  );
 
   if (!name) return jsonError("Nome é obrigatório.");
   if (!email || !email.includes("@")) return jsonError("E-mail inválido.");
@@ -100,16 +116,20 @@ export async function POST(req: Request) {
       role,
       permissions: serializePermissions(permissions),
       active: body.active ?? true,
+      commissionEnabled,
+      commissionPercent,
     },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      active: true,
-      permissions: true,
-      createdAt: true,
-    },
+    select: userSelect,
+  });
+
+  await syncProfessionalCommissionFromUser({
+    clinicId: session.clinicId,
+    name: user.name,
+    email: user.email,
+    active: user.active,
+    role: user.role,
+    commissionEnabled: user.commissionEnabled,
+    commissionPercent: user.commissionPercent,
   });
 
   return NextResponse.json({ user: toDto(user) }, { status: 201 });

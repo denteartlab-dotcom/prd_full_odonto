@@ -8,6 +8,7 @@ import {
   serializePermissions,
   type ClinicUserDTO,
 } from "@/lib/clinic-user-permissions";
+import { syncProfessionalCommissionFromUser } from "@/lib/commission-from-production";
 
 function toDto(user: {
   id: string;
@@ -16,6 +17,8 @@ function toDto(user: {
   role: string;
   active: boolean;
   permissions: string;
+  commissionEnabled: boolean;
+  commissionPercent: number;
   createdAt: Date;
 }): ClinicUserDTO {
   return {
@@ -25,9 +28,23 @@ function toDto(user: {
     role: user.role,
     active: user.active,
     permissions: parsePermissions(user.permissions),
+    commissionEnabled: user.commissionEnabled,
+    commissionPercent: user.commissionPercent,
     createdAt: user.createdAt.toISOString(),
   };
 }
+
+const userSelect = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  active: true,
+  permissions: true,
+  commissionEnabled: true,
+  commissionPercent: true,
+  createdAt: true,
+} as const;
 
 export async function PATCH(
   req: Request,
@@ -52,6 +69,8 @@ export async function PATCH(
     role?: string;
     permissions?: string[];
     active?: boolean;
+    commissionEnabled?: boolean;
+    commissionPercent?: number;
   };
 
   if (existing.id === session.userId && body.active === false) {
@@ -79,6 +98,8 @@ export async function PATCH(
     active?: boolean;
     permissions?: string;
     passwordHash?: string;
+    commissionEnabled?: boolean;
+    commissionPercent?: number;
   } = {};
 
   if (body.name != null) data.name = body.name.trim() || existing.name;
@@ -87,6 +108,15 @@ export async function PATCH(
   if (body.active != null) data.active = body.active;
   if (body.permissions != null) {
     data.permissions = serializePermissions(body.permissions);
+  }
+  if (body.commissionEnabled != null) {
+    data.commissionEnabled = Boolean(body.commissionEnabled);
+  }
+  if (body.commissionPercent != null) {
+    data.commissionPercent = Math.max(
+      0,
+      Math.min(100, Number(body.commissionPercent) || 0)
+    );
   }
   if (body.password && body.password.length >= 6) {
     data.passwordHash = await hashPassword(body.password);
@@ -97,15 +127,17 @@ export async function PATCH(
   const user = await prisma.user.update({
     where: { id },
     data,
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      active: true,
-      permissions: true,
-      createdAt: true,
-    },
+    select: userSelect,
+  });
+
+  await syncProfessionalCommissionFromUser({
+    clinicId: session.clinicId,
+    name: user.name,
+    email: user.email,
+    active: user.active,
+    role: user.role,
+    commissionEnabled: user.commissionEnabled,
+    commissionPercent: user.commissionPercent,
   });
 
   return NextResponse.json({ user: toDto(user) });

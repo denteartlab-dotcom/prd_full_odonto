@@ -15,7 +15,7 @@ export default async function ComissoesPage() {
     <ModulePlaceholder
       title="Comissões"
       moduleId="commissions"
-      description="Comissões de profissionais por procedimento"
+      description="Comissões geradas automaticamente quando o orçamento do dentista é aprovado (percentual definido em Usuários)."
       columns={["Profissional", "Descrição", "%", "Valor", "Status"]}
       rows={items.map((i) => [
         i.professional.name,

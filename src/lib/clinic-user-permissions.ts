@@ -88,5 +88,7 @@ export type ClinicUserDTO = {
   role: string;
   active: boolean;
   permissions: string[];
+  commissionEnabled: boolean;
+  commissionPercent: number;
   createdAt: string;
 };
