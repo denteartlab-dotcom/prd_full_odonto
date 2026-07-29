@@ -330,8 +330,12 @@ export function pdfFilename(patientName: string, issuedAt: string) {
     .replace(/[^a-zA-Z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 40);
-  const day = issuedAt.replace(/\//g, "-");
-  return `receita-${safe || "paciente"}-${day}.pdf`;
+  const day = issuedAt
+    .replace(/[^\d/\-]/g, "")
+    .replace(/\//g, "-")
+    .replace(/-+/g, "-")
+    .slice(0, 10);
+  return `receita-${safe || "paciente"}-${day || "data"}.pdf`;
 }
 
 /** Fragmento de URL para abrir o PDF no navegador com zoom 75%. */

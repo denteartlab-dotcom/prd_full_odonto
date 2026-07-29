@@ -33,6 +33,34 @@ export function formatMonthShort(d: Date) {
   return raw.charAt(0).toUpperCase() + raw.slice(1);
 }
 
+/** Fuso horário padrão do sistema (Brasília). */
+export const BRAZIL_TZ = "America/Sao_Paulo";
+
+/** Data no formato dd/mm/aaaa (Brasília). */
+export function formatBrasiliaDate(value: Date | string | number) {
+  const d = value instanceof Date ? value : new Date(value);
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: BRAZIL_TZ,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(d);
+}
+
+/** Data e hora no formato dd/mm/aaaa, HH:mm (Brasília). */
+export function formatBrasiliaDateTime(value: Date | string | number) {
+  const d = value instanceof Date ? value : new Date(value);
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: BRAZIL_TZ,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(d);
+}
+
 export function isoDate(d: Date) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");

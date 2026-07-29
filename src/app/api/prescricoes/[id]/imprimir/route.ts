@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireApiSession, isSession, jsonError } from "@/lib/api-helpers";
 import { buildPrescriptionHtml } from "@/lib/prescription-html";
 import { buildClinicHeaderLines } from "@/lib/prescription-pdf-load";
+import { formatBrasiliaDate, formatBrasiliaDateTime } from "@/lib/date-range";
 import type { PrescriptionItem, PrescriptionKind } from "@/lib/prescription-types";
 
 type Params = { params: Promise<{ id: string }> };
@@ -63,9 +64,9 @@ export async function GET(_req: Request, { params }: Params) {
   if (!row) return jsonError("Prescrição não encontrada.", 404);
 
   const envelope = parseEnvelope(row.medicationsJson);
-  const issuedAt = row.createdAt.toLocaleDateString("pt-BR");
+  const issuedAt = formatBrasiliaDateTime(row.createdAt);
   const birthDate = row.patient.birthDate
-    ? row.patient.birthDate.toLocaleDateString("pt-BR")
+    ? formatBrasiliaDate(row.patient.birthDate)
     : undefined;
 
   const html = buildPrescriptionHtml({
@@ -95,7 +96,7 @@ export async function GET(_req: Request, { params }: Params) {
         ],
     issuedAt,
     validUntil: envelope.validUntil
-      ? new Date(`${envelope.validUntil}T12:00:00`).toLocaleDateString("pt-BR")
+      ? formatBrasiliaDate(new Date(`${envelope.validUntil}T12:00:00`))
       : undefined,
   });
 

@@ -5,6 +5,7 @@ import {
   pdfFilename,
   type PrescriptionPdfInput,
 } from "@/lib/prescription-pdf";
+import { formatBrasiliaDate, formatBrasiliaDateTime } from "@/lib/date-range";
 
 export function parsePrescriptionEnvelope(raw: string | null) {
   if (!raw) {
@@ -86,9 +87,9 @@ export async function loadPrescriptionPdfPayload(input: {
   if (!row) return null;
 
   const envelope = parsePrescriptionEnvelope(row.medicationsJson);
-  const issuedAt = row.createdAt.toLocaleDateString("pt-BR");
+  const issuedAt = formatBrasiliaDateTime(row.createdAt);
   const birthDate = row.patient.birthDate
-    ? row.patient.birthDate.toLocaleDateString("pt-BR")
+    ? formatBrasiliaDate(row.patient.birthDate)
     : undefined;
 
   const payload: PrescriptionPdfInput = {
@@ -118,7 +119,7 @@ export async function loadPrescriptionPdfPayload(input: {
         ],
     issuedAt,
     validUntil: envelope.validUntil
-      ? new Date(`${envelope.validUntil}T12:00:00`).toLocaleDateString("pt-BR")
+      ? formatBrasiliaDate(new Date(`${envelope.validUntil}T12:00:00`))
       : undefined,
   };
 
