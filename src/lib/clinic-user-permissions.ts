@@ -89,6 +89,11 @@ export type ClinicUserDTO = {
   active: boolean;
   permissions: string[];
   commissionEnabled: boolean;
-  commissionPercent: number;
+  /** percent | fixed */
+  commissionMode: string;
+  /** % ou R$ conforme mode */
+  commissionValue: number;
+  /** procedimento | caixa_diario | caixa_mensal */
+  commissionBase: string;
   createdAt: string;
 };

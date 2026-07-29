@@ -8,7 +8,12 @@ import {
   serializePermissions,
   type ClinicUserDTO,
 } from "@/lib/clinic-user-permissions";
-import { syncProfessionalCommissionFromUser } from "@/lib/commission-from-production";
+import {
+  normalizeCommissionValue,
+  parseCommissionBase,
+  parseCommissionMode,
+  syncProfessionalCommissionFromUser,
+} from "@/lib/commission-from-production";
 
 function toDto(user: {
   id: string;
@@ -18,7 +23,9 @@ function toDto(user: {
   active: boolean;
   permissions: string;
   commissionEnabled: boolean;
-  commissionPercent: number;
+  commissionMode: string;
+  commissionValue: number;
+  commissionBase: string;
   createdAt: Date;
 }): ClinicUserDTO {
   return {
@@ -29,7 +36,9 @@ function toDto(user: {
     active: user.active,
     permissions: parsePermissions(user.permissions),
     commissionEnabled: user.commissionEnabled,
-    commissionPercent: user.commissionPercent,
+    commissionMode: user.commissionMode,
+    commissionValue: user.commissionValue,
+    commissionBase: user.commissionBase,
     createdAt: user.createdAt.toISOString(),
   };
 }
@@ -42,7 +51,9 @@ const userSelect = {
   active: true,
   permissions: true,
   commissionEnabled: true,
-  commissionPercent: true,
+  commissionMode: true,
+  commissionValue: true,
+  commissionBase: true,
   createdAt: true,
 } as const;
 
@@ -70,7 +81,9 @@ export async function PATCH(
     permissions?: string[];
     active?: boolean;
     commissionEnabled?: boolean;
-    commissionPercent?: number;
+    commissionMode?: string;
+    commissionValue?: number;
+    commissionBase?: string;
   };
 
   if (existing.id === session.userId && body.active === false) {
@@ -99,7 +112,9 @@ export async function PATCH(
     permissions?: string;
     passwordHash?: string;
     commissionEnabled?: boolean;
-    commissionPercent?: number;
+    commissionMode?: string;
+    commissionValue?: number;
+    commissionBase?: string;
   } = {};
 
   if (body.name != null) data.name = body.name.trim() || existing.name;
@@ -112,12 +127,22 @@ export async function PATCH(
   if (body.commissionEnabled != null) {
     data.commissionEnabled = Boolean(body.commissionEnabled);
   }
-  if (body.commissionPercent != null) {
-    data.commissionPercent = Math.max(
-      0,
-      Math.min(100, Number(body.commissionPercent) || 0)
+
+  const nextMode = parseCommissionMode(
+    body.commissionMode ?? existing.commissionMode
+  );
+  const nextBase = parseCommissionBase(
+    body.commissionBase ?? existing.commissionBase
+  );
+  if (body.commissionMode != null) data.commissionMode = nextMode;
+  if (body.commissionBase != null) data.commissionBase = nextBase;
+  if (body.commissionValue != null || body.commissionMode != null) {
+    data.commissionValue = normalizeCommissionValue(
+      nextMode,
+      body.commissionValue ?? existing.commissionValue
     );
   }
+
   if (body.password && body.password.length >= 6) {
     data.passwordHash = await hashPassword(body.password);
   } else if (body.password) {
@@ -137,7 +162,9 @@ export async function PATCH(
     active: user.active,
     role: user.role,
     commissionEnabled: user.commissionEnabled,
-    commissionPercent: user.commissionPercent,
+    commissionMode: parseCommissionMode(user.commissionMode),
+    commissionValue: user.commissionValue,
+    commissionBase: parseCommissionBase(user.commissionBase),
   });
 
   return NextResponse.json({ user: toDto(user) });

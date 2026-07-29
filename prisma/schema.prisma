@@ -32,6 +32,7 @@ model Clinic {
   receivables     Receivable[]
   payables        Payable[]
   cashMovements   CashMovement[]
+  cashClosings    CashClosing[]
   commissions     Commission[]
   inventoryItems  InventoryItem[]
   documents       Document[]
@@ -51,10 +52,17 @@ model User {
   permissions        String   @default("[]")
   active             Boolean  @default(true)
   memedExternalId    String?
-  /** Se true, este usuário (dentista) recebe comissão da produção. */
+  /** Se true, este usuário (dentista) recebe comissão. */
   commissionEnabled  Boolean  @default(false)
-  /** Percentual sobre o valor do orçamento/procedimento (ex.: 30 = 30%). */
-  commissionPercent  Float    @default(0)
+  /** percent | fixed */
+  commissionMode     String   @default("percent")
+  /** % (0–100) ou valor fixo em R$, conforme commissionMode. */
+  commissionValue    Float    @default(0)
+  /**
+   * Base de cálculo vinculada aos módulos:
+   * procedimento | caixa_diario | caixa_mensal
+   */
+  commissionBase     String   @default("procedimento")
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
@@ -76,7 +84,9 @@ model Professional {
   active             Boolean  @default(true)
   memedExternalId    String?
   commissionEnabled  Boolean  @default(false)
-  commissionPercent  Float    @default(0)
+  commissionMode     String   @default("percent")
+  commissionValue    Float    @default(0)
+  commissionBase     String   @default("procedimento")
   createdAt          DateTime @default(now())
 
   clinic        Clinic         @relation(fields: [clinicId], references: [id], onDelete: Cascade)
@@ -257,6 +267,29 @@ model CashMovement {
   createdAt   DateTime @default(now())
 
   clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId, date])
+}
+
+/** Fechamento de caixa (diário ou mensal) — base de comissão. */
+model CashClosing {
+  id             String   @id @default(cuid())
+  clinicId       String
+  /** diario | mensal */
+  periodType     String
+  /** YYYY-MM-DD ou YYYY-MM */
+  periodKey      String
+  totalEntradas  Float    @default(0)
+  totalSaidas    Float    @default(0)
+  saldo          Float    @default(0)
+  closedAt       DateTime @default(now())
+  closedByUserId String?
+  notes          String?
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@unique([clinicId, periodType, periodKey])
+  @@index([clinicId, periodType])
 }
 
 model Commission {
@@ -267,7 +300,7 @@ model Commission {
   amount         Float
   percent        Float     @default(0)
   status         String    @default("pendente")
-  /** Chave idempotente, ex.: budget:abc123 */
+  /** Chave idempotente, ex.: treatment:abc / caixa_diario:2026-07-29:pro:xyz */
   sourceKey      String?
   paidAt         DateTime?
   createdAt      DateTime  @default(now())

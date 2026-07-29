@@ -116,24 +116,6 @@ export async function PATCH(req: Request, { params }: Params) {
     include: { patient: true, items: true },
   });
 
-  const nextStatus = row.status;
-  const wasApproved =
-    nextStatus === "aprovado" && existing.status !== "aprovado";
-  if (wasApproved) {
-    const dental = body.dental ?? prevExtras?.dental;
-    const { createCommissionFromApprovedBudget } = await import(
-      "@/lib/commission-from-production"
-    );
-    await createCommissionFromApprovedBudget({
-      clinicId: session.clinicId,
-      budgetId: row.id,
-      budgetTotal: row.total,
-      patientName: row.patient.name,
-      professionalId: row.professionalId,
-      dentistName: dental?.dentist || null,
-    });
-  }
-
   return NextResponse.json({ budget: serializeBudget(row) });
 }
 

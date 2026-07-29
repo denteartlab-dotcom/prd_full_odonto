@@ -207,6 +207,34 @@ export function FluxoCaixaPage() {
     setMessage(`${label} — ação preparada para integração com API.`);
   }
 
+  async function closeCash(periodType: "diario" | "mensal") {
+    setMessage("");
+    try {
+      const res = await fetch("/api/financeiro/caixa/fechamento", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ periodType }),
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        commissionsCreated?: number;
+        totalEntradas?: number;
+        saldo?: number;
+        closing?: { periodKey: string };
+      };
+      if (!res.ok) throw new Error(data.error || "Falha ao fechar o caixa.");
+      setMessage(
+        `Caixa ${periodType} (${data.closing?.periodKey}) fechado. Entradas: ${money(
+          data.totalEntradas || 0
+        )} · Saldo: ${money(data.saldo || 0)} · ${
+          data.commissionsCreated || 0
+        } comissão(ões) gerada(s).`
+      );
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Erro ao fechar caixa.");
+    }
+  }
+
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     else {
@@ -247,9 +275,6 @@ export function FluxoCaixaPage() {
           (Number(movementForm.interest.replace(",", ".")) || 0) +
           (Number(movementForm.fine.replace(",", ".")) || 0)
       );
-    const isIncome =
-      movementForm.type === "entrada" ||
-      (movementForm.type === "transferencia" && false);
     const lastBalance = data.movements[0]?.balance ?? data.summary.saldoAtual;
     const income = movementForm.type === "saida" ? null : amount;
     const expense = movementForm.type === "entrada" ? null : amount;
@@ -297,8 +322,28 @@ export function FluxoCaixaPage() {
         },
       };
     });
+
+    // Persiste no caixa real (base do fechamento / comissões)
+    if (movementForm.type === "entrada" || movementForm.type === "saida") {
+      void fetch("/api/financeiro/caixa/movimentos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: movementForm.type,
+          description: row.description,
+          amount,
+          date: movementForm.movementDate,
+        }),
+      }).catch(() => undefined);
+    }
     setDrawerOpen(false);
-    notify(isIncome ? "Entrada lançada" : "Movimentação lançada");
+    notify(
+      movementForm.type === "entrada"
+        ? "Entrada lançada"
+        : movementForm.type === "saida"
+          ? "Saída lançada"
+          : "Movimentação lançada"
+    );
   }
 
   function handleTransfer() {
@@ -366,6 +411,8 @@ export function FluxoCaixaPage() {
     if (label === "Nova Saída") return openNewMovement("saida");
     if (label === "Nova Transferência") return setTransferOpen(true);
     if (label === "Conciliação Bancária") return setReconcileOpen(true);
+    if (label === "Fechar Caixa Diário") return void closeCash("diario");
+    if (label === "Fechar Caixa Mensal") return void closeCash("mensal");
     notify(label);
   }
 
@@ -393,6 +440,22 @@ export function FluxoCaixaPage() {
           <Button type="button" className="rounded-xl" onClick={() => openNewMovement()}>
             <Plus className="h-4 w-4" />
             Nova Movimentação
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            className="rounded-xl border border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+            onClick={() => void closeCash("diario")}
+          >
+            Fechar Caixa Diário
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            className="rounded-xl border border-violet-200 text-violet-700 hover:bg-violet-50"
+            onClick={() => void closeCash("mensal")}
+          >
+            Fechar Caixa Mensal
           </Button>
           <Button
             type="button"

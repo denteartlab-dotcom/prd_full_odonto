@@ -15,12 +15,12 @@ export default async function ComissoesPage() {
     <ModulePlaceholder
       title="Comissões"
       moduleId="commissions"
-      description="Comissões geradas automaticamente quando o orçamento do dentista é aprovado (percentual definido em Usuários)."
+      description="Comissões geradas por procedimento concluído ou pelo fechamento de caixa (diário/mensal), conforme configuração do dentista em Usuários."
       columns={["Profissional", "Descrição", "%", "Valor", "Status"]}
       rows={items.map((i) => [
         i.professional.name,
         i.description,
-        `${i.percent}%`,
+        i.percent > 0 ? `${i.percent}%` : "fixo",
         money(i.amount),
         <Badge key={i.id} tone={i.status === "pago" ? "green" : "amber"}>
           {i.status}

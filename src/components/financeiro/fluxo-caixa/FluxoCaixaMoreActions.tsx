@@ -26,6 +26,13 @@ const SECTIONS = [
     ],
   },
   {
+    title: "Fechamento e comissões",
+    items: [
+      { icon: Wallet, label: "Fechar Caixa Diário" },
+      { icon: Landmark, label: "Fechar Caixa Mensal" },
+    ],
+  },
+  {
     title: "Importação / Exportação",
     items: [
       { icon: Upload, label: "Importar OFX" },

@@ -123,19 +123,5 @@ export async function POST(req: Request) {
     include: { patient: true, items: true },
   });
 
-  if (row.status === "aprovado") {
-    const { createCommissionFromApprovedBudget } = await import(
-      "@/lib/commission-from-production"
-    );
-    await createCommissionFromApprovedBudget({
-      clinicId: session.clinicId,
-      budgetId: row.id,
-      budgetTotal: row.total,
-      patientName: row.patient.name,
-      professionalId: row.professionalId,
-      dentistName: body.dental?.dentist || null,
-    });
-  }
-
   return NextResponse.json({ budget: serializeBudget(row) }, { status: 201 });
 }

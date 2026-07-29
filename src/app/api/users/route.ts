@@ -10,7 +10,12 @@ import {
   type ClinicUserDTO,
   type ClinicUserRole,
 } from "@/lib/clinic-user-permissions";
-import { syncProfessionalCommissionFromUser } from "@/lib/commission-from-production";
+import {
+  normalizeCommissionValue,
+  parseCommissionBase,
+  parseCommissionMode,
+  syncProfessionalCommissionFromUser,
+} from "@/lib/commission-from-production";
 
 function toDto(user: {
   id: string;
@@ -20,7 +25,9 @@ function toDto(user: {
   active: boolean;
   permissions: string;
   commissionEnabled: boolean;
-  commissionPercent: number;
+  commissionMode: string;
+  commissionValue: number;
+  commissionBase: string;
   createdAt: Date;
 }): ClinicUserDTO {
   return {
@@ -31,7 +38,9 @@ function toDto(user: {
     active: user.active,
     permissions: parsePermissions(user.permissions),
     commissionEnabled: user.commissionEnabled,
-    commissionPercent: user.commissionPercent,
+    commissionMode: user.commissionMode,
+    commissionValue: user.commissionValue,
+    commissionBase: user.commissionBase,
     createdAt: user.createdAt.toISOString(),
   };
 }
@@ -44,7 +53,9 @@ const userSelect = {
   active: true,
   permissions: true,
   commissionEnabled: true,
-  commissionPercent: true,
+  commissionMode: true,
+  commissionValue: true,
+  commissionBase: true,
   createdAt: true,
 } as const;
 
@@ -80,7 +91,9 @@ export async function POST(req: Request) {
     permissions?: string[];
     active?: boolean;
     commissionEnabled?: boolean;
-    commissionPercent?: number;
+    commissionMode?: string;
+    commissionValue?: number;
+    commissionBase?: string;
   };
 
   const name = (body.name || "").trim();
@@ -88,9 +101,11 @@ export async function POST(req: Request) {
   const password = body.password || "";
   const role = (body.role || "recepcao") as ClinicUserRole;
   const commissionEnabled = Boolean(body.commissionEnabled);
-  const commissionPercent = Math.max(
-    0,
-    Math.min(100, Number(body.commissionPercent) || 0)
+  const commissionMode = parseCommissionMode(body.commissionMode);
+  const commissionBase = parseCommissionBase(body.commissionBase);
+  const commissionValue = normalizeCommissionValue(
+    commissionMode,
+    body.commissionValue
   );
 
   if (!name) return jsonError("Nome é obrigatório.");
@@ -117,7 +132,9 @@ export async function POST(req: Request) {
       permissions: serializePermissions(permissions),
       active: body.active ?? true,
       commissionEnabled,
-      commissionPercent,
+      commissionMode,
+      commissionValue,
+      commissionBase,
     },
     select: userSelect,
   });
@@ -129,7 +146,9 @@ export async function POST(req: Request) {
     active: user.active,
     role: user.role,
     commissionEnabled: user.commissionEnabled,
-    commissionPercent: user.commissionPercent,
+    commissionMode: parseCommissionMode(user.commissionMode),
+    commissionValue: user.commissionValue,
+    commissionBase: parseCommissionBase(user.commissionBase),
   });
 
   return NextResponse.json({ user: toDto(user) }, { status: 201 });

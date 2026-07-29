@@ -13,6 +13,14 @@ import {
 } from "@/lib/clinic-user-permissions";
 import { cn } from "@/lib/utils";
 import { Field, SectionCard, TextInput, TextSelect } from "./clinic-data-ui";
+import {
+  COMMISSION_BASES,
+  COMMISSION_MODES,
+  parseCommissionBase,
+  parseCommissionMode,
+  type CommissionBase,
+  type CommissionMode,
+} from "@/lib/commission-from-production";
 
 type FormState = {
   name: string;
@@ -22,7 +30,9 @@ type FormState = {
   active: boolean;
   permissions: string[];
   commissionEnabled: boolean;
-  commissionPercent: string;
+  commissionMode: CommissionMode;
+  commissionValue: string;
+  commissionBase: CommissionBase;
 };
 
 const emptyForm = (): FormState => ({
@@ -33,8 +43,19 @@ const emptyForm = (): FormState => ({
   active: true,
   permissions: [...ROLE_DEFAULT_PERMISSIONS.recepcao],
   commissionEnabled: false,
-  commissionPercent: "0",
+  commissionMode: "percent",
+  commissionValue: "0",
+  commissionBase: "procedimento",
 });
+
+function ensureBaseModule(
+  permissions: string[],
+  base: CommissionBase
+): string[] {
+  const mod = COMMISSION_BASES.find((b) => b.value === base)?.moduleId;
+  if (!mod || permissions.includes(mod)) return permissions;
+  return [...permissions, mod];
+}
 
 export function ClinicUsersTab() {
   const [users, setUsers] = useState<ClinicUserDTO[]>([]);
@@ -103,7 +124,9 @@ export function ClinicUsersTab() {
           : ROLE_DEFAULT_PERMISSIONS[(user.role as ClinicUserRole) || "recepcao"] ||
             [],
       commissionEnabled: Boolean(user.commissionEnabled),
-      commissionPercent: String(user.commissionPercent ?? 0),
+      commissionMode: parseCommissionMode(user.commissionMode),
+      commissionValue: String(user.commissionValue ?? 0),
+      commissionBase: parseCommissionBase(user.commissionBase),
     });
     setFormOpen(true);
   }
@@ -138,7 +161,9 @@ export function ClinicUsersTab() {
         active: form.active,
         permissions: form.permissions,
         commissionEnabled: form.commissionEnabled,
-        commissionPercent: Number(form.commissionPercent) || 0,
+        commissionMode: form.commissionMode,
+        commissionValue: Number(form.commissionValue) || 0,
+        commissionBase: form.commissionBase,
         ...(form.password ? { password: form.password } : {}),
       };
 
@@ -240,7 +265,15 @@ export function ClinicUsersTab() {
                     <td className="px-2 py-3 text-slate-700">{roleLabel(user.role)}</td>
                     <td className="px-2 py-3 text-slate-600">
                       {user.commissionEnabled
-                        ? `${user.commissionPercent}%`
+                        ? `${
+                            parseCommissionMode(user.commissionMode) === "fixed"
+                              ? `R$ ${Number(user.commissionValue || 0).toFixed(2)}`
+                              : `${user.commissionValue}%`
+                          } · ${
+                            COMMISSION_BASES.find(
+                              (b) => b.value === parseCommissionBase(user.commissionBase)
+                            )?.label || "—"
+                          }`
                         : "—"}
                     </td>
                     <td className="px-2 py-3 text-slate-500">
@@ -353,42 +386,99 @@ export function ClinicUsersTab() {
                   className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600"
                   checked={form.commissionEnabled}
                   onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      commissionEnabled: e.target.checked,
-                      ...(e.target.checked && f.role === "recepcao"
-                        ? { role: "dentista" as ClinicUserRole }
-                        : {}),
-                    }))
+                    setForm((f) => {
+                      const enabled = e.target.checked;
+                      return {
+                        ...f,
+                        commissionEnabled: enabled,
+                        ...(enabled && f.role === "recepcao"
+                          ? { role: "dentista" as ClinicUserRole }
+                          : {}),
+                        permissions: enabled
+                          ? ensureBaseModule(f.permissions, f.commissionBase)
+                          : f.permissions,
+                      };
+                    })
                   }
                 />
                 <span>
-                  <span className="font-semibold">Recebe comissão da produção</span>
+                  <span className="font-semibold">Recebe comissão</span>
                   <span className="mt-0.5 block text-xs text-slate-500">
-                    Quando um orçamento do dentista for aprovado, a comissão é
-                    gerada automaticamente com base no percentual abaixo.
+                    Defina se o cálculo usa porcentagem ou valor fixo, e sobre
+                    qual módulo real a comissão é gerada (procedimento ou
+                    fechamento de caixa).
                   </span>
                 </span>
               </label>
               {form.commissionEnabled ? (
-                <div className="mt-3 max-w-xs">
+                <div className="mt-3 grid gap-3 md:grid-cols-3">
+                  <Field label="Tipo de cálculo" required>
+                    <TextSelect
+                      value={form.commissionMode}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          commissionMode: parseCommissionMode(e.target.value),
+                        }))
+                      }
+                    >
+                      {COMMISSION_MODES.map((m) => (
+                        <option key={m.value} value={m.value}>
+                          {m.label}
+                        </option>
+                      ))}
+                    </TextSelect>
+                  </Field>
                   <Field
-                    label="Percentual da produção (%)"
-                    hint="Ex.: 30 = dentista recebe 30% do valor do orçamento aprovado"
+                    label={
+                      form.commissionMode === "fixed"
+                        ? "Valor fixo (R$)"
+                        : "Porcentagem (%)"
+                    }
+                    hint={
+                      form.commissionMode === "fixed"
+                        ? "Valor creditado a cada evento (procedimento ou fechamento)."
+                        : "Ex.: 30 = 30% sobre a base escolhida abaixo."
+                    }
                   >
                     <TextInput
                       type="number"
                       min={0}
-                      max={100}
-                      step="0.1"
-                      value={form.commissionPercent}
+                      max={form.commissionMode === "percent" ? 100 : undefined}
+                      step="0.01"
+                      value={form.commissionValue}
                       onChange={(e) =>
                         setForm((f) => ({
                           ...f,
-                          commissionPercent: e.target.value,
+                          commissionValue: e.target.value,
                         }))
                       }
                     />
+                  </Field>
+                  <Field
+                    label="Base de cálculo (módulo)"
+                    hint={
+                      COMMISSION_BASES.find((b) => b.value === form.commissionBase)
+                        ?.hint
+                    }
+                  >
+                    <TextSelect
+                      value={form.commissionBase}
+                      onChange={(e) => {
+                        const commissionBase = parseCommissionBase(e.target.value);
+                        setForm((f) => ({
+                          ...f,
+                          commissionBase,
+                          permissions: ensureBaseModule(f.permissions, commissionBase),
+                        }));
+                      }}
+                    >
+                      {COMMISSION_BASES.map((b) => (
+                        <option key={b.value} value={b.value}>
+                          {b.label} — {b.moduleLabel}
+                        </option>
+                      ))}
+                    </TextSelect>
                   </Field>
                 </div>
               ) : null}
