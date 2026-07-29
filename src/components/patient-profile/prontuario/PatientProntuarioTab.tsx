@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { PatientProfile } from "@/lib/patient-profile-types";
 import { filterEvolucoes } from "@/lib/prontuario-mock";
+import {
+  buildProntuarioPdfBytes,
+  prontuarioPdfFilename,
+} from "@/lib/prontuario-pdf";
 import type {
   EvolucaoClinica,
   NovaEvolucaoForm,
@@ -11,8 +15,29 @@ import type {
 } from "@/lib/prontuario-types";
 import { formToEvolucao, NovaEvolucaoDrawer } from "./NovaEvolucaoDrawer";
 import { ProntuarioDetail } from "./ProntuarioDetail";
+import { ProntuarioPdfViewerModal } from "./ProntuarioPdfViewerModal";
 import { ProntuarioSidebar } from "./ProntuarioSidebar";
 import { ProntuarioTimeline } from "./ProntuarioTimeline";
+
+function clinicHeaderLines(clinic: {
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  cnpj?: string | null;
+}) {
+  const lines: string[] = [];
+  if (clinic.address?.trim()) lines.push(clinic.address.trim());
+  const cityState = [clinic.city?.trim(), clinic.state?.trim()]
+    .filter(Boolean)
+    .join(" — ");
+  if (cityState) lines.push(cityState);
+  if (clinic.phone?.trim()) lines.push(`Tel.: ${clinic.phone.trim()}`);
+  if (clinic.email?.trim()) lines.push(clinic.email.trim());
+  if (clinic.cnpj?.trim()) lines.push(`CNPJ ${clinic.cnpj.trim()}`);
+  return lines;
+}
 
 const STORAGE_PREFIX = "odonto-prontuario:";
 const CLEARED_FLAG = "odonto-prontuario-cleared-v1";
@@ -72,6 +97,12 @@ export function PatientProntuarioTab({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [autosaveHint, setAutosaveHint] = useState("");
   const [toast, setToast] = useState("");
+  const [pdfOpen, setPdfOpen] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState("");
+  const [pdfUrl, setPdfUrl] = useState("");
+  const [pdfName, setPdfName] = useState("prontuario.pdf");
+  const pdfUrlRef = useRef("");
 
   useEffect(() => {
     const loaded = loadEvolucoes(patient.id);
@@ -84,6 +115,12 @@ export function PatientProntuarioTab({
     if (!hydrated) return;
     persistEvolucoes(patient.id, items);
   }, [hydrated, items, patient.id]);
+
+  useEffect(() => {
+    return () => {
+      if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
+    };
+  }, []);
 
   const filtered = useMemo(
     () => filterEvolucoes(items, { query, filter, sort }),
@@ -136,9 +173,76 @@ export function PatientProntuarioTab({
     );
   }
 
-  function handlePrint() {
-    window.print();
-    setToast("Modo de impressão aberto. Use Exportar PDF do navegador se necessário.");
+  async function handlePrint() {
+    if (!selected) {
+      setToast("Selecione uma evolução para imprimir.");
+      return;
+    }
+
+    setPdfOpen(true);
+    setPdfLoading(true);
+    setPdfError("");
+    setToast("");
+
+    try {
+      const res = await fetch("/api/clinic-settings", { cache: "no-store" });
+      const data = (await res.json()) as {
+        clinic?: {
+          name?: string;
+          address?: string | null;
+          city?: string | null;
+          state?: string | null;
+          phone?: string | null;
+          email?: string | null;
+          cnpj?: string | null;
+          logoUrl?: string | null;
+        };
+        error?: string;
+      };
+      if (!res.ok) throw new Error(data.error || "Falha ao carregar dados da clínica.");
+
+      const clinic = data.clinic || { name: "Clínica Odontológica" };
+      const bytes = buildProntuarioPdfBytes({
+        clinic: {
+          name: clinic.name || "Clínica Odontológica",
+          headerLines: clinicHeaderLines(clinic),
+          logoUrl: clinic.logoUrl,
+        },
+        patient: {
+          name: patient.name,
+          cpf: patient.cpf,
+          phone: patient.phone,
+          email: patient.email,
+          birthDate: patient.birthDate,
+          chartNumber: patient.chartNumber,
+        },
+        evolucao: selected,
+      });
+
+      const blob = new Blob([Uint8Array.from(bytes)], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const previous = pdfUrlRef.current;
+      pdfUrlRef.current = url;
+      setPdfUrl(url);
+      setPdfName(prontuarioPdfFilename(patient.name, selected.date));
+      if (previous) URL.revokeObjectURL(previous);
+    } catch (err) {
+      setPdfError(
+        err instanceof Error ? err.message : "Não foi possível gerar o PDF do prontuário."
+      );
+    } finally {
+      setPdfLoading(false);
+    }
+  }
+
+  function closePdf() {
+    setPdfOpen(false);
+    setPdfError("");
+    if (pdfUrlRef.current) {
+      URL.revokeObjectURL(pdfUrlRef.current);
+      pdfUrlRef.current = "";
+    }
+    setPdfUrl("");
   }
 
   if (!hydrated) {
@@ -180,12 +284,12 @@ export function PatientProntuarioTab({
           evolucao={selected}
           autosaveHint={autosaveHint}
           onPatch={patchSelected}
-          onPrint={handlePrint}
+          onPrint={() => void handlePrint()}
         />
         <ProntuarioSidebar
           patient={patient}
           onNovaEvolucao={() => setDrawerOpen(true)}
-          onPrint={handlePrint}
+          onPrint={() => void handlePrint()}
         />
       </div>
 
@@ -194,6 +298,15 @@ export function PatientProntuarioTab({
         onClose={() => setDrawerOpen(false)}
         profissionalDefault={userName || "Dr(a). Responsável"}
         onSave={handleSaveNova}
+      />
+
+      <ProntuarioPdfViewerModal
+        open={pdfOpen}
+        onClose={closePdf}
+        pdfUrl={pdfUrl}
+        fileName={pdfName}
+        loading={pdfLoading}
+        error={pdfError}
       />
     </div>
   );
