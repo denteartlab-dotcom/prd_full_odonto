@@ -82,9 +82,10 @@ export function buildPrescriptionPdfBytes(input: PrescriptionPdfInput): Uint8Arr
   };
 
   // ——— Cabeçalho ———
+  // ~50px a mais que o tamanho anterior (~16mm): ~28–30mm ≈ 106–113px em tela 96dpi
   const logoUrl = (input.clinicLogoUrl || "").trim();
   const logoFormat = logoUrl ? detectImageFormat(logoUrl) : null;
-  const logoSize = 16;
+  const logoSize = 28;
   const hasLogo = Boolean(logoFormat && logoUrl);
   const textX = hasLogo ? margin + logoSize + 5 : margin;
   const textW = hasLogo ? contentW - logoSize - 5 : contentW;
