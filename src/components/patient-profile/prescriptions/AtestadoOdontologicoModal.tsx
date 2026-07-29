@@ -109,6 +109,16 @@ function nowTime() {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
+/** Dias de afastamento contados de forma inclusiva (3 dias a partir de 29/07 → 31/07). */
+function addInclusiveDays(isoDate: string, daysCount: number) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return isoDate;
+  const n = Math.max(0, Math.floor(daysCount));
+  const d = new Date(`${isoDate}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return isoDate;
+  d.setDate(d.getDate() + Math.max(0, n - 1));
+  return d.toISOString().slice(0, 10);
+}
+
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
     <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-400">
@@ -284,6 +294,13 @@ export function AtestadoOdontologicoModal({
       setTemplates(data.items || []);
     })();
   }, [open, patient.id]);
+
+  useEffect(() => {
+    if (certificateType !== "repouso") return;
+    const n = Number.parseInt(days, 10);
+    if (!Number.isFinite(n) || n < 0) return;
+    setRestEndDate(addInclusiveDays(restStartDate, n || 0));
+  }, [days, restStartDate, certificateType]);
 
   useEffect(() => {
     if (certificateType === "personalizado") {
@@ -752,8 +769,9 @@ export function AtestadoOdontologicoModal({
                       <input
                         type="date"
                         value={restEndDate}
-                        onChange={(e) => setRestEndDate(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                        readOnly
+                        title="Calculada automaticamente pelos dias de afastamento"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700"
                       />
                     </label>
                   </div>
