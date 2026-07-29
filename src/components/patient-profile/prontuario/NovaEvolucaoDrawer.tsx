@@ -8,7 +8,9 @@ import {
   type EvolucaoClinica,
   type NovaEvolucaoForm,
 } from "@/lib/prontuario-types";
-import { RichTextField } from "./RichTextField";
+
+const atendimentoTextareaClass =
+  "w-full min-h-[220px] resize-y rounded-lg border border-slate-200 bg-white px-3.5 py-3 text-sm leading-relaxed text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15";
 
 export function NovaEvolucaoDrawer({
   open,
@@ -89,15 +91,24 @@ export function NovaEvolucaoDrawer({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
-          <RichTextField
-            label="Atendimento"
-            value={form.descricaoCompleta}
-            onChange={(descricaoCompleta) =>
-              setForm((f) => ({ ...f, descricaoCompleta }))
-            }
-            placeholder="Descreva o atendimento do paciente..."
-            minHeight={360}
-          />
+          <div>
+            <label
+              htmlFor="nova-evolucao-atendimento"
+              className="mb-2 block text-sm font-semibold text-slate-800"
+            >
+              Atendimento
+            </label>
+            <textarea
+              id="nova-evolucao-atendimento"
+              value={form.descricaoCompleta}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, descricaoCompleta: e.target.value }))
+              }
+              placeholder="Descreva o atendimento do paciente, procedimentos realizados, conduta e orientações..."
+              className={atendimentoTextareaClass}
+              rows={12}
+            />
+          </div>
         </div>
 
         <div className="shrink-0 border-t border-slate-200 bg-white px-4 py-4 sm:px-6">

@@ -20,7 +20,6 @@ import {
   EVOLUCAO_TIPO_LABEL,
   type EvolucaoClinica,
 } from "@/lib/prontuario-types";
-import { RichTextField } from "./RichTextField";
 
 function formatDate(iso: string) {
   const [y, m, d] = iso.split("-");
@@ -28,32 +27,20 @@ function formatDate(iso: string) {
   return `${d}/${m}/${y}`;
 }
 
-function SectionBlock({
-  title,
-  html,
-  onChange,
-  minHeight = 72,
-}: {
-  title: string;
-  html: string;
-  onChange: (v: string) => void;
-  minHeight?: number;
-}) {
-  return (
-    <div className="rounded-xl border border-slate-100 bg-slate-50/40 p-3.5">
-      <RichTextField
-        label={title}
-        value={html}
-        onChange={onChange}
-        minHeight={minHeight}
-        placeholder="Descreva o atendimento do paciente..."
-      />
-    </div>
-  );
+function stripHtml(value: string) {
+  return value
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\u00a0/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
-function atendimentoHtml(evolucao: EvolucaoClinica) {
-  if (evolucao.evolucaoClinica?.trim()) return evolucao.evolucaoClinica;
+function atendimentoText(evolucao: EvolucaoClinica) {
+  if (evolucao.evolucaoClinica?.trim()) {
+    return stripHtml(evolucao.evolucaoClinica);
+  }
   const parts = [
     evolucao.queixaPrincipal,
     evolucao.historiaClinica,
@@ -63,9 +50,14 @@ function atendimentoHtml(evolucao: EvolucaoClinica) {
     evolucao.conduta,
     evolucao.recomendacoes,
     evolucao.observacoes,
-  ].filter((p) => p && p.replace(/<[^>]+>/g, "").trim());
-  return parts.join("<br/><br/>");
+  ]
+    .map((p) => stripHtml(p || ""))
+    .filter(Boolean);
+  return parts.join("\n\n");
 }
+
+const atendimentoTextareaClass =
+  "w-full min-h-[220px] resize-y rounded-lg border border-slate-200 bg-white px-3.5 py-3 text-sm leading-relaxed text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15";
 
 export function ProntuarioDetail({
   patientId,
@@ -145,29 +137,36 @@ export function ProntuarioDetail({
       ) : null}
 
       <div className="space-y-3 p-5">
-        <SectionBlock
-          title="Atendimento"
-          html={atendimentoHtml(evolucao)}
-          minHeight={320}
-          onChange={(evolucaoClinica) =>
-            onPatch({
-              evolucaoClinica,
-              queixaPrincipal: "",
-              historiaClinica: "",
-              diagnostico: "",
-              procedimentoExecutado: "",
-              planoTratamento: "",
-              conduta: "",
-              recomendacoes: "",
-              observacoes: "",
-              resumo: evolucaoClinica
-                .replace(/<[^>]+>/g, " ")
-                .replace(/\s+/g, " ")
-                .trim()
-                .slice(0, 140),
-            })
-          }
-        />
+        <div>
+          <label
+            htmlFor={`atendimento-${evolucao.id}`}
+            className="mb-2 block text-sm font-semibold text-slate-800"
+          >
+            Atendimento
+          </label>
+          <textarea
+            id={`atendimento-${evolucao.id}`}
+            value={atendimentoText(evolucao)}
+            onChange={(e) => {
+              const evolucaoClinica = e.target.value;
+              onPatch({
+                evolucaoClinica,
+                queixaPrincipal: "",
+                historiaClinica: "",
+                diagnostico: "",
+                procedimentoExecutado: "",
+                planoTratamento: "",
+                conduta: "",
+                recomendacoes: "",
+                observacoes: "",
+                resumo: evolucaoClinica.replace(/\s+/g, " ").trim().slice(0, 140),
+              });
+            }}
+            placeholder="Descreva o atendimento do paciente, procedimentos realizados, conduta e orientações..."
+            className={atendimentoTextareaClass}
+            rows={12}
+          />
+        </div>
 
         <div className="rounded-xl border border-slate-100 p-4">
           <div className="mb-3 flex items-center justify-between">
