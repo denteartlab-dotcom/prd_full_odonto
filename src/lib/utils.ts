@@ -9,6 +9,22 @@ export function money(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+/** Formata número como 1.234,56 (sem R$). */
+export function formatBrlDigits(value: number) {
+  const n = Number.isFinite(value) ? value : 0;
+  return n.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+/** Converte texto com máscara pt-BR (centavos) em número. */
+export function parseBrlDigits(raw: string) {
+  const digits = String(raw ?? "").replace(/\D/g, "");
+  if (!digits) return 0;
+  return Number(digits) / 100;
+}
+
 export function formatDate(value?: Date | string | null) {
   if (!value) return "—";
   const d = typeof value === "string" ? new Date(value) : value;

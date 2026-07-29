@@ -2,7 +2,7 @@
 
 import { money } from "@/lib/utils";
 import type { DentalBudget } from "@/lib/budget-types";
-import { FieldLabel, SectionCard, TextInput } from "./shared";
+import { FieldLabel, MoneyInput, SectionCard } from "./shared";
 
 export function BudgetTotals({
   budget,
@@ -29,18 +29,16 @@ export function BudgetTotals({
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <FieldLabel>Acréscimos (R$)</FieldLabel>
-              <TextInput
-                type="number"
+              <MoneyInput
                 value={budget.additions}
-                onChange={(v) => onChange({ additions: parseFloat(v) || 0 })}
+                onChange={(v) => onChange({ additions: Math.max(0, v) })}
               />
             </div>
             <div>
               <FieldLabel>Entrada (R$)</FieldLabel>
-              <TextInput
-                type="number"
+              <MoneyInput
                 value={budget.downPayment}
-                onChange={(v) => onChange({ downPayment: parseFloat(v) || 0 })}
+                onChange={(v) => onChange({ downPayment: Math.max(0, v) })}
               />
             </div>
           </div>

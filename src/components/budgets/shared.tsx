@@ -1,9 +1,9 @@
 "use client";
 
-import { cn, money } from "@/lib/utils";
+import { cn, money, formatBrlDigits, parseBrlDigits } from "@/lib/utils";
 import type { BudgetStatus, BudgetHistoryEventType, TreatmentStepStatus } from "@/lib/budget-types";
 
-export { money };
+export { money, formatBrlDigits, parseBrlDigits };
 
 export const BUDGET_STATUS_LABELS: Record<BudgetStatus, string> = {
   rascunho: "Rascunho",
@@ -120,6 +120,36 @@ export function TextInput({
       disabled={disabled}
       className={cn(
         "w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/15 disabled:bg-slate-50 disabled:text-slate-500",
+        className
+      )}
+    />
+  );
+}
+
+/** Input monetário pt-BR com pontuação automática (0,00). */
+export function MoneyInput({
+  value,
+  onChange,
+  disabled,
+  className,
+  placeholder = "0,00",
+}: {
+  value: number;
+  onChange?: (v: number) => void;
+  disabled?: boolean;
+  className?: string;
+  placeholder?: string;
+}) {
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={formatBrlDigits(value || 0)}
+      onChange={(e) => onChange?.(parseBrlDigits(e.target.value))}
+      placeholder={placeholder}
+      disabled={disabled}
+      className={cn(
+        "w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm tabular-nums text-slate-800 outline-none transition focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/15 disabled:bg-slate-50 disabled:text-slate-500",
         className
       )}
     />

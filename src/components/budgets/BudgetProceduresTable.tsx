@@ -4,7 +4,7 @@ import { Plus, Search, Trash2 } from "lucide-react";
 import { money } from "@/lib/utils";
 import type { BudgetProcedure } from "@/lib/budget-types";
 import { parseToothNumbers, summarizeTeethForDisplay } from "@/lib/budget-tooth-utils";
-import { FieldLabel, SectionCard, TextInput } from "./shared";
+import { FieldLabel, MoneyInput, SectionCard, TextInput } from "./shared";
 import { ProcedureSearch } from "./ProcedureSearch";
 
 function ToothField({ value }: { value?: string }) {
@@ -141,20 +141,33 @@ export function BudgetProceduresTable({
                       <span className="text-slate-600">{p.quantity}</span>
                     )}
                   </td>
-                  <td className="py-2.5 pr-3 font-medium text-slate-700">
-                    {money(p.unitPrice)}
+                  <td className="py-2.5 pr-3">
+                    {editable && onChange ? (
+                      <MoneyInput
+                        value={p.unitPrice}
+                        onChange={(v) =>
+                          onChange(p.id, {
+                            unitPrice: Math.max(0, v),
+                          })
+                        }
+                        className="!py-1.5 !text-xs w-28"
+                      />
+                    ) : (
+                      <span className="font-medium text-slate-700">
+                        {money(p.unitPrice)}
+                      </span>
+                    )}
                   </td>
                   <td className="py-2.5 pr-3">
                     {editable && onChange ? (
-                      <TextInput
-                        type="number"
+                      <MoneyInput
                         value={p.discount}
                         onChange={(v) =>
                           onChange(p.id, {
-                            discount: Math.max(0, parseFloat(v) || 0),
+                            discount: Math.max(0, v),
                           })
                         }
-                        className="!py-1.5 !text-xs w-20"
+                        className="!py-1.5 !text-xs w-24"
                       />
                     ) : (
                       <span className="text-slate-600">{money(p.discount)}</span>
