@@ -7,6 +7,7 @@ import type { BudgetProcedure, ProcedureCatalogItem } from "@/lib/budget-types";
 import { catalogToProcedure, calcProcedureFinal } from "@/lib/budget-mock";
 import {
   formatToothNumbers,
+  hasProcedureFace,
   isSameUngroupedProcedure,
   parseToothNumbers,
 } from "@/lib/budget-tooth-utils";
@@ -21,6 +22,18 @@ const FACE_OPTIONS = [
   { id: "O", label: "O", title: "Oclusal" },
   { id: "I", label: "I", title: "Incisal" },
 ] as const;
+
+const FACE_IDS = new Set(FACE_OPTIONS.map((f) => f.id));
+
+function normalizeFaceChars(face?: string | null) {
+  return [...new Set((face || "").toUpperCase().split(""))]
+    .filter((c) => FACE_IDS.has(c as (typeof FACE_OPTIONS)[number]["id"]))
+    .sort(
+      (a, b) =>
+        FACE_OPTIONS.findIndex((f) => f.id === a) -
+        FACE_OPTIONS.findIndex((f) => f.id === b)
+    );
+}
 
 export function BudgetProcedureBuilder({
   onAdd,
@@ -37,11 +50,20 @@ export function BudgetProcedureBuilder({
 }) {
   const [pending, setPending] = useState<ProcedureCatalogItem | null>(null);
   const [faces, setFaces] = useState<string[]>([]);
+  const [editingTooth, setEditingTooth] = useState<number | null>(null);
+
+  const procedureRows = useMemo(() => {
+    if (!pending) return [];
+    return existingProcedures.filter(
+      (p) => p.code === pending.code && p.name === pending.name
+    );
+  }, [existingProcedures, pending]);
 
   const selectedTeeth = useMemo(() => {
-    const fromBudget = existingProcedures.flatMap((p) => parseToothNumbers(p.tooth));
-    return [...new Set(fromBudget)].sort((a, b) => a - b);
-  }, [existingProcedures]);
+    return [
+      ...new Set(procedureRows.flatMap((p) => parseToothNumbers(p.tooth))),
+    ].sort((a, b) => a - b);
+  }, [procedureRows]);
 
   const statusByTooth = useMemo(() => new Map(), []);
 
@@ -55,18 +77,19 @@ export function BudgetProcedureBuilder({
       estimatedMinutes: procedure.estimatedMinutes ?? 30,
     });
     setFaces([]);
-  }
-
-  function toggleFace(face: string) {
-    setFaces((prev) =>
-      prev.includes(face) ? prev.filter((f) => f !== face) : [...prev, face]
-    );
+    setEditingTooth(null);
   }
 
   function findGroupLine() {
     if (!pending) return undefined;
     return existingProcedures.find((p) =>
       isSameUngroupedProcedure(p, pending.code, pending.name)
+    );
+  }
+
+  function rowsForTooth(tooth: number) {
+    return procedureRows.filter((p) =>
+      parseToothNumbers(p.tooth).includes(tooth)
     );
   }
 
@@ -77,23 +100,112 @@ export function BudgetProcedureBuilder({
       return;
     }
     const quantity = nextTeeth.length;
-    const patch: Partial<BudgetProcedure> = {
+    onUpdate(group.id, {
       tooth: formatToothNumbers(nextTeeth),
       quantity,
-    };
-    patch.finalValue = calcProcedureFinal({
-      unitPrice: group.unitPrice,
-      quantity,
-      discount: group.discount,
+      finalValue: calcProcedureFinal({
+        unitPrice: group.unitPrice,
+        quantity,
+        discount: group.discount,
+      }),
     });
-    onUpdate(group.id, patch);
+  }
+
+  function removeToothFromProcedure(tooth: number) {
+    if (!pending) return;
+    for (const row of rowsForTooth(tooth)) {
+      const teeth = parseToothNumbers(row.tooth);
+      if (hasProcedureFace(row.face) || teeth.length <= 1) {
+        onRemove?.(row.id);
+      } else {
+        removeToothFromGroup(row, tooth);
+      }
+    }
+    if (editingTooth === tooth) {
+      setEditingTooth(null);
+      setFaces([]);
+    }
+  }
+
+  function syncToothFaces(tooth: number, nextFaces: string[]) {
+    if (!pending) return;
+    const faceStr = nextFaces.join("");
+    const rows = rowsForTooth(tooth);
+    const group = findGroupLine();
+    const facedRows = rows.filter((r) => hasProcedureFace(r.face));
+    const inGroup =
+      Boolean(group) && parseToothNumbers(group!.tooth).includes(tooth);
+
+    if (!faceStr) {
+      for (const row of facedRows) onRemove?.(row.id);
+      if (!inGroup) {
+        const liveGroup = findGroupLine();
+        if (liveGroup && !parseToothNumbers(liveGroup.tooth).includes(tooth)) {
+          const nextTeeth = [...parseToothNumbers(liveGroup.tooth), tooth];
+          const quantity = nextTeeth.length;
+          onUpdate(liveGroup.id, {
+            tooth: formatToothNumbers(nextTeeth),
+            quantity,
+            finalValue: calcProcedureFinal({
+              unitPrice: liveGroup.unitPrice,
+              quantity,
+              discount: liveGroup.discount,
+            }),
+          });
+        } else if (!liveGroup) {
+          const row = catalogToProcedure(pending);
+          row.tooth = String(tooth);
+          row.quantity = 1;
+          row.face = undefined;
+          row.finalValue = calcProcedureFinal(row);
+          onAdd(row);
+        }
+      }
+      return;
+    }
+
+    if (inGroup && group) {
+      removeToothFromGroup(group, tooth);
+    }
+
+    if (facedRows.length === 0) {
+      const row = catalogToProcedure(pending);
+      row.tooth = String(tooth);
+      row.face = faceStr;
+      row.quantity = 1;
+      row.finalValue = calcProcedureFinal(row);
+      onAdd(row);
+      return;
+    }
+
+    onUpdate(facedRows[0].id, {
+      tooth: String(tooth),
+      face: faceStr,
+      quantity: 1,
+      finalValue: calcProcedureFinal({
+        unitPrice: facedRows[0].unitPrice,
+        quantity: 1,
+        discount: facedRows[0].discount,
+      }),
+    });
+    for (const row of facedRows.slice(1)) onRemove?.(row.id);
+  }
+
+  function toggleFace(face: string) {
+    const next = faces.includes(face)
+      ? faces.filter((f) => f !== face)
+      : [...faces, face];
+    const ordered = normalizeFaceChars(next.join(""));
+    setFaces(ordered);
+    if (editingTooth != null) {
+      syncToothFaces(editingTooth, ordered);
+    }
   }
 
   function addWithTooth(tooth: number) {
     if (!pending) return;
     const faceStr = faces.length ? faces.join("") : "";
 
-    // Com faces → sempre linha separada; limpa faces para o próximo dente
     if (faceStr) {
       const group = findGroupLine();
       if (group && parseToothNumbers(group.tooth).includes(tooth)) {
@@ -109,6 +221,7 @@ export function BudgetProcedureBuilder({
       );
       if (alreadyFaced) {
         setFaces([]);
+        setEditingTooth(null);
         return;
       }
 
@@ -119,15 +232,16 @@ export function BudgetProcedureBuilder({
       row.finalValue = calcProcedureFinal(row);
       onAdd(row);
       setFaces([]);
+      setEditingTooth(null);
       return;
     }
 
-    // Sem faces → uma linha só, somando dentes/quantidade
     const group = findGroupLine();
     if (group) {
       const teeth = parseToothNumbers(group.tooth);
       if (teeth.includes(tooth)) {
         setFaces([]);
+        setEditingTooth(null);
         return;
       }
       const nextTeeth = [...teeth, tooth];
@@ -142,6 +256,7 @@ export function BudgetProcedureBuilder({
         }),
       });
       setFaces([]);
+      setEditingTooth(null);
       return;
     }
 
@@ -152,6 +267,31 @@ export function BudgetProcedureBuilder({
     row.finalValue = calcProcedureFinal(row);
     onAdd(row);
     setFaces([]);
+    setEditingTooth(null);
+  }
+
+  function handleToothClick(
+    tooth: number,
+    modifiers?: { ctrlKey: boolean; metaKey: boolean }
+  ) {
+    if (!pending) return;
+
+    if (modifiers?.ctrlKey || modifiers?.metaKey) {
+      removeToothFromProcedure(tooth);
+      return;
+    }
+
+    const rows = rowsForTooth(tooth);
+    if (rows.length > 0) {
+      const faceChars = normalizeFaceChars(
+        rows.map((r) => r.face || "").join("")
+      );
+      setFaces(faceChars);
+      setEditingTooth(tooth);
+      return;
+    }
+
+    addWithTooth(tooth);
   }
 
   function addWithoutTooth() {
@@ -163,11 +303,13 @@ export function BudgetProcedureBuilder({
     row.finalValue = calcProcedureFinal(row);
     onAdd(row);
     setFaces([]);
+    setEditingTooth(null);
   }
 
   function clearPending() {
     setPending(null);
     setFaces([]);
+    setEditingTooth(null);
   }
 
   return (
@@ -184,7 +326,8 @@ export function BudgetProcedureBuilder({
               Odontograma — selecione os dentes
             </h3>
             <p className="mt-0.5 text-[11px] text-slate-500">
-              Sem face: vários dentes na mesma linha. Com face: cada dente em linha separada.
+              Clique no dente selecionado para editar faces · Ctrl+clique para
+              remover
             </p>
           </div>
           {pending ? (
@@ -208,6 +351,9 @@ export function BudgetProcedureBuilder({
               </p>
               <p className="text-[11px] text-indigo-700/80">
                 {pending.code} · {money(pending.price)}
+                {editingTooth != null
+                  ? ` · Editando dente ${editingTooth}`
+                  : ""}
                 {faces.length ? ` · Faces ${faces.join("")}` : ""}
               </p>
             </div>
@@ -227,7 +373,10 @@ export function BudgetProcedureBuilder({
 
         <div className="mb-3">
           <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-400">
-            Faces (opcional) — limpam ao escolher o próximo dente
+            Faces (opcional)
+            {editingTooth != null
+              ? ` — editando dente ${editingTooth}`
+              : " — limpam ao escolher o próximo dente"}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {FACE_OPTIONS.map((face) => {
@@ -257,13 +406,11 @@ export function BudgetProcedureBuilder({
           title=""
           statusByTooth={statusByTooth}
           selected={selectedTeeth}
-          onToggleTooth={(number) => {
-            if (!pending) return;
-            addWithTooth(number);
-          }}
+          onToggleTooth={handleToothClick}
           interactive={Boolean(pending)}
           showLegend={false}
           showSelectedLabel={false}
+          toothActionHint=" · clique p/ editar faces · Ctrl+clique p/ remover"
           compact
         />
       </div>

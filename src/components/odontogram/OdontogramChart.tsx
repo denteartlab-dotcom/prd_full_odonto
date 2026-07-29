@@ -15,15 +15,22 @@ import {
   type OdontogramDentition,
 } from "@/lib/odontogram-constants";
 
+type ToothClickModifiers = {
+  ctrlKey: boolean;
+  metaKey: boolean;
+};
+
 type OdontogramChartProps = {
   statusByTooth: Map<number, ToothStatus>;
   selected?: number[];
-  onToggleTooth?: (number: number) => void;
+  onToggleTooth?: (number: number, modifiers?: ToothClickModifiers) => void;
   onStatusChange?: (numbers: number[], status: ToothStatus) => void;
   title?: string;
   interactive?: boolean;
   showLegend?: boolean;
   showSelectedLabel?: boolean;
+  /** Texto extra no tooltip do dente (ex.: Ctrl+clique para remover) */
+  toothActionHint?: string;
   compact?: boolean;
   className?: string;
 };
@@ -37,6 +44,7 @@ export function OdontogramChart({
   interactive = true,
   showLegend = true,
   showSelectedLabel = true,
+  toothActionHint,
   compact = false,
   className,
 }: OdontogramChartProps) {
@@ -54,12 +62,14 @@ export function OdontogramChart({
 
   function handleToothClick(e: React.MouseEvent, number: number) {
     if (!interactive) return;
-    if (e.ctrlKey && statusBrush && onStatusChange) {
+    const modifiers = { ctrlKey: e.ctrlKey, metaKey: e.metaKey };
+    // No prontuário: Ctrl+clique cola status quando há pincel ativo
+    if ((e.ctrlKey || e.metaKey) && statusBrush && onStatusChange) {
       e.preventDefault();
       applyStatus([number], statusBrush);
       return;
     }
-    onToggleTooth?.(number);
+    onToggleTooth?.(number, modifiers);
   }
 
   const selectedLabel =
@@ -112,6 +122,7 @@ export function OdontogramChart({
             selectedSet={selectedSet}
             interactive={interactive}
             compact={compact}
+            toothActionHint={toothActionHint}
             onToothClick={handleToothClick}
           />
           <div className={cn("border-t border-dashed border-slate-300", compact ? "my-1.5" : "my-2")} />
@@ -122,6 +133,7 @@ export function OdontogramChart({
             selectedSet={selectedSet}
             interactive={interactive}
             compact={compact}
+            toothActionHint={toothActionHint}
             onToothClick={handleToothClick}
           />
         </div>
@@ -206,6 +218,7 @@ function OdontogramArch({
   selectedSet,
   interactive,
   compact,
+  toothActionHint,
   onToothClick,
 }: {
   teeth: readonly number[];
@@ -214,6 +227,7 @@ function OdontogramArch({
   selectedSet: Set<number>;
   interactive: boolean;
   compact?: boolean;
+  toothActionHint?: string;
   onToothClick: (e: React.MouseEvent, number: number) => void;
 }) {
   const mid = teeth.length / 2;
@@ -230,6 +244,7 @@ function OdontogramArch({
             selected={selectedSet.has(number)}
             interactive={interactive}
             compact={compact}
+            toothActionHint={toothActionHint}
             onClick={(e) => onToothClick(e, number)}
           />
         </div>
@@ -245,6 +260,7 @@ function ToothGraphic({
   selected,
   interactive,
   compact,
+  toothActionHint,
   onClick,
 }: {
   number: number;
@@ -253,11 +269,15 @@ function ToothGraphic({
   selected: boolean;
   interactive: boolean;
   compact?: boolean;
+  toothActionHint?: string;
   onClick: (e: React.MouseEvent) => void;
 }) {
   const meta = TOOTH_STATUS_META[status];
   const isUpper = arch === "upper";
   const extracted = status === "extraido";
+  const actionHint =
+    toothActionHint ??
+    (interactive ? " · Ctrl+clique para colar status" : "");
 
   return (
     <button
@@ -271,7 +291,7 @@ function ToothGraphic({
         selected && "bg-emerald-50 ring-1 ring-emerald-400",
         !interactive && "cursor-default"
       )}
-      title={`Dente ${number} — ${meta.label}${interactive ? " · Ctrl+clique para colar status" : ""}`}
+      title={`Dente ${number} — ${meta.label}${actionHint}`}
     >
       {!isUpper && (
         <span
