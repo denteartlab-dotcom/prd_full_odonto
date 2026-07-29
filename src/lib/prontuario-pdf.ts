@@ -1,6 +1,5 @@
 import { jsPDF } from "jspdf";
 import type { EvolucaoClinica } from "@/lib/prontuario-types";
-import { EVOLUCAO_STATUS_LABEL, EVOLUCAO_TIPO_LABEL } from "@/lib/prontuario-types";
 
 export type ProntuarioPdfClinic = {
   name: string;
@@ -78,8 +77,16 @@ function atendimentoText(evolucao: EvolucaoClinica) {
 export function buildProntuarioPdfBytes(input: {
   clinic: ProntuarioPdfClinic;
   patient: ProntuarioPdfPatient;
-  evolucao: EvolucaoClinica;
+  /** Uma ou várias evoluções — impressas uma abaixo da outra. */
+  evolucoes: EvolucaoClinica[];
 }): Uint8Array {
+  const evolucoes = input.evolucoes.length
+    ? input.evolucoes
+    : [];
+  if (!evolucoes.length) {
+    throw new Error("Nenhuma evolução selecionada para o PDF.");
+  }
+
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -163,24 +170,17 @@ export function buildProntuarioPdfBytes(input: {
   doc.line(margin, y, pageW - margin, y);
   y += 8;
 
-  // ——— Título ———
   y += drawText(["Prontuário Odontológico"], margin, y, {
     size: 13,
     bold: true,
     lineH: 5.5,
   });
-  y += 2;
-  y += drawText(["Evolução clínica / atendimento"], margin, y, {
-    size: 9,
-    color: [100, 116, 139],
-    lineH: 4,
-  });
-  y += 6;
+  y += 5;
 
   // ——— Paciente ———
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(margin, y, contentW, 28, 2, 2, "FD");
+  doc.roundedRect(margin, y, contentW, 22, 2, 2, "FD");
   let py = y + 6;
   py += drawText([`Paciente: ${input.patient.name}`], margin + 3, py, {
     size: 10,
@@ -188,104 +188,78 @@ export function buildProntuarioPdfBytes(input: {
     lineH: 4.5,
   });
   const patientMeta = [
-    input.patient.chartNumber ? `Ficha: ${input.patient.chartNumber}` : "",
     input.patient.cpf ? `CPF: ${input.patient.cpf}` : "",
-    input.patient.birthDate ? `Nascimento: ${formatDateBr(input.patient.birthDate)}` : "",
     input.patient.phone ? `Tel.: ${input.patient.phone}` : "",
-    input.patient.email ? `E-mail: ${input.patient.email}` : "",
   ]
     .filter(Boolean)
     .join("  ·  ");
   if (patientMeta) {
-    const metaRows = wrap(doc, patientMeta, contentW - 6, 8);
-    drawText(metaRows, margin + 3, py + 1, {
+    drawText([patientMeta], margin + 3, py + 1, {
       size: 8,
       color: [71, 85, 105],
       lineH: 3.5,
     });
   }
-  y += 34;
+  y += 28;
 
-  // ——— Dados da evolução ———
-  const e = input.evolucao;
-  ensureSpace(40);
-  y += drawText(["Dados do atendimento"], margin, y, {
-    size: 11,
-    bold: true,
-    lineH: 5,
-  });
-  y += 3;
+  // ——— Atendimentos (um abaixo do outro) ———
+  evolucoes.forEach((e, index) => {
+    ensureSpace(42);
+    if (index > 0) {
+      y += 4;
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.4);
+      doc.line(margin, y, pageW - margin, y);
+      y += 6;
+    }
 
-  const fields: [string, string][] = [
-    ["Título", e.titulo || "Atendimento"],
-    ["Tipo", EVOLUCAO_TIPO_LABEL[e.tipo] || e.tipo],
-    ["Status", EVOLUCAO_STATUS_LABEL[e.status] || e.status],
-    ["Data", formatDateBr(e.date)],
-    ["Hora", e.time || "—"],
-    ["Profissional", e.profissional || "—"],
-    ["Especialidade", e.especialidade || "—"],
-    ["Retorno", e.retorno ? formatDateBr(e.retorno) : "—"],
-  ];
-
-  for (const [label, value] of fields) {
-    ensureSpace(8);
-    const line = `${label}: ${value}`;
-    const rows = wrap(doc, line, contentW, 9.5);
-    y += drawText(rows, margin, y, { size: 9.5, lineH: 4.2 });
-    y += 1.5;
-  }
-
-  y += 4;
-  ensureSpace(20);
-  y += drawText(["Atendimento"], margin, y, {
-    size: 11,
-    bold: true,
-    lineH: 5,
-  });
-  y += 3;
-
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.3);
-  const text = atendimentoText(e);
-  const bodyRows = wrap(doc, text, contentW - 4, 10);
-
-  // Paginate long text
-  let remaining = bodyRows;
-  while (remaining.length) {
-    ensureSpace(30);
-    const available = pageH - 18 - y - 8;
-    const maxLines = Math.max(4, Math.floor(available / 4.4));
-    const chunk = remaining.slice(0, maxLines);
-    remaining = remaining.slice(maxLines);
-    const h = chunk.length * 4.4 + 8;
-    doc.setDrawColor(226, 232, 240);
-    doc.roundedRect(margin, y, contentW, h, 2, 2, "S");
-    drawText(chunk, margin + 2, y + 5.5, {
-      size: 10,
-      color: [30, 41, 59],
-      lineH: 4.4,
+    y += drawText([`Atendimento ${index + 1}`], margin, y, {
+      size: 11,
+      bold: true,
+      lineH: 5,
     });
-    y += h + 4;
-  }
+    y += 3;
 
-  // ——— Assinatura ———
-  ensureSpace(36);
-  y += 10;
-  doc.setDrawColor(148, 163, 184);
-  doc.setLineWidth(0.4);
-  doc.line(margin + 20, y, pageW - margin - 20, y);
-  y += 6;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.setTextColor(15, 23, 42);
-  doc.text(e.profissional || "Profissional responsável", pageW / 2, y, {
-    align: "center",
+    const meta = [
+      `Data: ${formatDateBr(e.date)}`,
+      `Horário: ${e.time || "—"}`,
+      `Profissional: ${e.profissional || "—"}`,
+    ].join("   ·   ");
+    const metaRows = wrap(doc, meta, contentW, 9.5);
+    y += drawText(metaRows, margin, y, {
+      size: 9.5,
+      color: [51, 65, 85],
+      lineH: 4.2,
+    });
+    y += 4;
+
+    y += drawText(["O que foi feito"], margin, y, {
+      size: 10,
+      bold: true,
+      lineH: 4.5,
+    });
+    y += 2;
+
+    const text = atendimentoText(e);
+    const bodyRows = wrap(doc, text, contentW - 4, 10);
+    let remaining = bodyRows;
+    while (remaining.length) {
+      ensureSpace(28);
+      const available = pageH - 18 - y - 8;
+      const maxLines = Math.max(3, Math.floor(available / 4.4));
+      const chunk = remaining.slice(0, maxLines);
+      remaining = remaining.slice(maxLines);
+      const h = chunk.length * 4.4 + 8;
+      doc.setDrawColor(226, 232, 240);
+      doc.roundedRect(margin, y, contentW, h, 2, 2, "S");
+      drawText(chunk, margin + 2, y + 5.5, {
+        size: 10,
+        color: [30, 41, 59],
+        lineH: 4.4,
+      });
+      y += h + 3;
+    }
   });
-  y += 5;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(100, 116, 139);
-  doc.text("Assinatura / CRO", pageW / 2, y, { align: "center" });
 
   // footer
   const pageCount = doc.getNumberOfPages();

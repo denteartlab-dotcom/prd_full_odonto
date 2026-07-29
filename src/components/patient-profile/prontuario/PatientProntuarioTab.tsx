@@ -97,6 +97,7 @@ export function PatientProntuarioTab({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [autosaveHint, setAutosaveHint] = useState("");
   const [toast, setToast] = useState("");
+  const [printIds, setPrintIds] = useState<string[]>([]);
   const [pdfOpen, setPdfOpen] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState("");
@@ -173,9 +174,26 @@ export function PatientProntuarioTab({
     );
   }
 
-  async function handlePrint() {
-    if (!selected) {
-      setToast("Selecione uma evolução para imprimir.");
+  async function handlePrint(ids?: string[]) {
+    const targetIds =
+      ids && ids.length
+        ? ids
+        : printIds.length
+          ? printIds
+          : selected
+            ? [selected.id]
+            : [];
+
+    const evolucoes = targetIds
+      .map((id) => items.find((e) => e.id === id))
+      .filter((e): e is EvolucaoClinica => Boolean(e));
+
+    // Mantém ordem da timeline (já filtrada/ordenada)
+    const ordered = filtered.filter((e) => evolucoes.some((x) => x.id === e.id));
+    const toPrint = ordered.length ? ordered : evolucoes;
+
+    if (!toPrint.length) {
+      setToast("Selecione pelo menos um atendimento para imprimir.");
       return;
     }
 
@@ -216,7 +234,7 @@ export function PatientProntuarioTab({
           birthDate: patient.birthDate,
           chartNumber: patient.chartNumber,
         },
-        evolucao: selected,
+        evolucoes: toPrint,
       });
 
       const blob = new Blob([Uint8Array.from(bytes)], { type: "application/pdf" });
@@ -224,7 +242,9 @@ export function PatientProntuarioTab({
       const previous = pdfUrlRef.current;
       pdfUrlRef.current = url;
       setPdfUrl(url);
-      setPdfName(prontuarioPdfFilename(patient.name, selected.date));
+      setPdfName(
+        prontuarioPdfFilename(patient.name, toPrint[0]?.date || "atendimentos")
+      );
       if (previous) URL.revokeObjectURL(previous);
     } catch (err) {
       setPdfError(
@@ -233,6 +253,12 @@ export function PatientProntuarioTab({
     } finally {
       setPdfLoading(false);
     }
+  }
+
+  function togglePrintId(id: string) {
+    setPrintIds((list) =>
+      list.includes(id) ? list.filter((x) => x !== id) : [...list, id]
+    );
   }
 
   function closePdf() {
@@ -270,6 +296,7 @@ export function PatientProntuarioTab({
         <ProntuarioTimeline
           items={filtered}
           selectedId={selectedId}
+          printIds={printIds}
           query={query}
           filter={filter}
           sort={sort}
@@ -277,19 +304,26 @@ export function PatientProntuarioTab({
           onFilter={setFilter}
           onSort={setSort}
           onSelect={setSelectedId}
+          onTogglePrint={togglePrintId}
+          onSelectAllPrint={() => setPrintIds(filtered.map((e) => e.id))}
+          onClearPrint={() => setPrintIds([])}
+          onPrintSelected={() => void handlePrint(printIds)}
           onNova={() => setDrawerOpen(true)}
         />
         <ProntuarioDetail
-          patientId={patient.id}
           evolucao={selected}
           autosaveHint={autosaveHint}
           onPatch={patchSelected}
-          onPrint={() => void handlePrint()}
+          onPrint={() =>
+            void handlePrint(printIds.length ? printIds : selected ? [selected.id] : [])
+          }
         />
         <ProntuarioSidebar
           patient={patient}
           onNovaEvolucao={() => setDrawerOpen(true)}
-          onPrint={() => void handlePrint()}
+          onPrint={() =>
+            void handlePrint(printIds.length ? printIds : selected ? [selected.id] : [])
+          }
         />
       </div>
 

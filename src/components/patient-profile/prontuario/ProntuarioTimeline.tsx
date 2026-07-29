@@ -6,6 +6,7 @@ import {
   ClipboardList,
   FileSearch,
   Pill,
+  Printer,
   Scissors,
   Smile,
   Stethoscope,
@@ -61,6 +62,7 @@ function formatDate(iso: string) {
 export function ProntuarioTimeline({
   items,
   selectedId,
+  printIds,
   query,
   filter,
   sort,
@@ -68,10 +70,15 @@ export function ProntuarioTimeline({
   onFilter,
   onSort,
   onSelect,
+  onTogglePrint,
+  onSelectAllPrint,
+  onClearPrint,
+  onPrintSelected,
   onNova,
 }: {
   items: EvolucaoClinica[];
   selectedId?: string;
+  printIds: string[];
   query: string;
   filter: ProntuarioFilter;
   sort: ProntuarioSort;
@@ -79,8 +86,14 @@ export function ProntuarioTimeline({
   onFilter: (v: ProntuarioFilter) => void;
   onSort: (v: ProntuarioSort) => void;
   onSelect: (id: string) => void;
+  onTogglePrint: (id: string) => void;
+  onSelectAllPrint: () => void;
+  onClearPrint: () => void;
+  onPrintSelected: () => void;
   onNova: () => void;
 }) {
+  const selectedCount = printIds.length;
+
   return (
     <section className="flex h-full min-h-[640px] flex-col rounded-2xl border border-slate-200/80 bg-white shadow-sm">
       <div className="border-b border-slate-100 p-4">
@@ -120,11 +133,43 @@ export function ProntuarioTimeline({
         <select
           value={sort}
           onChange={(e) => onSort(e.target.value as ProntuarioSort)}
-          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 outline-none"
+          className="mb-3 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 outline-none"
         >
           <option value="recentes">Mais recentes</option>
           <option value="antigas">Mais antigas</option>
         </select>
+
+        <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-2.5">
+          <p className="mb-2 text-[11px] font-medium text-indigo-800">
+            Selecione os atendimentos para imprimir no mesmo PDF
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={onSelectAllPrint}
+              className="rounded-lg border border-indigo-200 bg-white px-2 py-1 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-50"
+            >
+              Marcar todos
+            </button>
+            <button
+              type="button"
+              onClick={onClearPrint}
+              disabled={!selectedCount}
+              className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+            >
+              Limpar
+            </button>
+            <button
+              type="button"
+              onClick={onPrintSelected}
+              disabled={!selectedCount}
+              className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-indigo-700 disabled:opacity-40"
+            >
+              <Printer className="h-3 w-3" />
+              Imprimir ({selectedCount})
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="flex-1 space-y-0 overflow-y-auto p-4">
@@ -145,6 +190,7 @@ export function ProntuarioTimeline({
             {items.map((item) => {
               const Icon = tipoIcon(item.tipo);
               const active = item.id === selectedId;
+              const checked = printIds.includes(item.id);
               return (
                 <li key={item.id} className="relative pl-10">
                   <span
@@ -157,33 +203,48 @@ export function ProntuarioTimeline({
                   >
                     <Icon className="h-3.5 w-3.5" />
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => onSelect(item.id)}
+                  <div
                     className={cn(
-                      "w-full rounded-xl border px-3 py-3 text-left transition",
+                      "rounded-xl border px-3 py-3 transition",
                       active
                         ? "border-indigo-300 bg-indigo-50/60 shadow-sm ring-1 ring-indigo-100"
-                        : "border-slate-150 border-slate-100 bg-slate-50/50 hover:border-slate-200 hover:bg-white"
+                        : "border-slate-100 bg-slate-50/50 hover:border-slate-200 hover:bg-white",
+                      checked ? "ring-1 ring-indigo-200" : ""
                     )}
                   >
-                    <div className="mb-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
-                      <span className="font-semibold text-slate-700">
-                        {formatDate(item.date)} · {item.time}
-                      </span>
-                      <span className="rounded-full bg-white px-2 py-0.5 font-medium text-indigo-700 ring-1 ring-indigo-100">
-                        {EVOLUCAO_TIPO_LABEL[item.tipo]}
-                      </span>
+                    <div className="mb-2 flex items-start gap-2">
+                      <label
+                        className="mt-0.5 flex cursor-pointer items-center"
+                        title="Selecionar para impressão"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => onTogglePrint(item.id)}
+                          className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => onSelect(item.id)}
+                        className="min-w-0 flex-1 text-left"
+                      >
+                        <div className="mb-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                          <span className="font-semibold text-slate-700">
+                            {formatDate(item.date)} · {item.time}
+                          </span>
+                          <span className="rounded-full bg-white px-2 py-0.5 font-medium text-indigo-700 ring-1 ring-indigo-100">
+                            {EVOLUCAO_TIPO_LABEL[item.tipo]}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500">{item.profissional}</p>
+                        <p className="mt-1 line-clamp-2 text-xs text-slate-600">
+                          {item.resumo}
+                        </p>
+                      </button>
                     </div>
-                    <p className="text-sm font-semibold text-slate-900">{item.titulo}</p>
-                    <p className="mt-0.5 text-xs text-slate-500">{item.profissional}</p>
-                    <p className="mt-1 line-clamp-2 text-xs text-slate-600">{item.resumo}</p>
-                    {item.procedimento ? (
-                      <p className="mt-1.5 text-[11px] font-medium text-slate-500">
-                        {item.procedimento}
-                      </p>
-                    ) : null}
-                  </button>
+                  </div>
                 </li>
               );
             })}
