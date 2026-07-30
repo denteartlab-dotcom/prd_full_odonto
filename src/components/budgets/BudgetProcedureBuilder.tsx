@@ -294,6 +294,67 @@ export function BudgetProcedureBuilder({
     addWithTooth(tooth);
   }
 
+  /** SUP/INF: seleciona (ou remove) todos os dentes da arcada. */
+  function handleSelectArch(_arch: "upper" | "lower", teeth: number[]) {
+    if (!pending || !teeth.length) return;
+
+    const selectedSet = new Set(selectedTeeth);
+    const allSelected = teeth.every((t) => selectedSet.has(t));
+
+    if (allSelected) {
+      for (const t of teeth) removeToothFromProcedure(t);
+      setFaces([]);
+      setEditingTooth(null);
+      return;
+    }
+
+    const faceStr = faces.length ? faces.join("") : "";
+    const missing = teeth.filter((t) => !selectedSet.has(t));
+    if (!missing.length) return;
+
+    if (faceStr) {
+      for (const tooth of missing) {
+        const group = findGroupLine();
+        if (group && parseToothNumbers(group.tooth).includes(tooth)) {
+          removeToothFromGroup(group, tooth);
+        }
+        const row = catalogToProcedure(pending);
+        row.tooth = String(tooth);
+        row.face = faceStr;
+        row.quantity = 1;
+        row.finalValue = calcProcedureFinal(row);
+        onAdd(row);
+      }
+      setFaces([]);
+      setEditingTooth(null);
+      return;
+    }
+
+    const group = findGroupLine();
+    if (group) {
+      const nextTeeth = [...parseToothNumbers(group.tooth), ...missing];
+      const quantity = nextTeeth.length;
+      onUpdate(group.id, {
+        tooth: formatToothNumbers(nextTeeth),
+        quantity,
+        finalValue: calcProcedureFinal({
+          unitPrice: group.unitPrice,
+          quantity,
+          discount: group.discount,
+        }),
+      });
+    } else {
+      const row = catalogToProcedure(pending);
+      row.tooth = formatToothNumbers(missing);
+      row.quantity = missing.length;
+      row.face = undefined;
+      row.finalValue = calcProcedureFinal(row);
+      onAdd(row);
+    }
+    setFaces([]);
+    setEditingTooth(null);
+  }
+
   function addWithoutTooth() {
     if (!pending) return;
     const faceStr = faces.length ? faces.join("") : "";
@@ -326,8 +387,8 @@ export function BudgetProcedureBuilder({
               Odontograma — selecione os dentes
             </h3>
             <p className="mt-0.5 text-[11px] text-slate-500">
-              Clique no dente selecionado para editar faces · Ctrl+clique para
-              remover
+              Clique em SUP/INF para toda a arcada · dente selecionado edita faces ·
+              Ctrl+clique remove
             </p>
           </div>
           {pending ? (
@@ -407,6 +468,7 @@ export function BudgetProcedureBuilder({
           statusByTooth={statusByTooth}
           selected={selectedTeeth}
           onToggleTooth={handleToothClick}
+          onSelectArch={handleSelectArch}
           interactive={Boolean(pending)}
           showLegend={false}
           showSelectedLabel={false}

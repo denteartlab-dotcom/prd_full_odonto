@@ -24,6 +24,8 @@ type OdontogramChartProps = {
   statusByTooth: Map<number, ToothStatus>;
   selected?: number[];
   onToggleTooth?: (number: number, modifiers?: ToothClickModifiers) => void;
+  /** Clique em SUP/INF: recebe a arcada e a lista de dentes da linha atual */
+  onSelectArch?: (arch: "upper" | "lower", teeth: number[]) => void;
   onStatusChange?: (numbers: number[], status: ToothStatus) => void;
   title?: string;
   interactive?: boolean;
@@ -39,6 +41,7 @@ export function OdontogramChart({
   statusByTooth,
   selected = [],
   onToggleTooth,
+  onSelectArch,
   onStatusChange,
   title = "Selecione os dentes do trabalho",
   interactive = true,
@@ -55,6 +58,11 @@ export function OdontogramChart({
   const upperTeeth = dentition === "permanente" ? UPPER_PERMANENT : UPPER_DECIDUOUS;
   const lowerTeeth = dentition === "permanente" ? LOWER_PERMANENT : LOWER_DECIDUOUS;
 
+  const upperSelected =
+    upperTeeth.length > 0 && upperTeeth.every((n) => selectedSet.has(n));
+  const lowerSelected =
+    lowerTeeth.length > 0 && lowerTeeth.every((n) => selectedSet.has(n));
+
   function applyStatus(numbers: number[], status: ToothStatus) {
     setStatusBrush(status);
     onStatusChange?.(numbers, status);
@@ -70,6 +78,12 @@ export function OdontogramChart({
       return;
     }
     onToggleTooth?.(number, modifiers);
+  }
+
+  function handleArchClick(arch: "upper" | "lower") {
+    if (!interactive || !onSelectArch) return;
+    const teeth = [...(arch === "upper" ? upperTeeth : lowerTeeth)];
+    onSelectArch(arch, teeth);
   }
 
   const selectedLabel =
@@ -109,9 +123,21 @@ export function OdontogramChart({
 
       <div className={cn("flex", compact ? "gap-1" : "gap-2")}>
         <div className="flex shrink-0 flex-col justify-around py-1">
-          <ArchBadge label="SUP" compact={compact} />
+          <ArchBadge
+            label="SUP"
+            compact={compact}
+            active={upperSelected}
+            clickable={Boolean(interactive && onSelectArch)}
+            onClick={() => handleArchClick("upper")}
+          />
           <div className={compact ? "h-4" : "h-6"} />
-          <ArchBadge label="INF" compact={compact} />
+          <ArchBadge
+            label="INF"
+            compact={compact}
+            active={lowerSelected}
+            clickable={Boolean(interactive && onSelectArch)}
+            onClick={() => handleArchClick("lower")}
+          />
         </div>
 
         <div className="min-w-0 flex-1 overflow-hidden">
@@ -198,7 +224,38 @@ export function OdontogramChart({
   );
 }
 
-function ArchBadge({ label, compact }: { label: string; compact?: boolean }) {
+function ArchBadge({
+  label,
+  compact,
+  active,
+  clickable,
+  onClick,
+}: {
+  label: string;
+  compact?: boolean;
+  active?: boolean;
+  clickable?: boolean;
+  onClick?: () => void;
+}) {
+  if (clickable) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        title={`Selecionar todos os dentes ${label === "SUP" ? "superiores" : "inferiores"}`}
+        className={cn(
+          "inline-flex items-center justify-center rounded-md font-bold tracking-wide text-white transition",
+          compact ? "h-5 min-w-[1.75rem] px-1 text-[9px]" : "h-6 min-w-[2rem] px-1.5 text-[10px]",
+          active
+            ? "bg-emerald-600 ring-2 ring-emerald-300 hover:bg-emerald-700"
+            : "bg-indigo-950 hover:bg-indigo-800"
+        )}
+      >
+        {label}
+      </button>
+    );
+  }
+
   return (
     <span
       className={cn(
