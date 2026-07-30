@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PatientProfile } from "@/lib/patient-profile-types";
 import type {
   BudgetProcedure,
-  BudgetTreatmentStep,
   DentalBudget,
   InstallmentPlanType,
   PaymentMethodType,
@@ -20,6 +19,7 @@ import {
   getValidityInfo,
   patientSeedFromId,
   recalcBudget,
+  syncTreatmentPlan,
 } from "@/lib/budget-mock";
 import { openBudgetPrintTab, stashBudgetForPrint } from "@/lib/budget-print";
 import { BudgetFormDrawer } from "@/components/budgets/BudgetFormDrawer";
@@ -35,24 +35,6 @@ import { BudgetTabSummaryCards, BudgetSummaryCardsSkeleton } from "./BudgetTabSu
 import { BudgetTabTable } from "./BudgetTabTable";
 
 type DrawerMode = "create" | "edit" | "view" | null;
-
-function syncTreatmentPlan(
-  procedures: BudgetProcedure[],
-  dentist: string,
-  existing: BudgetTreatmentStep[]
-): BudgetTreatmentStep[] {
-  return procedures.map((p, i) => {
-    const prev = existing.find((s) => s.title === p.name);
-    return {
-      id: prev?.id ?? `ts-${p.id}`,
-      order: i + 1,
-      title: p.name,
-      status: prev?.status ?? "pendente",
-      plannedDate: prev?.plannedDate,
-      professional: prev?.professional ?? dentist,
-    };
-  });
-}
 
 function applyFilters(budgets: DentalBudget[], filters: BudgetFilterState): DentalBudget[] {
   const q = filters.search.trim().toLowerCase();

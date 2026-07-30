@@ -6,7 +6,6 @@ import { usePatients } from "@/contexts/patients-context";
 import { useMounted } from "@/hooks/use-mounted";
 import type {
   BudgetProcedure,
-  BudgetTreatmentStep,
   DentalBudget,
   InstallmentPlanType,
   PaymentMethodType,
@@ -20,6 +19,7 @@ import {
   dentalBudgetsToSimple,
   duplicateBudget,
   recalcBudget,
+  syncTreatmentPlan,
 } from "@/lib/budget-mock";
 import { openBudgetPrintTab, stashBudgetForPrint } from "@/lib/budget-print";
 import { PatientProfileHeader } from "@/components/patient-profile/PatientProfileHeader";
@@ -33,24 +33,6 @@ import { BudgetsTable } from "./BudgetsTable";
 
 type SaveState = "saved" | "dirty" | "saving";
 type DrawerMode = "create" | "edit" | "view" | null;
-
-function syncTreatmentPlan(
-  procedures: BudgetProcedure[],
-  dentist: string,
-  existing: BudgetTreatmentStep[]
-): BudgetTreatmentStep[] {
-  return procedures.map((p, i) => {
-    const prev = existing.find((s) => s.title === p.name);
-    return {
-      id: prev?.id ?? `ts-${p.id}`,
-      order: i + 1,
-      title: p.name,
-      status: prev?.status ?? "pendente",
-      plannedDate: prev?.plannedDate,
-      professional: prev?.professional ?? dentist,
-    };
-  });
-}
 
 export function BudgetsPage({
   patientId,

@@ -1,12 +1,25 @@
 "use client";
 
-import { CheckCircle2, Clock } from "lucide-react";
+import { useState } from "react";
+import { CheckCircle2, Clock, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { BudgetTreatmentStep } from "@/lib/budget-types";
+import { reorderTreatmentPlan } from "@/lib/budget-mock";
 import { formatDisplayDate } from "@/lib/patients-list-mock";
 import { SectionCard, treatmentStatusBadge } from "./shared";
 
-export function TreatmentTimeline({ steps }: { steps: BudgetTreatmentStep[] }) {
+export function TreatmentTimeline({
+  steps,
+  editable,
+  onReorder,
+}: {
+  steps: BudgetTreatmentStep[];
+  editable?: boolean;
+  onReorder?: (steps: BudgetTreatmentStep[]) => void;
+}) {
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
+
   if (steps.length === 0) {
     return (
       <SectionCard title="Plano de tratamento">
@@ -18,15 +31,74 @@ export function TreatmentTimeline({ steps }: { steps: BudgetTreatmentStep[] }) {
   }
 
   const sorted = [...steps].sort((a, b) => a.order - b.order);
+  const canDrag = Boolean(editable && onReorder && sorted.length > 1);
+
+  function handleDrop(toIndex: number) {
+    if (dragIndex == null || !onReorder) return;
+    onReorder(reorderTreatmentPlan(sorted, dragIndex, toIndex));
+    setDragIndex(null);
+    setOverIndex(null);
+  }
 
   return (
     <SectionCard title="Plano de tratamento">
+      {canDrag ? (
+        <p className="mb-3 text-[11px] text-slate-400">
+          Arraste pelo ícone para mudar a ordem do tratamento.
+        </p>
+      ) : null}
       <div className="relative space-y-0">
         {sorted.map((step, i) => (
-          <div key={step.id} className="relative flex gap-4 pb-6 last:pb-0">
-            {i < sorted.length - 1 && (
-              <div className="absolute left-[15px] top-8 h-[calc(100%-8px)] w-0.5 bg-slate-200" />
+          <div
+            key={step.id}
+            draggable={canDrag}
+            onDragStart={(e) => {
+              if (!canDrag) return;
+              setDragIndex(i);
+              e.dataTransfer.effectAllowed = "move";
+              e.dataTransfer.setData("text/plain", String(i));
+            }}
+            onDragEnd={() => {
+              setDragIndex(null);
+              setOverIndex(null);
+            }}
+            onDragOver={(e) => {
+              if (!canDrag || dragIndex == null) return;
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+              if (overIndex !== i) setOverIndex(i);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              handleDrop(i);
+            }}
+            className={cn(
+              "relative flex gap-3 pb-6 last:pb-0",
+              canDrag && "rounded-xl transition",
+              dragIndex === i && "opacity-50",
+              overIndex === i && dragIndex !== null && dragIndex !== i
+                ? "bg-indigo-50/80 ring-1 ring-indigo-200"
+                : null
             )}
+          >
+            {i < sorted.length - 1 && (
+              <div className="absolute left-[27px] top-8 h-[calc(100%-8px)] w-0.5 bg-slate-200" />
+            )}
+
+            {canDrag ? (
+              <button
+                type="button"
+                className="relative z-10 mt-1.5 shrink-0 cursor-grab touch-none rounded-md p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 active:cursor-grabbing"
+                aria-label={`Arrastar etapa ${step.order}`}
+                title="Arrastar para reordenar"
+                tabIndex={-1}
+              >
+                <GripVertical className="h-4 w-4" />
+              </button>
+            ) : (
+              <div className="w-0 shrink-0" />
+            )}
+
             <div className="relative z-10 shrink-0">
               <StepIcon status={step.status} order={step.order} />
             </div>
@@ -56,7 +128,13 @@ export function TreatmentTimeline({ steps }: { steps: BudgetTreatmentStep[] }) {
   );
 }
 
-function StepIcon({ status, order }: { status: BudgetTreatmentStep["status"]; order: number }) {
+function StepIcon({
+  status,
+  order,
+}: {
+  status: BudgetTreatmentStep["status"];
+  order: number;
+}) {
   if (status === "concluido") {
     return (
       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
@@ -94,7 +172,9 @@ export function BudgetHistoryTimeline({
           <div key={event.id} className="flex gap-3">
             <div className="flex flex-col items-center">
               <div className="h-2.5 w-2.5 rounded-full bg-indigo-500" />
-              {i < sorted.length - 1 && <div className="mt-1 w-0.5 flex-1 bg-slate-200" />}
+              {i < sorted.length - 1 && (
+                <div className="mt-1 w-0.5 flex-1 bg-slate-200" />
+              )}
             </div>
             <div className="pb-2">
               <p className="text-sm font-semibold capitalize text-slate-800">
@@ -103,7 +183,9 @@ export function BudgetHistoryTimeline({
               <p className="text-xs text-slate-500">
                 {new Date(event.date).toLocaleString("pt-BR")} · {event.user}
               </p>
-              {event.note && <p className="mt-0.5 text-xs text-slate-400">{event.note}</p>}
+              {event.note && (
+                <p className="mt-0.5 text-xs text-slate-400">{event.note}</p>
+              )}
             </div>
           </div>
         ))}

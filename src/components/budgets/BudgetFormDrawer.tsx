@@ -181,7 +181,11 @@ export function BudgetFormDrawer({
             onChange={onPaymentChange}
           />
 
-          <TreatmentTimeline steps={budget.treatmentPlan} />
+          <TreatmentTimeline
+            steps={budget.treatmentPlan}
+            editable={editable}
+            onReorder={(treatmentPlan) => onChange({ treatmentPlan })}
+          />
 
           <BudgetDocuments
             documents={budget.documents}

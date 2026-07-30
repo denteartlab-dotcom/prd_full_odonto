@@ -2,6 +2,7 @@ import type {
   BudgetFinancialSummary,
   BudgetInstallmentPlan,
   BudgetProcedure,
+  BudgetTreatmentStep,
   DentalBudget,
   InstallmentPlanType,
   PaymentMethodType,
@@ -165,6 +166,54 @@ export function catalogToProcedure(item: ProcedureCatalogItem): BudgetProcedure 
     finalValue: item.price,
     estimatedMinutes: item.estimatedMinutes,
   };
+}
+
+/** Sincroniza etapas com procedimentos, preservando ordem/status já definidos. */
+export function syncTreatmentPlan(
+  procedures: BudgetProcedure[],
+  dentist: string,
+  existing: BudgetTreatmentStep[]
+): BudgetTreatmentStep[] {
+  const used = new Set<string>();
+  const steps = procedures.map((p, i) => {
+    const byId = existing.find((s) => s.id === `ts-${p.id}` && !used.has(s.id));
+    const byTitle = existing.find((s) => s.title === p.name && !used.has(s.id));
+    const prev = byId ?? byTitle;
+    if (prev) used.add(prev.id);
+    return {
+      id: prev?.id ?? `ts-${p.id}`,
+      order: prev?.order ?? 1000 + i,
+      title: p.name,
+      status: prev?.status ?? ("pendente" as const),
+      plannedDate: prev?.plannedDate,
+      professional: prev?.professional ?? dentist,
+    };
+  });
+
+  return steps
+    .sort((a, b) => a.order - b.order)
+    .map((s, i) => ({ ...s, order: i + 1 }));
+}
+
+export function reorderTreatmentPlan(
+  steps: BudgetTreatmentStep[],
+  fromIndex: number,
+  toIndex: number
+): BudgetTreatmentStep[] {
+  const sorted = [...steps].sort((a, b) => a.order - b.order);
+  if (
+    fromIndex < 0 ||
+    toIndex < 0 ||
+    fromIndex >= sorted.length ||
+    toIndex >= sorted.length ||
+    fromIndex === toIndex
+  ) {
+    return sorted;
+  }
+  const next = [...sorted];
+  const [moved] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, moved);
+  return next.map((s, i) => ({ ...s, order: i + 1 }));
 }
 
 export function createEmptyBudget(patientSeed: number, dentist = DENTISTS[0].name): DentalBudget {
