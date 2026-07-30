@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { isSession, jsonError, requireApiSession } from "@/lib/api-helpers";
+import { billingTypeFromMethod, formaRecebimentoExigeAsaas } from "@/lib/asaas-config";
+import { emitirCobrancaParaReceivable } from "@/lib/asaas-receivables";
 
 function serialize(row: {
   id: string;
@@ -13,6 +15,14 @@ function serialize(row: {
   status: string;
   method: string | null;
   createdAt: Date;
+  asaasPaymentId: string | null;
+  asaasBillingType: string | null;
+  asaasStatus: string | null;
+  asaasBankSlipUrl: string | null;
+  asaasInvoiceUrl: string | null;
+  asaasPixPayload: string | null;
+  asaasPixQrImage: string | null;
+  asaasLinhaDigitavel: string | null;
   patient: { id: string; name: string } | null;
 }) {
   return {
@@ -27,6 +37,14 @@ function serialize(row: {
     status: row.status,
     method: row.method,
     createdAt: row.createdAt.toISOString(),
+    asaasPaymentId: row.asaasPaymentId,
+    asaasBillingType: row.asaasBillingType,
+    asaasStatus: row.asaasStatus,
+    asaasBankSlipUrl: row.asaasBankSlipUrl,
+    asaasInvoiceUrl: row.asaasInvoiceUrl,
+    asaasPixPayload: row.asaasPixPayload,
+    asaasPixQrImage: row.asaasPixQrImage,
+    asaasLinhaDigitavel: row.asaasLinhaDigitavel,
   };
 }
 
@@ -54,6 +72,7 @@ export async function POST(req: Request) {
     dueDate?: string;
     method?: string;
     status?: string;
+    emitAsaas?: boolean;
   };
 
   if (!body.description?.trim()) return jsonError("Descrição obrigatória.");
@@ -80,5 +99,41 @@ export async function POST(req: Request) {
     include: { patient: true },
   });
 
-  return NextResponse.json({ receivable: serialize(row) }, { status: 201 });
+  let charge = null;
+  const shouldEmit =
+    body.emitAsaas !== false && formaRecebimentoExigeAsaas(body.method);
+  if (shouldEmit) {
+    try {
+      charge = await emitirCobrancaParaReceivable({
+        receivableId: row.id,
+        clinicId: session.clinicId,
+        billingType: billingTypeFromMethod(body.method) || "PIX",
+      });
+    } catch (err) {
+      console.error("[POST /api/receivables emit Asaas]", err);
+      return NextResponse.json(
+        {
+          receivable: serialize(row),
+          asaasError:
+            err instanceof Error
+              ? err.message
+              : "Título criado, mas a cobrança Asaas falhou.",
+        },
+        { status: 201 }
+      );
+    }
+  }
+
+  const refreshed = await prisma.receivable.findFirst({
+    where: { id: row.id },
+    include: { patient: true },
+  });
+
+  return NextResponse.json(
+    {
+      receivable: serialize(refreshed || row),
+      charge,
+    },
+    { status: 201 }
+  );
 }

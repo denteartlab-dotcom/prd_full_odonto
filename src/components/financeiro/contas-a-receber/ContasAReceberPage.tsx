@@ -35,6 +35,8 @@ import {
   ReceivableMoreActions,
   RegisterReceiptModal,
 } from "./ContasAReceberDrawers";
+import { AsaasChargeModal } from "./AsaasChargeModal";
+import { formaRecebimentoExigeAsaas } from "@/lib/asaas-config";
 
 const PERIODS: { id: ReceivablePeriod; label: string }[] = [
   { id: "hoje", label: "Hoje" },
@@ -87,6 +89,8 @@ export function ContasAReceberPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [payTarget, setPayTarget] = useState<ReceivableInstallment | null>(null);
+  const [asaasOpen, setAsaasOpen] = useState(false);
+  const [asaasTarget, setAsaasTarget] = useState<ReceivableInstallment | null>(null);
   const [form, setForm] = useState<NewReceiptForm>(emptyForm);
   const [payForm, setPayForm] = useState<RegisterReceiptForm>(() => {
     const today = new Date().toISOString().slice(0, 10);
@@ -261,6 +265,7 @@ export function ContasAReceberPage() {
         dueDate: form.receiptDate,
         method: form.paymentMethod,
         status: "aberto",
+        emitAsaas: formaRecebimentoExigeAsaas(form.paymentMethod),
       }),
     });
     if (!res.ok) {
@@ -269,8 +274,71 @@ export function ContasAReceberPage() {
       return;
     }
 
-    // marca como pago para refletir no caixa
-    const created = (await res.json()) as { receivable: { id: string } };
+    const created = (await res.json()) as {
+      receivable: ReceivableInstallment & {
+        id: string;
+        asaasPixQrImage?: string | null;
+        asaasPixPayload?: string | null;
+        asaasBankSlipUrl?: string | null;
+        asaasInvoiceUrl?: string | null;
+        asaasBillingType?: string | null;
+        asaasStatus?: string | null;
+        description?: string;
+        amount?: number;
+      };
+      charge?: {
+        pixQrImage?: string | null;
+        pixPayload?: string | null;
+        bankSlipUrl?: string | null;
+        invoiceUrl?: string | null;
+        billingType?: string;
+        status?: string;
+      };
+      asaasError?: string;
+    };
+
+    if (formaRecebimentoExigeAsaas(form.paymentMethod)) {
+      await refresh();
+      setDrawerOpen(false);
+      const rec = created.receivable;
+      const charge = created.charge;
+      setAsaasTarget({
+        id: rec.id,
+        patient: form.patient || "Paciente",
+        cpf: "—",
+        phone: "—",
+        budgetNumber: form.budgetNumber || "—",
+        procedure: form.procedure || "Recebimento",
+        professional: form.professional || "—",
+        convenio: "Particular",
+        installment: 1,
+        totalInstallments: 1,
+        dueDate: form.receiptDate,
+        dueLabel: form.receiptDate,
+        amount: finalAmount,
+        receivedAmount: 0,
+        balance: finalAmount,
+        paymentMethod: form.paymentMethod,
+        bankAccount: form.bankAccount,
+        status: "em_aberto",
+        notes: form.notes,
+        asaasPixQrImage: charge?.pixQrImage || rec.asaasPixQrImage,
+        asaasPixPayload: charge?.pixPayload || rec.asaasPixPayload,
+        asaasBankSlipUrl: charge?.bankSlipUrl || rec.asaasBankSlipUrl,
+        asaasInvoiceUrl: charge?.invoiceUrl || rec.asaasInvoiceUrl,
+        asaasBillingType: charge?.billingType || rec.asaasBillingType,
+        asaasStatus: charge?.status || rec.asaasStatus,
+      });
+      setAsaasOpen(true);
+      setForm(emptyForm());
+      setMessage(
+        created.asaasError ||
+          "Cobrança Asaas gerada. O pagamento confirma automaticamente via webhook."
+      );
+      return;
+    }
+
+    // Métodos manuais: marca como pago para refletir no caixa
     await fetch(`/api/receivables/${created.receivable.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -281,6 +349,44 @@ export function ContasAReceberPage() {
     setDrawerOpen(false);
     setForm(emptyForm());
     setMessage("Recebimento lançado e sincronizado com o financeiro.");
+  }
+
+  async function emitAsaasCharge(
+    item: ReceivableInstallment,
+    billingType: "PIX" | "BOLETO"
+  ) {
+    const res = await fetch("/api/asaas/cobrancas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ receivableId: item.id, billingType }),
+    });
+    const body = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      charge?: {
+        pixQrImage?: string | null;
+        pixPayload?: string | null;
+        bankSlipUrl?: string | null;
+        invoiceUrl?: string | null;
+        billingType?: string;
+        status?: string;
+      };
+    };
+    if (!res.ok) {
+      setMessage(body.error || "Falha ao gerar cobrança Asaas.");
+      return;
+    }
+    await refresh();
+    setAsaasTarget({
+      ...item,
+      asaasPixQrImage: body.charge?.pixQrImage || item.asaasPixQrImage,
+      asaasPixPayload: body.charge?.pixPayload || item.asaasPixPayload,
+      asaasBankSlipUrl: body.charge?.bankSlipUrl || item.asaasBankSlipUrl,
+      asaasInvoiceUrl: body.charge?.invoiceUrl || item.asaasInvoiceUrl,
+      asaasBillingType: body.charge?.billingType || billingType,
+      asaasStatus: body.charge?.status || item.asaasStatus,
+    });
+    setAsaasOpen(true);
+    setMessage("Cobrança Asaas gerada.");
   }
 
   function openPay(item: ReceivableInstallment) {
@@ -795,6 +901,25 @@ export function ContasAReceberPage() {
                         <IconBtn title="Registrar Recebimento" onClick={() => openPay(a)}>
                           <Banknote className="h-3.5 w-3.5" />
                         </IconBtn>
+                        {a.status !== "pago" ? (
+                          <IconBtn
+                            title="Gerar PIX Asaas"
+                            onClick={() => emitAsaasCharge(a, "PIX")}
+                          >
+                            <Link2 className="h-3.5 w-3.5" />
+                          </IconBtn>
+                        ) : null}
+                        {a.asaasPaymentId ? (
+                          <IconBtn
+                            title="Ver cobrança Asaas"
+                            onClick={() => {
+                              setAsaasTarget(a);
+                              setAsaasOpen(true);
+                            }}
+                          >
+                            <Eye className="h-3.5 w-3.5 text-indigo-600" />
+                          </IconBtn>
+                        ) : null}
                         <IconBtn title="Enviar Cobrança" onClick={() => notify("Enviar Cobrança")}>
                           <MessageSquare className="h-3.5 w-3.5" />
                         </IconBtn>
@@ -856,6 +981,21 @@ export function ContasAReceberPage() {
             ? `${payTarget.patient} — ${payTarget.procedure} (${payTarget.installment}/${payTarget.totalInstallments})`
             : ""
         }
+      />
+      <AsaasChargeModal
+        open={asaasOpen}
+        onClose={() => {
+          setAsaasOpen(false);
+          setAsaasTarget(null);
+        }}
+        title={asaasTarget?.procedure || "Cobrança"}
+        amount={asaasTarget?.amount || 0}
+        billingType={asaasTarget?.asaasBillingType}
+        bankSlipUrl={asaasTarget?.asaasBankSlipUrl}
+        invoiceUrl={asaasTarget?.asaasInvoiceUrl}
+        pixPayload={asaasTarget?.asaasPixPayload}
+        pixQrImage={asaasTarget?.asaasPixQrImage}
+        status={asaasTarget?.asaasStatus}
       />
     </div>
   );

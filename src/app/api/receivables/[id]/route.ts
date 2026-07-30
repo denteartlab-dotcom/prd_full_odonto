@@ -15,6 +15,14 @@ function serialize(row: {
   status: string;
   method: string | null;
   createdAt: Date;
+  asaasPaymentId: string | null;
+  asaasBillingType: string | null;
+  asaasStatus: string | null;
+  asaasBankSlipUrl: string | null;
+  asaasInvoiceUrl: string | null;
+  asaasPixPayload: string | null;
+  asaasPixQrImage: string | null;
+  asaasLinhaDigitavel: string | null;
   patient: { id: string; name: string } | null;
 }) {
   return {
@@ -29,6 +37,14 @@ function serialize(row: {
     status: row.status,
     method: row.method,
     createdAt: row.createdAt.toISOString(),
+    asaasPaymentId: row.asaasPaymentId,
+    asaasBillingType: row.asaasBillingType,
+    asaasStatus: row.asaasStatus,
+    asaasBankSlipUrl: row.asaasBankSlipUrl,
+    asaasInvoiceUrl: row.asaasInvoiceUrl,
+    asaasPixPayload: row.asaasPixPayload,
+    asaasPixQrImage: row.asaasPixQrImage,
+    asaasLinhaDigitavel: row.asaasLinhaDigitavel,
   };
 }
 
@@ -78,7 +94,6 @@ export async function PATCH(req: Request, { params }: Params) {
     include: { patient: true },
   });
 
-  // Lança movimento de caixa ao quitar
   if ((body.markPaid || body.status === "pago") && existing.status !== "pago") {
     await prisma.cashMovement.create({
       data: {

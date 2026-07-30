@@ -168,6 +168,13 @@ export function receivableToInstallment(
     bankAccount: "—",
     status,
     notes: "",
+    asaasPaymentId: r.asaasPaymentId,
+    asaasBillingType: r.asaasBillingType,
+    asaasStatus: r.asaasStatus,
+    asaasBankSlipUrl: r.asaasBankSlipUrl,
+    asaasInvoiceUrl: r.asaasInvoiceUrl,
+    asaasPixPayload: r.asaasPixPayload,
+    asaasPixQrImage: r.asaasPixQrImage,
   };
 }
 

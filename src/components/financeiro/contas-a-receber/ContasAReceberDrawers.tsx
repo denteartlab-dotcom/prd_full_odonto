@@ -64,7 +64,7 @@ export function NewReceiptDrawer({
                 value={form.paymentMethod}
                 onChange={(e) => set("paymentMethod", e.target.value)}
               >
-                {["PIX", "Cartão", "Dinheiro", "Transferência", "Boleto", "Cheque"].map((m) => (
+                {["PIX", "PIX Asaas", "Boleto Asaas", "Cartão", "Dinheiro", "Transferência", "Boleto", "Cheque"].map((m) => (
                   <option key={m}>{m}</option>
                 ))}
               </select>
@@ -125,8 +125,8 @@ export function NewReceiptDrawer({
             <input type="file" className="hidden" accept="image/*,.pdf" />
           </label>
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-            Integrações futuras: PIX, Asaas, Mercado Pago, Stripe e PagSeguro (status, QR Code e
-            linha digitável).
+            Asaas ativo: escolha <strong>PIX Asaas</strong> ou <strong>Boleto Asaas</strong>. O
+            pagamento confirma automaticamente pelo webhook.
           </div>
         </div>
         <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-4">

@@ -109,6 +109,8 @@ model Patient {
   email       String?
   address     String?
   notes       String?
+  /** ID do cliente no Asaas (quando integrado). */
+  asaasCustomerId String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -239,8 +241,34 @@ model Receivable {
   method      String?
   createdAt   DateTime  @default(now())
 
+  /** Cobrança Asaas vinculada (PIX / boleto). */
+  asaasPaymentId      String? @unique
+  asaasBillingType    String?
+  asaasStatus         String?
+  asaasBankSlipUrl    String?
+  asaasInvoiceUrl     String?
+  asaasPixPayload     String?
+  asaasPixQrImage     String? @db.Text
+  asaasLinhaDigitavel String?
+
   clinic  Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
   patient Patient? @relation(fields: [patientId], references: [id])
+
+  @@index([clinicId, status])
+  @@index([asaasPaymentId])
+}
+
+/** Idempotência de webhooks Asaas. */
+model AsaasWebhookEvent {
+  id        String   @id @default(cuid())
+  eventKey  String   @unique
+  event     String
+  paymentId String?
+  payload   String   @db.Text
+  processed Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([paymentId])
 }
 
 model Payable {

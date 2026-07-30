@@ -28,6 +28,13 @@ export type ReceivableInstallment = {
   bankAccount: string;
   status: ReceivableStatus;
   notes: string;
+  asaasPaymentId?: string | null;
+  asaasBillingType?: string | null;
+  asaasStatus?: string | null;
+  asaasBankSlipUrl?: string | null;
+  asaasInvoiceUrl?: string | null;
+  asaasPixPayload?: string | null;
+  asaasPixQrImage?: string | null;
 };
 
 export type ReceivableKpi = {
