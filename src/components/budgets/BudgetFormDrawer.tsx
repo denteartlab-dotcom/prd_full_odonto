@@ -14,6 +14,7 @@ import { InstallmentCalculator } from "./InstallmentCalculator";
 import { PaymentMethodsCard } from "./PaymentMethodsCard";
 import { BudgetProcedureBuilder } from "./BudgetProcedureBuilder";
 import { BUDGET_STATUS_LABELS, budgetStatusBadge, FieldLabel, SelectInput, TextInput } from "./shared";
+import { TreatmentPlanAiAssistant } from "./TreatmentPlanAiAssistant";
 import { BudgetHistoryTimeline, TreatmentTimeline } from "./TreatmentTimeline";
 
 export function BudgetFormDrawer({
@@ -24,6 +25,7 @@ export function BudgetFormDrawer({
   onSave,
   onChange,
   onAddProcedure,
+  onAddProcedures,
   onRemoveProcedure,
   onUpdateProcedure,
   onInstallmentChange,
@@ -38,6 +40,7 @@ export function BudgetFormDrawer({
   onSave: () => void;
   onChange: (patch: Partial<DentalBudget>) => void;
   onAddProcedure: (p: BudgetProcedure) => void;
+  onAddProcedures?: (items: BudgetProcedure[]) => void;
   onRemoveProcedure: (id: string) => void;
   onUpdateProcedure: (id: string, patch: Partial<BudgetProcedure>) => void;
   onInstallmentChange: (
@@ -179,6 +182,18 @@ export function BudgetFormDrawer({
             selected={budget.paymentMethod}
             editable={editable}
             onChange={onPaymentChange}
+          />
+
+          <TreatmentPlanAiAssistant
+            editable={editable}
+            dentist={budget.dentist}
+            onApplyProcedures={(items) => {
+              if (onAddProcedures) {
+                onAddProcedures(items);
+                return;
+              }
+              for (const item of items) onAddProcedure(item);
+            }}
           />
 
           <TreatmentTimeline

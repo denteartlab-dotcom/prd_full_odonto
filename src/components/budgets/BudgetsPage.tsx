@@ -183,6 +183,17 @@ export function BudgetsPage({
     setSaveState("dirty");
   }, []);
 
+  const addDrawerProcedures = useCallback((items: BudgetProcedure[]) => {
+    if (!items.length) return;
+    setDrawerBudget((prev) => {
+      if (!prev) return prev;
+      const procedures = [...prev.procedures, ...items];
+      const treatmentPlan = syncTreatmentPlan(procedures, prev.dentist, prev.treatmentPlan);
+      return recalcBudget({ ...prev, procedures, treatmentPlan });
+    });
+    setSaveState("dirty");
+  }, []);
+
   const removeDrawerProcedure = useCallback((id: string) => {
     setDrawerBudget((prev) => {
       if (!prev) return prev;
@@ -434,6 +445,7 @@ export function BudgetsPage({
         onSave={saveDrawer}
         onChange={updateDrawerBudget}
         onAddProcedure={addDrawerProcedure}
+        onAddProcedures={addDrawerProcedures}
         onRemoveProcedure={removeDrawerProcedure}
         onUpdateProcedure={updateDrawerProcedure}
         onInstallmentChange={handleInstallmentChange}

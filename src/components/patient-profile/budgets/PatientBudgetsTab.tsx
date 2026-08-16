@@ -316,6 +316,17 @@ export function PatientBudgetsTab({
             });
           })
         }
+        onAddProcedures={(items) =>
+          setDrawerBudget((prev) => {
+            if (!prev || !items.length) return prev;
+            const procedures = [...prev.procedures, ...items];
+            return recalcBudget({
+              ...prev,
+              procedures,
+              treatmentPlan: syncTreatmentPlan(procedures, prev.dentist, prev.treatmentPlan),
+            });
+          })
+        }
         onRemoveProcedure={(procId) =>
           setDrawerBudget((prev) => {
             if (!prev) return prev;

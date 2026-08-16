@@ -24,7 +24,8 @@ export function TreatmentTimeline({
     return (
       <SectionCard title="Plano de tratamento">
         <p className="py-4 text-center text-sm text-slate-400">
-          Nenhuma etapa definida. Adicione procedimentos para gerar o plano.
+          Nenhuma etapa definida. Descreva a queixa na IA acima ou adicione
+          procedimentos para gerar o plano.
         </p>
       </SectionCard>
     );
