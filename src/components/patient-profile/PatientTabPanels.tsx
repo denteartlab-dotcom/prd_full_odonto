@@ -20,6 +20,7 @@ import { PatientDocumentsTab } from "./documents";
 import { PatientPrescriptionsTab } from "./prescriptions";
 import { PatientHistoryTab } from "./history";
 import { PatientProntuarioTab } from "./prontuario";
+import { PatientCasePlanTab } from "./PatientCasePlanTab";
 import { ProfileCard, ProfileField, ProfileLinkButton } from "./ProfileCard";
 
 function money(value: number) {
@@ -137,6 +138,31 @@ export function PatientSummaryTab({ patient }: { patient: PatientProfile }) {
         </ul>
       </ProfileCard>
 
+      <ProfileCard
+        title="Planejamento do caso"
+        action={
+          <ProfileLinkButton href={`?tab=planejamento`}>
+            Abrir planejamento
+          </ProfileLinkButton>
+        }
+      >
+        {patient.casePlan?.steps?.length ? (
+          <div className="space-y-2 text-sm">
+            <p className="text-slate-600">
+              {patient.casePlan.complaint || "Queixa registrada no planejamento."}
+            </p>
+            <p className="text-xs text-slate-400">
+              {patient.casePlan.steps.length} etapa(s) no plano
+              {patient.casePlan.summary ? ` · ${patient.casePlan.summary}` : ""}
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm text-slate-400">
+            Ainda sem plano. Use a IA na aba Planejamento para sugerir o tratamento.
+          </p>
+        )}
+      </ProfileCard>
+
       <ProfileCard title="Observações" action={<ProfileLinkButton>Editar observações</ProfileLinkButton>} className="lg:col-span-2 xl:col-span-1">
         <p className="text-sm leading-relaxed text-slate-600">
           {patient.observacoesInternas || "Nenhuma observação registrada."}
@@ -151,11 +177,13 @@ export function PatientTabPanels({
   patient,
   onUpdate,
   userName = "Sistema",
+  onNavigateTab,
 }: {
   tab: PatientProfileTab;
   patient: PatientProfile;
   onUpdate: (patch: Partial<PatientProfile>) => void;
   userName?: string;
+  onNavigateTab?: (tab: PatientProfileTab) => void;
 }) {
   if (tab === "resumo") return <PatientSummaryTab patient={patient} />;
 
@@ -218,6 +246,16 @@ export function PatientTabPanels({
 
   if (tab === "prontuario") {
     return <PatientProntuarioTab patient={patient} userName={userName} />;
+  }
+
+  if (tab === "planejamento") {
+    return (
+      <PatientCasePlanTab
+        patient={patient}
+        onUpdate={onUpdate}
+        onGoToBudgets={() => onNavigateTab?.("orcamentos")}
+      />
+    );
   }
 
   if (tab === "orcamentos") {

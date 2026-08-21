@@ -4,13 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import {
   ChevronDown,
   ChevronRight,
+  ClipboardList,
   FileText,
   MessageCircle,
   Pencil,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { computeAge } from "@/lib/patient-profile-types";
-import type { PatientProfile } from "@/lib/patient-profile-types";
+import type { PatientProfile, PatientProfileTab } from "@/lib/patient-profile-types";
 import { formatDisplayDate } from "@/lib/patients-list-mock";
 import {
   openContractPrint,
@@ -18,19 +19,28 @@ import {
 } from "@/lib/patient-contracts";
 import { PatientEditModal } from "./PatientEditModal";
 
-const ACTION_ITEMS = [
-  "Agendar consulta",
-  "Novo orçamento",
-  "Enviar mensagem",
-  "Gerar cobrança",
-] as const;
+type ActionItem = {
+  id: string;
+  label: string;
+  tab?: PatientProfileTab;
+};
+
+const ACTION_ITEMS: ActionItem[] = [
+  { id: "agendar", label: "Agendar consulta", tab: "consultas" },
+  { id: "planejamento", label: "Planejamento do caso", tab: "planejamento" },
+  { id: "orcamento", label: "Novo orçamento", tab: "orcamentos" },
+  { id: "mensagem", label: "Enviar mensagem", tab: "comunicacoes" },
+  { id: "cobranca", label: "Gerar cobrança", tab: "financeiro" },
+];
 
 export function PatientInfoCard({
   patient,
   onUpdate,
+  onNavigateTab,
 }: {
   patient: PatientProfile;
   onUpdate: (patch: Partial<PatientProfile>) => void;
+  onNavigateTab?: (tab: PatientProfileTab) => void;
 }) {
   const [editOpen, setEditOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
@@ -60,6 +70,19 @@ export function PatientInfoCard({
       document.removeEventListener("keydown", onKey);
     };
   }, [actionsOpen]);
+
+  function handleAction(item: ActionItem) {
+    setActionsOpen(false);
+    setContractsOpen(false);
+    if (item.tab) {
+      onNavigateTab?.(item.tab);
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.set("tab", item.tab);
+        window.history.replaceState({}, "", url.toString());
+      }
+    }
+  }
 
   return (
     <>
@@ -140,6 +163,21 @@ export function PatientInfoCard({
               <Pencil className="h-4 w-4" />
               Editar dados
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                onNavigateTab?.("planejamento");
+                if (typeof window !== "undefined") {
+                  const url = new URL(window.location.href);
+                  url.searchParams.set("tab", "planejamento");
+                  window.history.replaceState({}, "", url.toString());
+                }
+              }}
+              className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 shadow-sm hover:bg-indigo-100"
+            >
+              <ClipboardList className="h-4 w-4" />
+              Planejamento
+            </button>
             <div className="relative" ref={menuRef}>
               <button
                 type="button"
@@ -155,17 +193,18 @@ export function PatientInfoCard({
 
               {actionsOpen ? (
                 <div className="absolute right-0 top-full z-30 mt-1 w-56 rounded-xl border border-slate-200 bg-white py-1 shadow-xl">
-                  {ACTION_ITEMS.map((label) => (
+                  {ACTION_ITEMS.map((item) => (
                     <button
-                      key={label}
+                      key={item.id}
                       type="button"
-                      className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
-                      onClick={() => {
-                        setActionsOpen(false);
-                        setContractsOpen(false);
-                      }}
+                      className={cn(
+                        "block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50",
+                        item.id === "planejamento" &&
+                          "font-semibold text-indigo-700 hover:bg-indigo-50"
+                      )}
+                      onClick={() => handleAction(item)}
                     >
-                      {label}
+                      {item.label}
                     </button>
                   ))}
 

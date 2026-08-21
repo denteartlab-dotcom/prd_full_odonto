@@ -16,6 +16,7 @@ const VALID_TABS = new Set<PatientProfileTab>([
   "anamnese",
   "odontograma",
   "prontuario",
+  "planejamento",
   "orcamentos",
   "financeiro",
   "consultas",
@@ -86,13 +87,18 @@ export function PatientProfilePage({
   return (
     <div className="mx-auto max-w-[1400px] pb-8">
       <PatientProfileHeader patientName={patient.name} userName={userName} role={role} />
-      <PatientInfoCard patient={patient} onUpdate={(patch) => updatePatient(patient.id, patch)} />
+      <PatientInfoCard
+        patient={patient}
+        onUpdate={(patch) => updatePatient(patient.id, patch)}
+        onNavigateTab={setActiveTab}
+      />
       <PatientTabs active={activeTab} onChange={setActiveTab} />
       <PatientTabPanels
         tab={activeTab}
         patient={patient}
         onUpdate={(patch) => updatePatient(patient.id, patch)}
         userName={userName}
+        onNavigateTab={setActiveTab}
       />
     </div>
   );

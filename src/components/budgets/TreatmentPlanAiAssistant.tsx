@@ -36,22 +36,48 @@ export function TreatmentPlanAiAssistant({
   editable,
   dentist,
   onApplyProcedures,
+  onApplySuggestions,
   patientContext,
+  complaint: controlledComplaint,
+  onComplaintChange,
+  applyLabel = "Aplicar ao planejamento",
+  title = "Assistente IA — Plano de tratamento",
 }: {
   editable?: boolean;
   dentist?: string;
-  onApplyProcedures: (procedures: BudgetProcedure[]) => void;
+  onApplyProcedures?: (procedures: BudgetProcedure[]) => void;
+  onApplySuggestions?: (suggestions: TreatmentPlanSuggestion[]) => void;
   patientContext?: {
     age?: string;
     allergies?: string;
     notes?: string;
   };
+  complaint?: string;
+  onComplaintChange?: (value: string) => void;
+  applyLabel?: string;
+  title?: string;
 }) {
-  const [complaint, setComplaint] = useState("");
+  const [internalComplaint, setInternalComplaint] = useState(controlledComplaint ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<TreatmentPlanAiResult | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const complaint =
+    controlledComplaint !== undefined ? controlledComplaint : internalComplaint;
+
+  function setComplaint(value: string) {
+    if (controlledComplaint !== undefined) {
+      onComplaintChange?.(value);
+      return;
+    }
+    setInternalComplaint(value);
+  }
+
+  useEffect(() => {
+    if (controlledComplaint === undefined) return;
+    setInternalComplaint(controlledComplaint);
+  }, [controlledComplaint]);
 
   useEffect(() => {
     if (!result?.suggestions.length) {
@@ -124,25 +150,30 @@ export function TreatmentPlanAiAssistant({
       setError("Selecione ao menos um procedimento para aplicar.");
       return;
     }
-    const procedures = ordered.map((item) => {
-      const catalog: ProcedureCatalogItem = {
-        id: item.id,
-        code: item.code,
-        name: item.name,
-        category: item.category,
-        price: item.price,
-        estimatedMinutes: item.estimatedMinutes,
-        source: "ai",
-      };
-      return catalogToProcedure(catalog);
-    });
-    onApplyProcedures(procedures);
+    if (onApplySuggestions) {
+      onApplySuggestions(ordered);
+    }
+    if (onApplyProcedures) {
+      const procedures = ordered.map((item) => {
+        const catalog: ProcedureCatalogItem = {
+          id: item.id,
+          code: item.code,
+          name: item.name,
+          category: item.category,
+          price: item.price,
+          estimatedMinutes: item.estimatedMinutes,
+          source: "ai",
+        };
+        return catalogToProcedure(catalog);
+      });
+      onApplyProcedures(procedures);
+    }
     setError("");
   }
 
   return (
     <SectionCard
-      title="Assistente IA — Plano de tratamento"
+      title={title}
       action={
         providerLabel ? (
           <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
@@ -294,7 +325,7 @@ export function TreatmentPlanAiAssistant({
             className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-white px-3.5 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
           >
             <Check className="h-4 w-4" />
-            Aplicar {selectedCount} ao orçamento / plano
+            {applyLabel} ({selectedCount})
           </button>
         </div>
       ) : null}

@@ -10,6 +10,7 @@ export type PatientProfileTab =
   | "anamnese"
   | "odontograma"
   | "prontuario"
+  | "planejamento"
   | "orcamentos"
   | "financeiro"
   | "consultas"
@@ -18,6 +19,30 @@ export type PatientProfileTab =
   | "historico"
   | "imagens"
   | "comunicacoes";
+
+export type PatientCasePlanStep = {
+  id: string;
+  order: number;
+  title: string;
+  status: "pendente" | "em_andamento" | "concluido";
+  code?: string;
+  category?: string;
+  unitPrice?: number;
+  estimatedMinutes?: number;
+  reason?: string;
+  priority?: "urgente" | "alta" | "media" | "baixa";
+  plannedDate?: string;
+  professional: string;
+};
+
+export type PatientCasePlan = {
+  complaint: string;
+  summary: string;
+  diagnosisHint: string;
+  notes: string;
+  steps: PatientCasePlanStep[];
+  updatedAt: string;
+};
 
 export type ToothStatus = "higido" | "cariado" | "restaurado" | "extraido" | "tratamento";
 
@@ -119,6 +144,8 @@ export type PatientProfile = ListPatient & {
   documents: PatientDocument[];
   budgets: PatientBudget[];
   dentalBudgets?: DentalBudget[];
+  /** Planejamento clínico do caso (queixa + etapas sugeridas/aprovadas). */
+  casePlan?: PatientCasePlan;
   financial?: PatientFinancialData;
   consultations?: PatientConsultation[];
   receivables: PatientReceivable[];

@@ -187,6 +187,7 @@ export function BudgetFormDrawer({
           <TreatmentPlanAiAssistant
             editable={editable}
             dentist={budget.dentist}
+            applyLabel="Aplicar ao orçamento / plano"
             onApplyProcedures={(items) => {
               if (onAddProcedures) {
                 onAddProcedures(items);
