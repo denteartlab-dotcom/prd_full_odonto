@@ -1,5 +1,6 @@
 import type { ProcedureCatalogItem } from "./budget-types";
 import { extractJsonObject } from "./receituario-assistente";
+import { resolveGroqModels } from "./ai-providers";
 
 export type ProcedureAiSearchResult = {
   items: ProcedureCatalogItem[];
@@ -112,36 +113,45 @@ async function searchWithGroq(query: string): Promise<ProcedureAiSearchResult> {
   if (!apiKey) {
     return { items: [], provider: null, detail: "GROQ_API_KEY ausente." };
   }
-  const model = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
-  const once = await callChatJson({
-    provider: "groq",
-    url: "https://api.groq.com/openai/v1/chat/completions",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: {
-      model,
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: systemPrompt() },
-        {
-          role: "user",
-          content: `Busca de procedimento odontológico: "${query}"`,
-        },
-      ],
-    },
-    pickContent: (data) => {
-      const d = data as { choices?: Array<{ message?: { content?: string } }> };
-      return d.choices?.[0]?.message?.content || "";
-    },
-  });
-  return {
-    items: once.items,
-    provider: once.items.length ? "groq" : null,
-    detail: once.detail || model,
-  };
+
+  const models = resolveGroqModels();
+  let lastDetail = "Groq indisponível.";
+
+  for (const model of models) {
+    const once = await callChatJson({
+      provider: "groq",
+      url: "https://api.groq.com/openai/v1/chat/completions",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: {
+        model,
+        temperature: 0.2,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt() },
+          {
+            role: "user",
+            content: `Busca de procedimento odontológico: "${query}"`,
+          },
+        ],
+      },
+      pickContent: (data) => {
+        const d = data as { choices?: Array<{ message?: { content?: string } }> };
+        return d.choices?.[0]?.message?.content || "";
+      },
+    });
+    if (once.items.length) {
+      return { items: once.items, provider: "groq", detail: model };
+    }
+    lastDetail = once.detail || lastDetail;
+    if (once.detail && /404|model_not_found|does not exist/i.test(once.detail)) {
+      continue;
+    }
+  }
+
+  return { items: [], provider: null, detail: lastDetail };
 }
 
 async function searchWithGemini(query: string): Promise<ProcedureAiSearchResult> {

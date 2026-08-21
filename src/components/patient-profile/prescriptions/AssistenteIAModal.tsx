@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import { AlertTriangle, Check, Loader2, RefreshCw, Sparkles, X } from "lucide-react";
 import type { ReceituarioLine } from "@/lib/receituario-types";
 import type { AssistenteResult } from "@/lib/receituario-assistente";
+import { isTechnicalAiAlert } from "@/lib/ai-providers";
 
 function isProviderBrandingAlert(alert: string) {
-  return /via\s+(groq|gemini|openai|perplexity)|pesquisa na internet|gratuito\)/i.test(alert);
+  return isTechnicalAiAlert(alert);
 }
 
 export function AssistenteIAModal({

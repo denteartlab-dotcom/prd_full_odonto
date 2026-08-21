@@ -12,6 +12,7 @@ import { cn, money } from "@/lib/utils";
 import type { BudgetProcedure, ProcedureCatalogItem } from "@/lib/budget-types";
 import { catalogToProcedure } from "@/lib/budget-mock";
 import type { TreatmentPlanAiResult, TreatmentPlanSuggestion } from "@/lib/treatment-plan-ai";
+import { isTechnicalAiAlert } from "@/lib/ai-providers";
 import { SectionCard } from "./shared";
 
 const PRIORITY_LABEL: Record<TreatmentPlanSuggestion["priority"], string> = {
@@ -29,7 +30,7 @@ const PRIORITY_CLASS: Record<TreatmentPlanSuggestion["priority"], string> = {
 };
 
 function isProviderBrandingAlert(alert: string) {
-  return /via\s+(groq|gemini|openai)|pesquisa na internet|gratuito\)/i.test(alert);
+  return isTechnicalAiAlert(alert);
 }
 
 export function TreatmentPlanAiAssistant({

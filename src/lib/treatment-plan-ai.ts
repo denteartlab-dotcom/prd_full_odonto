@@ -1,5 +1,6 @@
 import type { ProcedureCatalogItem } from "./budget-types";
 import { extractJsonObject } from "./receituario-assistente";
+import { resolveGroqModels } from "./ai-providers";
 
 export type TreatmentPlanSuggestion = ProcedureCatalogItem & {
   order: number;
@@ -182,35 +183,48 @@ async function withGroq(
       attempt: { provider: "groq", ok: false, detail: "GROQ_API_KEY ausente." },
     };
   }
-  const model = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
-  const once = await callChatJson({
-    provider: "groq",
-    url: "https://api.groq.com/openai/v1/chat/completions",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: {
-      model,
-      temperature: 0.25,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: systemPrompt() },
-        { role: "user", content: userMessage(complaint, context) },
-      ],
-    },
-    pickContent: (data) => {
-      const d = data as { choices?: Array<{ message?: { content?: string } }> };
-      return d.choices?.[0]?.message?.content || "";
-    },
-  });
-  return {
-    result: once.result,
-    attempt: {
+
+  const models = resolveGroqModels();
+  let lastDetail = "Groq indisponível.";
+
+  for (const model of models) {
+    const once = await callChatJson({
       provider: "groq",
-      ok: Boolean(once.result),
-      detail: once.result ? model : once.detail,
-    },
+      url: "https://api.groq.com/openai/v1/chat/completions",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: {
+        model,
+        temperature: 0.25,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt() },
+          { role: "user", content: userMessage(complaint, context) },
+        ],
+      },
+      pickContent: (data) => {
+        const d = data as { choices?: Array<{ message?: { content?: string } }> };
+        return d.choices?.[0]?.message?.content || "";
+      },
+    });
+    if (once.result) {
+      return {
+        result: once.result,
+        attempt: { provider: "groq", ok: true, detail: model },
+      };
+    }
+    lastDetail = once.detail || lastDetail;
+    // modelo inválido/desativado: tenta o próximo
+    if (once.detail && /404|model_not_found|does not exist/i.test(once.detail)) {
+      continue;
+    }
+  }
+
+  return {
+    result: null,
+    attempt: { provider: "groq", ok: false, detail: lastDetail },
   };
 }
 
@@ -469,7 +483,7 @@ export function buildLocalTreatmentPlan(complaint: string): TreatmentPlanAiResul
       "Sugestão local baseada em palavras-chave da queixa (sem IA externa). Revise após exame clínico.",
     diagnosisHint: "Hipótese provisória — confirmar com exame e exames de imagem.",
     notes:
-      "Plano gerado por heurística local. Configure GROQ_API_KEY (gratuita) para sugestões mais contextualizadas.",
+      "Plano gerado por heurística local. Revise e ajuste as etapas conforme o exame clínico.",
     alerts: [
       "Sugestão de apoio — não substitui anamnese, exame clínico nem exames complementares.",
     ],
@@ -542,14 +556,17 @@ export async function suggestTreatmentPlanWithAi(
   }
 
   const local = buildLocalTreatmentPlan(q);
-  const failed = attempts.filter((a) => !a.ok && a.detail && !a.detail.includes("ausente"));
   return {
     ...local,
     attempts,
+    notes:
+      local.notes ||
+      "Plano gerado com protocolos locais. A IA externa ficou indisponível no momento.",
     alerts: [
-      ...local.alerts,
-      failed[0]?.detail ||
-        "IA externa indisponível. Usando protocolos locais — revise com cuidado.",
+      ...local.alerts.filter(
+        (a) => !/Configure GROQ_API_KEY|falhou|model_not_found/i.test(a)
+      ),
+      "Sugestão de apoio com protocolos locais — revise após o exame clínico.",
     ],
   };
 }

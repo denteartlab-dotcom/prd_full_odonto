@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { isSession, jsonError, requireApiSession } from "@/lib/api-helpers";
+import { resolveGroqModels } from "@/lib/ai-providers";
 import {
   buildAssistenteSystemPrompt,
   buildLocalAssistenteSuggestion,
@@ -376,57 +377,69 @@ async function callGroq(input: {
     };
   }
 
-  const model = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content:
-            buildAssistenteSystemPrompt() +
-            "\nUse conhecimento clínico odontológico atualizado no Brasil. Seja conservador nas doses. Para dor com secreção/pus, priorize antibiótico adequado + analgesia — não só analgésico.",
-        },
-        { role: "user", content: userPayload(input) },
-      ],
-    }),
-  });
+  const models = resolveGroqModels();
+  let lastDetail = "Groq indisponível.";
 
-  if (!res.ok) {
-    const body = await res.text();
-    const detail =
-      res.status === 429
-        ? "Cota gratuita do Groq esgotada momentaneamente. Aguarde ou tente de novo em alguns minutos."
-        : `Groq falhou (${res.status}): ${body.slice(0, 160)}`;
-    return { result: null, attempt: { provider: "groq", ok: false, detail } };
-  }
+  for (const model of models) {
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0.2,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content:
+              buildAssistenteSystemPrompt() +
+              "\nUse conhecimento clínico odontológico atualizado no Brasil. Seja conservador nas doses. Para dor com secreção/pus, priorize antibiótico adequado + analgesia — não só analgésico.",
+          },
+          { role: "user", content: userPayload(input) },
+        ],
+      }),
+    });
 
-  const data = (await res.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-  const content = data.choices?.[0]?.message?.content || "";
-  const parsedJson = extractJsonObject(content);
-  if (!parsedJson) {
+    if (!res.ok) {
+      const body = await res.text();
+      const detail =
+        res.status === 429
+          ? "Cota gratuita do Groq esgotada momentaneamente. Aguarde ou tente de novo em alguns minutos."
+          : `Groq falhou (${res.status}): ${body.slice(0, 160)}`;
+      lastDetail = detail;
+      if (res.status === 404 || /model_not_found|does not exist/i.test(body)) {
+        continue;
+      }
+      if (res.status === 429) break;
+      continue;
+    }
+
+    const data = (await res.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    const content = data.choices?.[0]?.message?.content || "";
+    const parsedJson = extractJsonObject(content);
+    if (!parsedJson) {
+      lastDetail = "Resposta sem JSON.";
+      continue;
+    }
+    const result = parseOpenAiAssistentePayload(parsedJson, input.prompt, "groq");
     return {
-      result: null,
-      attempt: { provider: "groq", ok: false, detail: "Resposta sem JSON." },
+      result,
+      attempt: {
+        provider: "groq",
+        ok: Boolean(result),
+        detail: result ? model : "JSON sem medicamentos",
+      },
     };
   }
-  const result = parseOpenAiAssistentePayload(parsedJson, input.prompt, "groq");
+
   return {
-    result,
-    attempt: {
-      provider: "groq",
-      ok: Boolean(result),
-      detail: result ? model : "JSON sem medicamentos",
-    },
+    result: null,
+    attempt: { provider: "groq", ok: false, detail: lastDetail },
   };
 }
 
@@ -509,15 +522,13 @@ export async function POST(req: Request) {
       });
     }
 
-    const failed = attempts.filter((a) => !a.ok && a.detail && !a.detail.includes("ausente"));
     const local = buildLocalAssistenteSuggestion(input);
     return NextResponse.json({
       ...local,
       attempts,
       alerts: [
         ...local.alerts,
-        failed[0]?.detail ||
-          "IA externa indisponível. Usando protocolos locais do sistema — revise com cuidado.",
+        "IA externa indisponível no momento. Usando protocolos locais — revise com cuidado.",
       ],
     });
   } catch (err) {
@@ -530,7 +541,7 @@ export async function POST(req: Request) {
         "Falha na IA externa. Sugestão local provisória — revise com cuidado.",
       alerts: [
         ...local.alerts,
-        "Fallback local ativo após erro na IA externa.",
+        "Sugestão local ativa. Revise posologia e interações antes de emitir.",
       ],
     });
   }
