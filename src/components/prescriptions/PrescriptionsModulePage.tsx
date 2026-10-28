@@ -2,16 +2,19 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { FileText, Pill, RefreshCw, Search, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText, Pill, RefreshCw, Search, X } from "lucide-react";
 import type { PrescriptionRecord } from "@/lib/prescription-types";
 import { formatBrasiliaDateTime } from "@/lib/date-range";
 import {
   filterPrescriptions,
   formatPeriodLabel,
   matchPatients,
+  pageNumbers,
+  paginate,
   patientsFromPrescriptions,
   periodBounds,
-  prescriptionLineCount,
+  PRESCRIPTION_PAGE_SIZE,
+  prescriptionPreview,
   resultLabel,
   type PatientOption,
   type PrescriptionPeriod,
@@ -39,6 +42,7 @@ export function PrescriptionsModulePage() {
   const [selected, setSelected] = useState<PatientOption | null>(null);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [page, setPage] = useState(1);
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listId = useId();
@@ -99,17 +103,20 @@ export function PrescriptionsModulePage() {
     setQuery("");
     setOpen(false);
     setActiveIndex(0);
+    setPage(1);
   }
 
   function clearPatient() {
     setSelected(null);
     setQuery("");
     setOpen(false);
+    setPage(1);
     window.setTimeout(() => inputRef.current?.focus(), 0);
   }
 
   function selectPeriod(next: PrescriptionPeriod) {
     setPeriod(next);
+    setPage(1);
     if (next === "personalizado" && (!customFrom || !customTo)) {
       const month = periodBounds("mes", { from: "", to: "" });
       setCustomFrom(month.from ?? "");
@@ -124,7 +131,11 @@ export function PrescriptionsModulePage() {
     setSelected(null);
     setQuery("");
     setOpen(false);
+    setPage(1);
   }
+
+  const paged = paginate(visible, page, PRESCRIPTION_PAGE_SIZE);
+  const numbers = pageNumbers(paged.page, paged.pageCount);
 
   const filtersActive = period !== "todos" || Boolean(selected) || Boolean(query.trim());
   const summary = waitingCustom
@@ -291,7 +302,10 @@ export function PrescriptionsModulePage() {
                 type="date"
                 value={customFrom}
                 max={customTo || undefined}
-                onChange={(e) => setCustomFrom(e.target.value)}
+                onChange={(e) => {
+                  setCustomFrom(e.target.value);
+                  setPage(1);
+                }}
                 className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15"
               />
             </label>
@@ -301,7 +315,10 @@ export function PrescriptionsModulePage() {
                 type="date"
                 value={customTo}
                 min={customFrom || undefined}
-                onChange={(e) => setCustomTo(e.target.value)}
+                onChange={(e) => {
+                  setCustomTo(e.target.value);
+                  setPage(1);
+                }}
                 className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15"
               />
             </label>
@@ -328,7 +345,7 @@ export function PrescriptionsModulePage() {
         {loading ? (
           <div className="space-y-2">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-[4.5rem] animate-pulse rounded-2xl bg-white" />
+              <div key={i} className="h-8 animate-pulse rounded-xl bg-white" />
             ))}
           </div>
         ) : error ? (
@@ -357,11 +374,22 @@ export function PrescriptionsModulePage() {
             }
           />
         ) : (
-          <ul className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            {visible.map((item) => (
-              <PrescriptionRow key={item.id} item={item} />
-            ))}
-          </ul>
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <ul>
+              {paged.items.map((item) => (
+                <PrescriptionRow key={item.id} item={item} />
+              ))}
+            </ul>
+            <PrescriptionPager
+              page={paged.page}
+              pageCount={paged.pageCount}
+              from={paged.from}
+              to={paged.to}
+              total={paged.total}
+              numbers={numbers}
+              onPageChange={setPage}
+            />
+          </div>
         )}
       </div>
     </div>
@@ -369,58 +397,107 @@ export function PrescriptionsModulePage() {
 }
 
 function PrescriptionRow({ item }: { item: PrescriptionRecord }) {
-  const [expanded, setExpanded] = useState(false);
-  const lines = prescriptionLineCount(item.content);
-  const long = lines > 2 || item.content.length > 160;
-  const cro = item.professionalCro?.trim() ?? "";
-  const croLabel = cro && !/^cro\b/i.test(cro) ? `CRO ${cro}` : cro;
-  const dentist = [item.professionalName?.trim(), croLabel].filter(Boolean).join(" · ");
+  const preview = prescriptionPreview(item.content);
 
   return (
     <li className="border-b border-slate-100 last:border-b-0">
-      <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <Link
-              href={`/app/pacientes/${item.patientId}?tab=receitas`}
-              className="font-semibold text-slate-900 hover:text-brand-700"
-            >
-              {item.patientName}
-            </Link>
-            <time className="text-xs text-slate-400" dateTime={item.createdAt}>
-              {formatBrasiliaDateTime(item.createdAt)}
-            </time>
-          </div>
-          <p
-            className={cn(
-              "mt-1 whitespace-pre-wrap text-sm leading-relaxed text-slate-600",
-              !expanded && long && "line-clamp-2"
-            )}
-          >
-            {item.content}
-          </p>
-          {long ? (
-            <button
-              type="button"
-              onClick={() => setExpanded((v) => !v)}
-              className="mt-1 text-xs font-semibold text-brand-700 hover:underline"
-            >
-              {expanded ? "Recolher" : "Ver receita completa"}
-            </button>
-          ) : null}
-          {dentist ? <p className="mt-1 text-xs text-slate-400">{dentist}</p> : null}
-        </div>
+      <div className="flex items-center gap-3 px-3 py-1.5">
+        <Link
+          href={`/app/pacientes/${item.patientId}?tab=receitas`}
+          className="w-36 shrink-0 truncate text-sm font-semibold text-slate-900 hover:text-brand-700 sm:w-52"
+          title={item.patientName}
+        >
+          {item.patientName}
+        </Link>
+        <time
+          className="w-[7.5rem] shrink-0 text-[11px] tabular-nums text-slate-400"
+          dateTime={item.createdAt}
+        >
+          {formatBrasiliaDateTime(item.createdAt)}
+        </time>
+        <p className="min-w-0 flex-1 truncate text-xs text-slate-500" title={preview}>
+          {preview}
+        </p>
         <a
           href={item.pdfUrl || `/api/prescricoes/${item.id}/imprimir`}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex shrink-0 items-center justify-center gap-1.5 self-start rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-brand-200 hover:text-brand-700"
+          className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-600 hover:border-brand-200 hover:text-brand-700"
         >
           <FileText className="h-3.5 w-3.5" />
           PDF
         </a>
       </div>
     </li>
+  );
+}
+
+function PrescriptionPager({
+  page,
+  pageCount,
+  from,
+  to,
+  total,
+  numbers,
+  onPageChange,
+}: {
+  page: number;
+  pageCount: number;
+  from: number;
+  to: number;
+  total: number;
+  numbers: Array<number | "…">;
+  onPageChange: (page: number) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-3 py-2">
+      <p className="text-xs text-slate-500">
+        {from}–{to} de {total}
+        <span className="text-slate-400"> · {PRESCRIPTION_PAGE_SIZE} por página</span>
+      </p>
+      <nav aria-label="Páginas das receitas" className="flex items-center gap-1">
+        <button
+          type="button"
+          disabled={page <= 1}
+          onClick={() => onPageChange(page - 1)}
+          aria-label="Página anterior"
+          className="rounded-lg border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        {numbers.map((item, index) =>
+          item === "…" ? (
+            <span key={`gap-${index}`} className="px-1 text-xs text-slate-400">
+              …
+            </span>
+          ) : (
+            <button
+              key={item}
+              type="button"
+              onClick={() => onPageChange(item)}
+              aria-current={item === page ? "page" : undefined}
+              className={cn(
+                "min-w-8 rounded-lg px-2 py-1 text-xs font-semibold",
+                item === page
+                  ? "bg-brand-600 text-white"
+                  : "border border-slate-200 text-slate-600 hover:bg-slate-50"
+              )}
+            >
+              {item}
+            </button>
+          )
+        )}
+        <button
+          type="button"
+          disabled={page >= pageCount}
+          onClick={() => onPageChange(page + 1)}
+          aria-label="Próxima página"
+          className="rounded-lg border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </nav>
+    </div>
   );
 }
 

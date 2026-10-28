@@ -157,11 +157,41 @@ export function filterPrescriptions<T extends { patientId: string; createdAt: st
   });
 }
 
-export function prescriptionLineCount(content: string) {
-  return content
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean).length;
+export const PRESCRIPTION_PAGE_SIZE = 20;
+
+export function paginate<T>(items: T[], page: number, pageSize = PRESCRIPTION_PAGE_SIZE) {
+  const total = items.length;
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const current = Math.min(Math.max(1, page), pageCount);
+  const start = (current - 1) * pageSize;
+  const slice = items.slice(start, start + pageSize);
+  return {
+    page: current,
+    pageCount,
+    pageSize,
+    total,
+    items: slice,
+    from: total === 0 ? 0 : start + 1,
+    to: start + slice.length,
+  };
+}
+
+/** Números visíveis do paginador, com reticências quando há muitas páginas. */
+export function pageNumbers(page: number, pageCount: number): Array<number | "…"> {
+  if (pageCount <= 1) return [1];
+  const wanted = new Set<number>([1, pageCount, page - 1, page, page + 1]);
+  const sorted = [...wanted].filter((n) => n >= 1 && n <= pageCount).sort((a, b) => a - b);
+  const out: Array<number | "…"> = [];
+  for (const n of sorted) {
+    const prev = out[out.length - 1];
+    if (typeof prev === "number" && n - prev > 1) out.push("…");
+    out.push(n);
+  }
+  return out;
+}
+
+export function prescriptionPreview(content: string) {
+  return content.replace(/\s+/g, " ").trim();
 }
 
 export function resultLabel(count: number, patientName: string | null, rangeLabel: string) {
