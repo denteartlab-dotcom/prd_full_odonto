@@ -372,9 +372,9 @@ function PrescriptionRow({ item }: { item: PrescriptionRecord }) {
   const [expanded, setExpanded] = useState(false);
   const lines = prescriptionLineCount(item.content);
   const long = lines > 2 || item.content.length > 160;
-  const dentist = [item.professionalName, item.professionalCro ? `CRO ${item.professionalCro}` : ""]
-    .filter(Boolean)
-    .join(" · ");
+  const cro = item.professionalCro?.trim() ?? "";
+  const croLabel = cro && !/^cro\b/i.test(cro) ? `CRO ${cro}` : cro;
+  const dentist = [item.professionalName?.trim(), croLabel].filter(Boolean).join(" · ");
 
   return (
     <li className="border-b border-slate-100 last:border-b-0">
